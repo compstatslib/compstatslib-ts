@@ -1,0 +1,22 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive regression</h2>
+
+<p>
+  Click in the plot area to add points. The line, the crosshair, and the
+  statistics update on every click. This is
+  <code>interactive_regression()</code> from the R package.
+</p>
+
+<canvas
+  id="regression-canvas"
+  width="600"
+  height="600"
+  style="border: 1px solid #cccccc; touch-action: none"
+></canvas>
+
+<p>
+  <button type="button" id="regression-done">Done</button>
+  <button type="button" id="regression-reset">Reset</button>
+</p>
+
+<pre id="regression-points">No points yet.</pre>
