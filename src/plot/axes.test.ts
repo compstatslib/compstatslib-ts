@@ -195,3 +195,34 @@ describe("drawAxes", () => {
     expect(ctx.callsTo("moveTo")).toHaveLength(24);
   });
 });
+
+describe("drawAxes without a frame", () => {
+  const scale = createScale({
+    width: 600,
+    height: 400,
+    x: { min: 0, max: 10 },
+    y: { min: 0, max: 10 },
+  });
+
+  test("draws no box", () => {
+    const ctx = new RecordingContext();
+    drawAxes(ctx, scale, { frame: false });
+    expect(ctx.callsTo("rect")).toHaveLength(0);
+  });
+
+  test("still draws the two axis lines and the ticks", () => {
+    const ctx = new RecordingContext();
+    drawAxes(ctx, scale, { frame: false });
+    const { area } = scale;
+    expect(ctx.callsTo("moveTo")[0]?.args).toEqual([area.left, area.top]);
+    expect(ctx.callsTo("lineTo")[0]?.args).toEqual([area.left, area.bottom]);
+    expect(ctx.callsTo("lineTo")[1]?.args).toEqual([area.right, area.bottom]);
+    expect(ctx.callsTo("stroke").length).toBeGreaterThan(0);
+  });
+
+  test("keeps the box by default", () => {
+    const ctx = new RecordingContext();
+    drawAxes(ctx, scale);
+    expect(ctx.callsTo("rect")).toHaveLength(1);
+  });
+});

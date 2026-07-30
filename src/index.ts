@@ -31,6 +31,9 @@ export type {
 } from "./plot/axes";
 export { plotRegr, regrScale } from "./plot/regr";
 export type { PlotRegrOptions } from "./plot/regr";
+export { formatNumber, formatStat } from "./plot/format";
+export { plotTTest, tTestScale } from "./plot/tTest";
+export type { PlotTTestOptions } from "./plot/tTest";
 
 export {
   eventPixel,

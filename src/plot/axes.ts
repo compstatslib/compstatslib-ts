@@ -66,6 +66,14 @@ export interface AxesOptions {
   readonly yLabel?: string;
   /** Ticks to aim for on each axis. The tick rule may give a few more or less. */
   readonly tickCount?: number;
+  /**
+   * Draw the box around the plot area. True by default.
+   *
+   * R's `plot()` draws the box under `frame.plot = TRUE` and drops it under
+   * `frame.plot = FALSE`, keeping the two axis lines either way. The t-test
+   * plot passes `frame = FALSE`, as its R original does.
+   */
+  readonly frame?: boolean;
 }
 
 /** Margins wide enough for two-digit tick labels and an axis title. */
@@ -198,7 +206,14 @@ export function drawAxes(
   ctx.font = AXIS_FONT;
 
   ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
+  if (options.frame ?? true) {
+    ctx.rect(area.left, area.top, area.width, area.height);
+  } else {
+    // Without the box, the two axis lines still carry the ticks.
+    ctx.moveTo(area.left, area.top);
+    ctx.lineTo(area.left, area.bottom);
+    ctx.lineTo(area.right, area.bottom);
+  }
   for (const tick of xTicks) {
     const px = scale.toPixelX(tick);
     ctx.moveTo(px, area.bottom);

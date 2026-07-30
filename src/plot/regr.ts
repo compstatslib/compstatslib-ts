@@ -12,6 +12,7 @@ import { mean } from "../core/arith";
 import { linearRegression } from "../core/regression";
 import type { Point, RegressionFit } from "../core/regression";
 import { createScale, drawAxes } from "./axes";
+import { formatStat } from "./format";
 import type { Extent, Scale } from "./axes";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
@@ -220,18 +221,4 @@ function drawStats(ctx: Context2D, scale: Scale, fit: RegressionFit): void {
     );
   }
   ctx.restore();
-}
-
-/**
- * Round to two decimals for display, and report a missing value as R does.
- *
- * R prints `round(x, 2)`, which drops a trailing zero, so 2.50 reads as "2.5".
- * R rounds half to even and this rounds half away from zero; the two differ
- * only on an exact half at the third decimal.
- */
-function formatStat(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) {
-    return "NA";
-  }
-  return String(Math.round(value * 100) / 100);
 }
