@@ -299,6 +299,78 @@ describe("interactiveTTest", () => {
       }
     }
 
+    /**
+     * A screen with more device pixels than layout pixels needs a bigger
+     * pixel store, or the browser stretches the picture and softens it. The
+     * surface must still report layout pixels, so that everything downstream
+     * keeps working in the units it was written for.
+     */
+    test("matches the pixel store to the density of the screen", () => {
+      const scaled: number[][] = [];
+      const original = HTMLCanvasElement.prototype.getContext;
+      const describedRatio = Object.getOwnPropertyDescriptor(
+        globalThis,
+        "devicePixelRatio",
+      );
+      HTMLCanvasElement.prototype.getContext = (() => {
+        const ctx = new RecordingContext() as RecordingContext & {
+          scale(x: number, y: number): void;
+        };
+        ctx.scale = (x, y) => scaled.push([x, y]);
+        return ctx;
+      }) as unknown as typeof original;
+      Object.defineProperty(globalThis, "devicePixelRatio", {
+        value: 2,
+        configurable: true,
+      });
+
+      try {
+        const container = document.createElement("div");
+        const handle = interactiveTTest(container);
+        const canvas = container.querySelector("canvas") as HTMLCanvasElement;
+
+        // The store is twice the layout size, the style holds the layout size,
+        // and the drawing transform absorbs the difference.
+        expect(canvas.width).toBe(1280);
+        expect(canvas.height).toBe(800);
+        expect(canvas.style.width).toBe("640px");
+        expect(canvas.style.height).toBe("400px");
+        expect(scaled).toEqual([[2, 2]]);
+
+        // Everything drawn afterwards still works in layout pixels.
+        expect(handle.getStats()).toEqual(tTestStats());
+        handle.destroy();
+      } finally {
+        HTMLCanvasElement.prototype.getContext = original;
+        if (describedRatio !== undefined) {
+          Object.defineProperty(globalThis, "devicePixelRatio", describedRatio);
+        }
+      }
+    });
+
+    test("leaves the transform alone on an ordinary screen", () => {
+      const scaled: number[][] = [];
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = (() => {
+        const ctx = new RecordingContext() as RecordingContext & {
+          scale(x: number, y: number): void;
+        };
+        ctx.scale = (x, y) => scaled.push([x, y]);
+        return ctx;
+      }) as unknown as typeof original;
+
+      try {
+        const container = document.createElement("div");
+        const handle = interactiveTTest(container);
+        const canvas = container.querySelector("canvas") as HTMLCanvasElement;
+        expect(canvas.width).toBe(640);
+        expect(scaled).toHaveLength(0);
+        handle.destroy();
+      } finally {
+        HTMLCanvasElement.prototype.getContext = original;
+      }
+    });
+
     test("builds a canvas and the controls inside the element", () => {
       withCanvasContext((container) => {
         const handle = interactiveTTest(container);

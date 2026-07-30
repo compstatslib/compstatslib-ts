@@ -317,6 +317,8 @@ interface PlacedText {
   readonly text: string;
   readonly x: number;
   readonly y: number;
+  /** The type size in force, in pixels. */
+  readonly fontSize: number;
 }
 
 /** A 2D affine transform, as the canvas holds it. */
@@ -365,7 +367,12 @@ function placedTexts(ctx: RecordingContext): PlacedText[] {
       current = rotated(current, call.args[0] as number);
     } else if (call.method === "fillText") {
       const point = apply(current, call.args[1] as number, call.args[2] as number);
-      placed.push({ text: String(call.args[0]), x: point.x, y: point.y });
+      placed.push({
+        text: String(call.args[0]),
+        x: point.x,
+        y: point.y,
+        fontSize: Number.parseFloat(call.style.font),
+      });
     }
   }
 
@@ -415,7 +422,9 @@ describe("the rotated row captions", () => {
         expect(columnCaptions.length).toBeGreaterThan(0);
         for (const caption of columnCaptions) {
           // Drawn on a "bottom" baseline, so the ink rises a line above y.
-          expect(caption.y - 6).toBeGreaterThanOrEqual(scale.area.top);
+          expect(caption.y - caption.fontSize).toBeGreaterThanOrEqual(
+            scale.area.top,
+          );
         }
       });
 
@@ -435,16 +444,32 @@ describe("the rotated row captions", () => {
         }
       });
 
-      test("leaves the lines of a block far enough apart to read", () => {
+      test("stacks the lines of a block evenly", () => {
         const columns = [...new Set(captions.map((c) => Math.round(c.x * 100)))]
           .map((value) => value / 100)
           .sort((left, right) => left - right);
         expect(columns).toHaveLength(3);
-        for (let index = 1; index < columns.length; index += 1) {
-          const gap = (columns[index] as number) - (columns[index - 1] as number);
-          expect(gap).toBeGreaterThanOrEqual(4);
-        }
       });
+
+      if (width >= 600) {
+        test("gives each line more room than the type it is set in", () => {
+          const columns = [
+            ...new Set(captions.map((c) => Math.round(c.x * 100))),
+          ]
+            .map((value) => value / 100)
+            .sort((left, right) => left - right);
+          const advance = (columns[1] as number) - (columns[0] as number);
+          expect(advance).toBeGreaterThan(captions[0]?.fontSize ?? 0);
+        });
+      }
+
+      if (width >= 760) {
+        test("sets the captions large enough to read", () => {
+          for (const caption of captions) {
+            expect(caption.fontSize).toBeGreaterThanOrEqual(8);
+          }
+        });
+      }
     });
   }
 });

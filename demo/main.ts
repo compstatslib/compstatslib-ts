@@ -47,19 +47,38 @@ async function startRegression(): Promise<void> {
     throw new Error("demo: the regression fragment is incomplete.");
   }
 
-  const handle = interactiveRegression(canvas, {
-    onDone: (points) => {
-      output.textContent =
-        points.length === 0
-          ? "No points yet."
-          : points
-              .map(
-                (point) =>
-                  `x = ${point.x.toFixed(2)}, y = ${point.y.toFixed(2)}`,
-              )
-              .join("\n");
+  // The crisp-canvas recipe from src/plot/target.ts: hold the layout size,
+  // grow the pixel store by the screen's density, scale the context once, and
+  // hand over a surface that reports layout pixels.
+  const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+  const width = canvas.width;
+  const height = canvas.height;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("demo: the regression canvas gave no 2D context.");
+  }
+  ctx.scale(ratio, ratio);
+
+  const handle = interactiveRegression(
+    { surface: { ctx, width, height }, element: canvas },
+    {
+      onDone: (points) => {
+        output.textContent =
+          points.length === 0
+            ? "No points yet."
+            : points
+                .map(
+                  (point) =>
+                    `x = ${point.x.toFixed(2)}, y = ${point.y.toFixed(2)}`,
+                )
+                .join("\n");
+      },
     },
-  });
+  );
   running = handle;
 
   container.querySelector("#regression-done")?.addEventListener("click", () => {

@@ -52,7 +52,32 @@ export interface RenderTarget {
  */
 export type PlotTarget = HTMLCanvasElement | RenderTarget;
 
-/** Reduce a plot target to a context and a size. */
+/**
+ * Reduce a plot target to a context and a size.
+ *
+ * A canvas reports the size of its pixel store, which is the size the plot
+ * draws in. On a dense screen those two part company: the store has to hold
+ * more pixels than the layout does, or the browser stretches the image and
+ * softens every edge.
+ *
+ * This function never touches a canvas the caller passed in — the caller owns
+ * it, and resizing it under them would throw away whatever else they drew. So
+ * a caller who wants a crisp picture on such a screen does three things:
+ *
+ * 1. size the store at the layout size times `devicePixelRatio`, and set the
+ *    CSS width and height to the layout size;
+ * 2. call `ctx.scale(ratio, ratio)` once, so drawing carries on in layout
+ *    pixels;
+ * 3. pass `{ ctx, width, height }` with the **layout** size, rather than the
+ *    canvas.
+ *
+ * The third step matters. Handing over the canvas would report the store size
+ * on top of a context that already scales, and the picture would come out at
+ * the square of the ratio. Reporting layout pixels also keeps `eventPixel`
+ * right, since it divides the surface size by the size of the client
+ * rectangle. `resolveControlTarget` in `../interactive/target.ts` does all
+ * three for the canvas it builds itself.
+ */
 export function resolveTarget(target: PlotTarget): RenderTarget {
   if ("ctx" in target) {
     return target;

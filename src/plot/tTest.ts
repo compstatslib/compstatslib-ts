@@ -75,14 +75,22 @@ const MATRIX = {
 /** Room above the matrix for the column captions R puts at `yt + 0.02`. */
 const MATRIX_HEADROOM = 0.045;
 
-/** R's `cex` values, turned into pixel sizes against a 13px base. */
-const CAPTION_FONT_SIZE = 6;
-const TITLE_FONT = "7px sans-serif";
-const VALUE_FONT = "10px sans-serif";
+/**
+ * Type sizes for the error matrix.
+ *
+ * R sets these with `cex` values of 0.45, 0.5, and 0.75, which land near 6, 7,
+ * and 10 pixels on a canvas. That is small enough to be hard to read, and the
+ * matrix is the part of the picture a reader spends the longest on. This is
+ * the deliberate deviation from R's `cex` arithmetic: the panel is sized to be
+ * read.
+ */
+const CAPTION_FONT_SIZE = 9;
+const TITLE_FONT_SIZE = 10;
+const VALUE_FONT_SIZE = 13;
 /** The room one caption line takes in the stack, when there is room for it. */
-const CAPTION_LINE_HEIGHT = 9;
+const CAPTION_LINE_HEIGHT = 12;
 /** However narrow the gap, a caption never shrinks past this. */
-const MIN_CAPTION_FONT_SIZE = 4;
+const MIN_CAPTION_FONT_SIZE = 6;
 
 /**
  * Build the scale that `plotTTest` draws through.
@@ -397,7 +405,7 @@ function drawCell(ctx: Context2D, scale: Scale, cell: Cell): void {
   ctx.fillStyle = TEXT_COLOR;
   ctx.textAlign = "center";
 
-  ctx.font = TITLE_FONT;
+  ctx.font = `${TITLE_FONT_SIZE}px sans-serif`;
   ctx.textBaseline = "top";
   // R: the title sits just inside the top edge, at `yt - 0.015`.
   ctx.fillText(
@@ -406,7 +414,7 @@ function drawCell(ctx: Context2D, scale: Scale, cell: Cell): void {
     scale.toPixelY(cell.top - 0.015),
   );
 
-  ctx.font = VALUE_FONT;
+  ctx.font = `${VALUE_FONT_SIZE}px sans-serif`;
   ctx.textBaseline = "middle";
   ctx.fillText(cell.value, scale.toPixelX(centreX), scale.toPixelY(centreY));
 
@@ -472,9 +480,16 @@ interface CaptionLayout {
  * centred in the gap between the edge of the plot and the edge of the cells,
  * which is where R's clipped version ends up looking like it sits anyway.
  *
+ * The gap is a fixed share of the width, half a unit of the twelve the picture
+ * spans, so a wider surface carries larger type. At 900 pixels and above the
+ * captions reach their full size and the lines sit a clear step apart.
+ *
  * A narrow surface leaves a narrow gap. The lines then close up and the type
- * shrinks to match, so the block still reads and still stays inside the
- * picture, rather than spilling over the axis.
+ * shrinks to match, so the block still stays inside the picture rather than
+ * spilling over the axis. Below about 580 pixels the type reaches its floor
+ * while the lines keep closing, and the block starts to crowd itself; staying
+ * inside the picture matters more than staying loose, and a panel this size is
+ * past the point of reading comfortably in any case.
  */
 function fitCaption(gap: number, lineCount: number): CaptionLayout {
   const advance = Math.min(CAPTION_LINE_HEIGHT, gap / lineCount);

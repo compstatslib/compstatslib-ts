@@ -147,14 +147,23 @@ export function resolveControlTarget(target: ControlTarget): ResolvedPanel {
   controls.style.padding = "4px 6px";
   controls.style.overflowY = "auto";
 
-  const canvas = owner.createElement("canvas");
-  canvas.width =
+  const width =
     target.clientWidth > CONTROL_COLUMN_WIDTH
       ? target.clientWidth - CONTROL_COLUMN_WIDTH
       : FALLBACK_WIDTH;
-  canvas.height =
+  const height =
     target.clientHeight > 0 ? target.clientHeight : FALLBACK_HEIGHT;
-  canvas.style.flex = "1";
+  const ratio = pixelRatio();
+
+  // The store holds one pixel per device pixel; the style keeps the element
+  // the size the layout asked for. Without this the browser stretches a
+  // smaller image over a denser screen and every edge, letters worst of all,
+  // comes out soft.
+  const canvas = owner.createElement("canvas");
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
   canvas.style.minWidth = "0";
 
   target.style.display = "flex";
@@ -166,11 +175,32 @@ export function resolveControlTarget(target: ControlTarget): ResolvedPanel {
     canvas.remove();
   };
 
-  try {
-    return { surface: resolveTarget(canvas), controls, release: remove };
-  } catch (error) {
+  const context = canvas.getContext("2d");
+  if (context === null) {
     // Leave the container as it was found rather than half filled.
     remove();
-    throw error;
+    throw new Error(
+      "interactive target: the canvas gave no 2D context. In tests, pass " +
+        "{ surface: { ctx, width, height }, controls } instead of a container.",
+    );
   }
+
+  // Scale once, here, so that everything drawn afterwards keeps working in
+  // layout pixels and knows nothing about the density of the screen.
+  if (ratio !== 1) {
+    context.scale(ratio, ratio);
+  }
+
+  return { surface: { ctx: context, width, height }, controls, release: remove };
+}
+
+/**
+ * How many device pixels the screen puts in a layout pixel.
+ *
+ * Anything other than a positive number, which is what a test environment
+ * without a screen reports, counts as one.
+ */
+function pixelRatio(): number {
+  const ratio = globalThis.devicePixelRatio;
+  return typeof ratio === "number" && ratio > 0 ? ratio : 1;
 }
