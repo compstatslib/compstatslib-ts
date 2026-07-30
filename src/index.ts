@@ -38,6 +38,8 @@ export type {
   Scale,
   ScaleOptions,
 } from "./plot/axes";
+export { logitScale, plotLogit } from "./plot/logit";
+export type { LegendLocation, PlotLogitOptions } from "./plot/logit";
 export { plotRegr, regrScale } from "./plot/regr";
 export type { PlotRegrOptions } from "./plot/regr";
 export { formatNumber, formatStat } from "./plot/format";
