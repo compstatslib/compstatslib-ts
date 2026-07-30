@@ -1,6 +1,22 @@
 export { machinePrecision } from "./core/precision";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
+export { dt, pt, qt } from "./core/tdist";
+export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest";
+export type {
+  FillRange,
+  TTestErrorMatrix,
+  TTestOptions,
+  TTestStats,
+} from "./core/ttest";
+export {
+  incompleteBeta,
+  incompleteBetaSplit,
+  inverseIncompleteBeta,
+  logBeta,
+  logGamma,
+  normalCdf,
+} from "./core/special";
 
 export { resolveTarget } from "./plot/target";
 export type { Context2D, PlotTarget, RenderTarget } from "./plot/target";
