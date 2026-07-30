@@ -305,3 +305,146 @@ describe("cell values across every alpha the slider offers", () => {
     });
   }
 });
+
+/**
+ * Where a text draw actually lands on the surface.
+ *
+ * The recording context stores the coordinates a call was given, not the
+ * transform in force, so a rotated caption records as x = 0. Replaying the
+ * transform calls recovers the real position.
+ */
+interface PlacedText {
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** A 2D affine transform, as the canvas holds it. */
+type Matrix = readonly [number, number, number, number, number, number];
+
+const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
+
+function translated(m: Matrix, tx: number, ty: number): Matrix {
+  const [a, b, c, d, e, f] = m;
+  return [a, b, c, d, a * tx + c * ty + e, b * tx + d * ty + f];
+}
+
+function rotated(m: Matrix, angle: number): Matrix {
+  const [a, b, c, d, e, f] = m;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return [
+    a * cos + c * sin,
+    b * cos + d * sin,
+    -a * sin + c * cos,
+    -b * sin + d * cos,
+    e,
+    f,
+  ];
+}
+
+function apply(m: Matrix, x: number, y: number): { x: number; y: number } {
+  const [a, b, c, d, e, f] = m;
+  return { x: a * x + c * y + e, y: b * x + d * y + f };
+}
+
+/** Replay the recorded calls and report where each text really landed. */
+function placedTexts(ctx: RecordingContext): PlacedText[] {
+  let current: Matrix = IDENTITY;
+  const stack: Matrix[] = [];
+  const placed: PlacedText[] = [];
+
+  for (const call of ctx.calls) {
+    if (call.method === "save") {
+      stack.push(current);
+    } else if (call.method === "restore") {
+      current = stack.pop() ?? IDENTITY;
+    } else if (call.method === "translate") {
+      current = translated(current, call.args[0] as number, call.args[1] as number);
+    } else if (call.method === "rotate") {
+      current = rotated(current, call.args[0] as number);
+    } else if (call.method === "fillText") {
+      const point = apply(current, call.args[1] as number, call.args[2] as number);
+      placed.push({ text: String(call.args[0]), x: point.x, y: point.y });
+    }
+  }
+
+  return placed;
+}
+
+/**
+ * The rotated captions beside the two rows of the error matrix.
+ *
+ * R anchors these at `xl - 0.45` and lets base graphics clip whatever falls
+ * outside the plot region. Canvas does not clip text, so the same anchor puts
+ * two of the three lines of each block left of the axis, on top of the tick
+ * numbers. The port fits the block into the gap instead.
+ */
+describe("the rotated row captions", () => {
+  const ROW_CAPTION_LINES = new Set([
+    "If evidence says",
+    "REJECT",
+    "CANNOT REJECT",
+    "null hypothesis",
+  ]);
+
+  const COLUMN_CAPTION_LINES = new Set([
+    "If null is",
+    "really TRUE",
+    "really FALSE",
+  ]);
+
+  for (const [width, height] of [
+    [760, 480],
+    [600, 400],
+    [400, 300],
+  ] as const) {
+    describe(`at ${width} by ${height}`, () => {
+      const ctx = new RecordingContext();
+      plotTTest({ ctx, width, height }, { errorMatrix: true });
+      const scale = tTestScale(width, height, { errorMatrix: true });
+      const placed = placedTexts(ctx);
+      const captions = placed.filter((entry) =>
+        ROW_CAPTION_LINES.has(entry.text),
+      );
+
+      test("keeps the column captions below the top of the plot", () => {
+        const columnCaptions = placed.filter((entry) =>
+          COLUMN_CAPTION_LINES.has(entry.text),
+        );
+        expect(columnCaptions.length).toBeGreaterThan(0);
+        for (const caption of columnCaptions) {
+          // Drawn on a "bottom" baseline, so the ink rises a line above y.
+          expect(caption.y - 6).toBeGreaterThanOrEqual(scale.area.top);
+        }
+      });
+
+      test("draws both blocks of three lines", () => {
+        expect(captions).toHaveLength(6);
+      });
+
+      test("keeps every line inside the plot area", () => {
+        for (const caption of captions) {
+          expect(caption.x).toBeGreaterThanOrEqual(scale.area.left);
+        }
+      });
+
+      test("keeps every line clear of the cells", () => {
+        for (const caption of captions) {
+          expect(caption.x).toBeLessThanOrEqual(scale.toPixelX(-5.5));
+        }
+      });
+
+      test("leaves the lines of a block far enough apart to read", () => {
+        const columns = [...new Set(captions.map((c) => Math.round(c.x * 100)))]
+          .map((value) => value / 100)
+          .sort((left, right) => left - right);
+        expect(columns).toHaveLength(3);
+        for (let index = 1; index < columns.length; index += 1) {
+          const gap = (columns[index] as number) - (columns[index - 1] as number);
+          expect(gap).toBeGreaterThanOrEqual(4);
+        }
+      });
+    });
+  }
+});

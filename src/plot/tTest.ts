@@ -76,10 +76,13 @@ const MATRIX = {
 const MATRIX_HEADROOM = 0.045;
 
 /** R's `cex` values, turned into pixel sizes against a 13px base. */
-const CAPTION_FONT = "6px sans-serif";
+const CAPTION_FONT_SIZE = 6;
 const TITLE_FONT = "7px sans-serif";
 const VALUE_FONT = "10px sans-serif";
-const CAPTION_LINE_HEIGHT = 7;
+/** The room one caption line takes in the stack, when there is room for it. */
+const CAPTION_LINE_HEIGHT = 9;
+/** However narrow the gap, a caption never shrinks past this. */
+const MIN_CAPTION_FONT_SIZE = 4;
 
 /**
  * Build the scale that `plotTTest` draws through.
@@ -407,27 +410,79 @@ function drawCell(ctx: Context2D, scale: Scale, cell: Cell): void {
   ctx.textBaseline = "middle";
   ctx.fillText(cell.value, scale.toPixelX(centreX), scale.toPixelY(centreY));
 
-  ctx.font = CAPTION_FONT;
+  ctx.font = `${CAPTION_FONT_SIZE}px sans-serif`;
   if (cell.columnCaption !== undefined) {
-    // R: the column caption sits above the top edge, at `yt + 0.02`.
+    // R: the column caption sits above the top edge, at `yt + 0.02`. The block
+    // stacks upward, so its last line lands on that anchor. On a short surface
+    // that anchor would carry the stack off the top of the plot, so it gives
+    // way, for the same reason the row captions do: canvas clips no text.
     ctx.textBaseline = "bottom";
+    const blockHeight =
+      (cell.columnCaption.length - 1) * CAPTION_LINE_HEIGHT;
+    const anchor = Math.max(
+      scale.toPixelY(cell.top + 0.02),
+      scale.area.top + blockHeight + CAPTION_FONT_SIZE,
+    );
     drawLines(
       ctx,
       cell.columnCaption,
       scale.toPixelX(centreX),
-      scale.toPixelY(cell.top + 0.02),
+      anchor - blockHeight,
+      CAPTION_LINE_HEIGHT,
     );
   }
 
   if (cell.rowCaption !== undefined) {
-    // R: the row caption sits left of the box at `xl - 0.45`, turned 90°.
+    const gapLeft = scale.toPixelX(WORLD_X.min);
+    const layout = fitCaption(
+      scale.toPixelX(cell.left) - gapLeft,
+      cell.rowCaption.length,
+    );
+
     ctx.save();
-    ctx.translate(scale.toPixelX(cell.left - 0.45), scale.toPixelY(centreY));
+    ctx.font = `${layout.fontSize}px sans-serif`;
+    // Turned a quarter turn, the stack runs left to right across the gap, so
+    // the offset between lines becomes a horizontal step on the surface.
+    ctx.translate(gapLeft + layout.start, scale.toPixelY(centreY));
     ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    drawLines(ctx, cell.rowCaption, 0, 0);
+    drawLines(ctx, cell.rowCaption, 0, 0, layout.advance);
     ctx.restore();
   }
+}
+
+/** How a stack of caption lines is laid out across the gap it has to fit. */
+interface CaptionLayout {
+  /** The step from one line to the next. */
+  readonly advance: number;
+  /** The type size that step leaves room for. */
+  readonly fontSize: number;
+  /** Where the first line sits, measured from the start of the gap. */
+  readonly start: number;
+}
+
+/**
+ * Fit a stack of caption lines into the space beside the cells.
+ *
+ * R anchors the turned row captions at `xl - 0.45` and leaves the rest to base
+ * graphics, which clips whatever crosses the edge of the plot region. Canvas
+ * clips no text, so the same anchor puts two of each block's three lines out
+ * over the axis numbers. This is the deliberate deviation: the block is
+ * centred in the gap between the edge of the plot and the edge of the cells,
+ * which is where R's clipped version ends up looking like it sits anyway.
+ *
+ * A narrow surface leaves a narrow gap. The lines then close up and the type
+ * shrinks to match, so the block still reads and still stays inside the
+ * picture, rather than spilling over the axis.
+ */
+function fitCaption(gap: number, lineCount: number): CaptionLayout {
+  const advance = Math.min(CAPTION_LINE_HEIGHT, gap / lineCount);
+  const fontSize = Math.max(
+    MIN_CAPTION_FONT_SIZE,
+    Math.min(CAPTION_FONT_SIZE, advance - 1),
+  );
+  return { advance, fontSize, start: (gap - (lineCount - 1) * advance) / 2 };
 }
 
 /** Draw a caption that R writes with newlines in it. */
@@ -436,10 +491,10 @@ function drawLines(
   lines: readonly string[],
   x: number,
   y: number,
+  advance: number,
 ): void {
-  const first = y - (lines.length - 1) * CAPTION_LINE_HEIGHT;
   for (const [index, line] of lines.entries()) {
-    ctx.fillText(line, x, first + index * CAPTION_LINE_HEIGHT);
+    ctx.fillText(line, x, y + index * advance);
   }
 }
 
