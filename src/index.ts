@@ -1,6 +1,15 @@
 export { machinePrecision } from "./core/precision";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
+export {
+  DEFAULT_LOGIT_EPSILON,
+  DEFAULT_LOGIT_MAX_ITERATIONS,
+  logisticRegression,
+  predictLogit,
+} from "./core/logit";
+export type { LogitFit, LogitOptions } from "./core/logit";
+export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols";
+export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols";
 export { dt, pt, qt } from "./core/tdist";
 export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest";
 export type {
