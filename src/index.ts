@@ -65,6 +65,11 @@ export type {
   InteractiveTTestOptions,
   TTestValues,
 } from "./interactive/tTest";
+export { interactiveLogit } from "./interactive/logit";
+export type {
+  InteractiveLogitHandle,
+  InteractiveLogitOptions,
+} from "./interactive/logit";
 export { interactiveRegression } from "./interactive/regression";
 export type {
   InteractiveRegressionHandle,
