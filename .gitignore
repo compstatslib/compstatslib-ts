@@ -1,0 +1,17 @@
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# AI tooling
+CLAUDE.local.md
+.claude/*
+!.claude/CLAUDE.md
+!.claude/settings.json
+!.claude/skills/
+
+# Cross-machine sync manifests (e.g. Sideways)
+.swcopy
+.swsymlink
