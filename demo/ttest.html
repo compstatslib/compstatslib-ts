@@ -1,0 +1,20 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive t test</h2>
+
+<p>
+  Move the sliders to change the test. The null curve is red, the alternative
+  curve is blue, and the shaded areas show alpha and power. The Error Matrix
+  box adds the four possible outcomes. This is
+  <code>interactive_t_test()</code> from the R package.
+</p>
+
+<div
+  id="ttest-container"
+  style="width: 760px; height: 480px; border: 1px solid #cccccc"
+></div>
+
+<p>
+  <button type="button" id="ttest-done">Done</button>
+</p>
+
+<pre id="ttest-values">No values yet.</pre>

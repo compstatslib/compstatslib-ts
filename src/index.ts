@@ -37,13 +37,23 @@ export type { PlotTTestOptions } from "./plot/tTest";
 
 export {
   eventPixel,
+  resolveControlTarget,
   resolveInteractiveTarget,
 } from "./interactive/target";
 export type {
   ClickSource,
+  ControlTarget,
   InteractiveTarget,
+  PanelTarget,
+  ResolvedPanel,
   SplitTarget,
 } from "./interactive/target";
+export { interactiveTTest } from "./interactive/tTest";
+export type {
+  InteractiveTTestHandle,
+  InteractiveTTestOptions,
+  TTestValues,
+} from "./interactive/tTest";
 export { interactiveRegression } from "./interactive/regression";
 export type {
   InteractiveRegressionHandle,
