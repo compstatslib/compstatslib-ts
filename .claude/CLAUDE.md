@@ -203,6 +203,11 @@ Bun specifics that matter here:
 - **Strict TypeScript.** `strict: true`; no `any` in public signatures.
 - **`core/` stays pure** — no DOM access, no I/O, no randomness that isn't
   passed in. This is what keeps the statistics testable and reusable.
+- **Map/`sum()`-style iteration in `core/`** — prefer `map` with the shared
+  `sum`/`zipWith` helpers in `src/core/arith.ts` over index-based `for` loops.
+  Index loops force `as number` casts under strict index checking and read
+  further from the math (`sum(devX.map((d) => d * d))` is visibly Σ(x−x̄)²).
+  Use an index loop only with a stated reason.
 - **Test the math, snapshot the rest.** Numerical results get exact assertions
   against R-verified values. Rendering gets light structural checks; do not
   chase pixel-perfect parity with base R.
