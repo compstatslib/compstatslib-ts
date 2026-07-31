@@ -75,6 +75,7 @@ export type {
   Scale,
   ScaleOptions,
 } from "./plot/axes";
+export { matrixInverseScale, plotMatrixInverse } from "./plot/matrixInverse";
 export { logitScale, plotLogit } from "./plot/logit";
 export type { LegendLocation, PlotLogitOptions } from "./plot/logit";
 export { plotSampleCi, sampleCiScale } from "./plot/sampleCi";
