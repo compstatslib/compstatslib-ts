@@ -1,0 +1,26 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive 3D scatterplot</h2>
+
+<p>
+  Pick the columns for each axis, then drag the plot to rotate it and scroll
+  to zoom. The data is the bundled <code>moderation_data</code> (200 rows).
+  Map the noise column <code>w</code> to Color for a continuous color scale.
+  Done prints the options that reproduce the view, camera included. This is
+  <code>interactive_scatter3d()</code> from the R package.
+</p>
+
+<div
+  id="scatter3d-container"
+  style="
+    width: 960px;
+    max-width: 100%;
+    height: 640px;
+    border: 1px solid #cccccc;
+  "
+></div>
+
+<p>
+  <button type="button" id="scatter3d-done">Done</button>
+</p>
+
+<pre id="scatter3d-values">No values yet.</pre>
