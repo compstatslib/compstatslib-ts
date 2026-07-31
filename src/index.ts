@@ -25,6 +25,8 @@ export type {
 } from "./core/sampling";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
+export { principalComponents } from "./core/pca";
+export type { Loadings, PcaResult } from "./core/pca";
 export {
   DEFAULT_LOGIT_EPSILON,
   DEFAULT_LOGIT_MAX_ITERATIONS,
@@ -58,6 +60,8 @@ export {
   normalCdf,
 } from "./core/special";
 
+export { pcaDegenerate } from "./data/pcaDegenerate";
+
 export { resolveTarget } from "./plot/target";
 export type { Context2D, PlotTarget, RenderTarget } from "./plot/target";
 export { DEFAULT_MARGINS, createScale, drawAxes, prettyTicks } from "./plot/axes";
@@ -80,6 +84,8 @@ export type {
   SamplingPanel,
   SamplingState,
 } from "./plot/sampling";
+export { pcaScale, plotPca } from "./plot/pca";
+export type { PlotPcaOptions } from "./plot/pca";
 export { plotRegr, regrScale } from "./plot/regr";
 export type { PlotRegrOptions } from "./plot/regr";
 export { formatNumber, formatStat } from "./plot/format";
@@ -116,6 +122,12 @@ export type {
   InteractiveLogitHandle,
   InteractiveLogitOptions,
 } from "./interactive/logit";
+export { interactivePca } from "./interactive/pca";
+export type {
+  InteractivePcaHandle,
+  InteractivePcaOptions,
+  InteractivePcaResult,
+} from "./interactive/pca";
 export { interactiveRegression } from "./interactive/regression";
 export type {
   InteractiveRegressionHandle,

@@ -8,19 +8,23 @@
 
 import {
   interactiveLogit,
+  interactivePca,
   interactiveRegression,
   interactiveSampling,
   interactiveTTest,
   machinePrecision,
+  pcaDegenerate,
   plotSampleCi,
   rnorm,
   seededRng,
 } from "../src/index";
 import type {
   InteractiveLogitHandle,
+  InteractivePcaHandle,
   InteractiveRegressionHandle,
   InteractiveSamplingHandle,
   InteractiveTTestHandle,
+  Point,
 } from "../src/index";
 
 const precision = document.querySelector("#precision");
@@ -33,6 +37,7 @@ const demo = document.querySelector("#demo");
 /** The demo that is running now. The page stops it before it starts another. */
 let running:
   | InteractiveLogitHandle
+  | InteractivePcaHandle
   | InteractiveRegressionHandle
   | InteractiveSamplingHandle
   | InteractiveTTestHandle
@@ -43,6 +48,14 @@ async function loadFragment(name: string): Promise<Element> {
   running?.destroy();
   running = null;
   const response = await fetch(`/${name}.html`);
+  if (!response.ok) {
+    // The route table is fixed when the server starts, so a fragment added
+    // since then 404s here even though this script already knows about it.
+    throw new Error(
+      `demo: /${name}.html answered ${response.status}. ` +
+        "If the fragment is new, restart the dev server.",
+    );
+  }
   if (demo === null) {
     throw new Error("demo: the page has no #demo element.");
   }
@@ -224,6 +237,88 @@ async function startSampling(): Promise<void> {
   });
 }
 
+/** Start the interactive PCA in the loaded fragment. */
+async function startPca(): Promise<void> {
+  const container = await loadFragment("pca");
+  const canvas = container.querySelector("canvas");
+  const output = container.querySelector("#pca-fit");
+  const meancenter = container.querySelector("#pca-meancenter");
+  if (
+    !(canvas instanceof HTMLCanvasElement) ||
+    output === null ||
+    !(meancenter instanceof HTMLInputElement)
+  ) {
+    throw new Error("demo: the PCA fragment is incomplete.");
+  }
+
+  // The crisp-canvas recipe from src/plot/target.ts, as in the regression
+  // demo. It matters more here: the asp = 1 window widens with the surface,
+  // so a wrong size shifts every click to a plausible but wrong coordinate
+  // instead of breaking the picture visibly.
+  const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+  const width = canvas.width;
+  const height = canvas.height;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("demo: the PCA canvas gave no 2D context.");
+  }
+  ctx.scale(ratio, ratio);
+
+  // The component takes points only at construction, so loading the bundled
+  // dataset or flipping mean-centering restarts it — which also exercises
+  // destroy() in a real browser, something no other demo does.
+  const begin = (initialPoints: readonly Point[]): InteractivePcaHandle =>
+    interactivePca(
+      { surface: { ctx, width, height }, element: canvas },
+      {
+        initialPoints,
+        meancenter: meancenter.checked,
+        onDone: ({ points, fit }) => {
+          if (fit === null) {
+            output.textContent = `points = ${points.length}\nAdd a third point to see the components.`;
+            return;
+          }
+          const loading = (pc: readonly [number, number]): string =>
+            `(${pc[0].toFixed(4)}, ${pc[1].toFixed(4)})`;
+          output.textContent = [
+            `points = ${points.length}`,
+            `sdev   = ${fit.sdev[0].toFixed(4)}, ${fit.sdev[1].toFixed(4)}`,
+            `PC1    = ${loading(fit.rotation[0])}`,
+            `PC2    = ${loading(fit.rotation[1])}`,
+            `center = ${loading([fit.center.x, fit.center.y])}`,
+          ].join("\n");
+        },
+      },
+    );
+
+  let handle = begin([]);
+  running = handle;
+
+  const restart = (points: readonly Point[]): void => {
+    handle.destroy();
+    handle = begin(points);
+    running = handle;
+  };
+
+  container.querySelector("#pca-done")?.addEventListener("click", () => {
+    handle.done();
+  });
+  container.querySelector("#pca-reset")?.addEventListener("click", () => {
+    handle.reset();
+    output.textContent = "No points yet.";
+  });
+  container.querySelector("#pca-load")?.addEventListener("click", () => {
+    restart(pcaDegenerate);
+  });
+  meancenter.addEventListener("change", () => {
+    restart(handle.getPoints());
+  });
+}
+
 /** Start the sample-CI demonstration in the loaded fragment. */
 async function startSampleCi(): Promise<void> {
   const container = await loadFragment("sampleci");
@@ -281,6 +376,8 @@ for (const button of document.querySelectorAll("[data-demo]")) {
       void startSampling();
     } else if (name === "sampleci") {
       void startSampleCi();
+    } else if (name === "pca") {
+      void startPca();
     }
   });
 }

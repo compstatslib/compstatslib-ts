@@ -28,6 +28,10 @@ const server = Bun.serve({
       Bun.file(new URL("./sampleci.html", import.meta.url)),
       { headers: { "content-type": "text/html; charset=utf-8" } },
     ),
+    "/pca.html": new Response(
+      Bun.file(new URL("./pca.html", import.meta.url)),
+      { headers: { "content-type": "text/html; charset=utf-8" } },
+    ),
   },
 });
 
