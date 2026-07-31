@@ -108,6 +108,14 @@ export type {
   ResolvedPanel,
   SplitTarget,
 } from "./interactive/target";
+export {
+  DEFAULT_MATRIX_INVERSE_VALUES,
+  interactiveMatrixInverse,
+} from "./interactive/matrixInverse";
+export type {
+  InteractiveMatrixInverseHandle,
+  InteractiveMatrixInverseOptions,
+} from "./interactive/matrixInverse";
 export { interactiveSampling } from "./interactive/sampling";
 export type {
   InteractiveSamplingHandle,
