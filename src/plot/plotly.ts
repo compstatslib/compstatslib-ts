@@ -149,6 +149,16 @@ export interface PlotlyRelayoutEvent {
 }
 
 /**
+ * A change pushed at a plot that is already drawn.
+ *
+ * Plotly's `relayout` takes the layout attribute by its path, so the camera
+ * arrives under the same `scene.camera` key it is reported under.
+ */
+export interface PlotlyRelayoutUpdate {
+  readonly "scene.camera"?: PlotlyCamera;
+}
+
+/**
  * The element Plotly hands back after it has drawn.
  *
  * Plotly adds an event emitter to that element, which is the only way to learn
@@ -166,8 +176,16 @@ export interface PlotlyHTMLElement extends HTMLElement {
  * The part of Plotly this library calls.
  *
  * `react` both draws and updates: on an empty element it builds the plot, and
- * on one that already holds a plot it changes only what differs. The
- * interactive layer therefore needs no separate update call.
+ * on one that already holds a plot it changes only what differs.
+ *
+ * `relayout` exists for one case that `react` cannot serve. The layouts of
+ * this port carry a constant `uirevision`, which is what keeps a user's own
+ * rotation across a redraw; Plotly honours that literally, so once the user
+ * has dragged the plot, a `react` carrying a different `scene.camera` is
+ * ignored. The rotation sliders of the moderation surface would then move
+ * nothing. `relayout` is an instruction rather than a preference, so it moves
+ * the camera whatever the user did before, and it is called only when a
+ * slider asks for a view the plot is not already at.
  */
 export interface PlotlyLike {
   react(
@@ -175,6 +193,11 @@ export interface PlotlyLike {
     data: readonly PlotlyTrace[],
     layout: PlotlyLayout,
     config?: PlotlyConfig,
+  ): Promise<PlotlyHTMLElement>;
+  /** Change one part of the layout of a plot that is already drawn. */
+  relayout(
+    element: HTMLElement,
+    update: PlotlyRelayoutUpdate,
   ): Promise<PlotlyHTMLElement>;
   /** Remove the plot, and everything it attached to the element. */
   purge(element: HTMLElement): void;

@@ -68,6 +68,29 @@ export function numericColumns(data: DataFrame): string[] {
 }
 
 /**
+ * Refuse a frame that cannot fill three numeric axes.
+ *
+ * This is R's `scatter3d_require_3_numeric()`, which both the plot and the
+ * gadget call with their own name, so that the message says which function
+ * the caller reached.
+ *
+ * @param numeric The numeric column names, from `numericColumns`.
+ * @param caller The name to print, such as `plotScatter3d`.
+ * @throws RangeError If fewer than three names were given.
+ */
+export function requireThreeNumericColumns(
+  numeric: readonly string[],
+  caller: string,
+): void {
+  if (numeric.length < 3) {
+    throw new RangeError(
+      `${caller}() needs at least 3 numeric columns; got ${numeric.length}. ` +
+        "Supply x/y/z explicitly or add numeric columns.",
+    );
+  }
+}
+
+/**
  * Return the number of rows, and refuse a frame that has no single answer.
  *
  * @param data The frame to measure.

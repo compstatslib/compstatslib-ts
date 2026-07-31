@@ -38,7 +38,12 @@
  * languages.
  */
 
-import { frameRows, isNumericColumn, numericColumns } from "../core/frame";
+import {
+  frameRows,
+  isNumericColumn,
+  numericColumns,
+  requireThreeNumericColumns,
+} from "../core/frame";
 import type { Column, DataFrame } from "../core/frame";
 import { loadPlotly } from "./plotly";
 import type {
@@ -50,12 +55,6 @@ import type {
   Scatter3dTrace,
 } from "./plotly";
 
-/** R's `aspect = c(1, 1, 1)`. */
-const DEFAULT_ASPECT: readonly number[] = [1, 1, 1];
-/** R's `opacity = 0.8`. */
-const DEFAULT_OPACITY = 0.8;
-/** R's `size = 5`. */
-const DEFAULT_SIZE = 5;
 /**
  * The name Plotly keeps the view under. R sets the same literal string, in
  * both the layout and the scene.
@@ -68,6 +67,29 @@ const UIREVISION = "scatter3d";
 const NUMERIC_COLORSCALE = "Viridis";
 /** Plotly redraws the plot when the element that holds it changes size. */
 const CONFIG = { responsive: true } as const;
+
+/** How the markers are drawn, apart from the data. */
+export interface Scatter3dStyle {
+  /** The x, y and z proportions of the box the points sit in. */
+  readonly aspect: readonly number[];
+  /** How solid each marker is, in (0, 1]. */
+  readonly opacity: number;
+  /** How large each marker is, in pixels. */
+  readonly size: number;
+}
+
+/**
+ * R's own defaults: `aspect = c(1, 1, 1), opacity = 0.8, size = 5`.
+ *
+ * `interactive_scatter3d()` repeats these three numbers in its own signature.
+ * The port states them once, here, so the gadget's sliders and the plot they
+ * drive cannot start from different places.
+ */
+export const DEFAULT_SCATTER3D_STYLE: Scatter3dStyle = {
+  aspect: [1, 1, 1],
+  opacity: 0.8,
+  size: 5,
+};
 
 /** Titles to write on the axes instead of the column names. */
 export interface Scatter3dTitles {
@@ -157,16 +179,16 @@ export function scatter3dSpec(
   options: Scatter3dSpecOptions = {},
 ): Scatter3dSpec {
   const {
-    aspect = DEFAULT_ASPECT,
-    opacity = DEFAULT_OPACITY,
-    size = DEFAULT_SIZE,
+    aspect = DEFAULT_SCATTER3D_STYLE.aspect,
+    opacity = DEFAULT_SCATTER3D_STYLE.opacity,
+    size = DEFAULT_SCATTER3D_STYLE.size,
     camera,
     titles,
     color,
   } = options;
 
   // R's order: the style first, and nothing else read until it passes.
-  validateStyle(aspect, opacity, size);
+  validateScatter3dStyle(aspect, opacity, size);
   // R cannot hold a ragged data frame. A JavaScript object can, and the rest
   // of this function would read past the end of the shorter column.
   frameRows(data);
@@ -230,8 +252,21 @@ export async function plotScatter3d(
   return { ...spec, element, plotly: engine };
 }
 
-/** R's `scatter3d_validate_style()`, less the checks the compiler makes. */
-function validateStyle(
+/**
+ * R's `scatter3d_validate_style()`, less the checks the compiler makes.
+ *
+ * Exported because R shares this check between the plot and the gadget, and
+ * the gadget runs it before it builds anything. Note what it does **not** do:
+ * it refuses a style no plot could be drawn with, and says nothing about the
+ * bounds of the gadget's sliders. An aspect of 12 passes here and is then
+ * clamped by the slider, which is R's behaviour exactly.
+ *
+ * @param aspect The three axis proportions.
+ * @param opacity How solid a marker is.
+ * @param size How large a marker is.
+ * @throws RangeError With R's own wording, in R's own order.
+ */
+export function validateScatter3dStyle(
   aspect: readonly number[],
   opacity: number,
   size: number,
@@ -271,12 +306,7 @@ function chooseAxes(
   }
 
   const numeric = numericColumns(data);
-  if (numeric.length < 3) {
-    throw new RangeError(
-      "plotScatter3d() needs at least 3 numeric columns; " +
-        `got ${numeric.length}. Supply x/y/z explicitly or add numeric columns.`,
-    );
-  }
+  requireThreeNumericColumns(numeric, "plotScatter3d");
 
   const chosen = numeric.slice(0, 3) as [string, string, string];
   const skipped = numeric.slice(3);

@@ -16,6 +16,7 @@ import type {
   PlotlyLayout,
   PlotlyLike,
   PlotlyRelayoutEvent,
+  PlotlyRelayoutUpdate,
   PlotlyTrace,
 } from "../src/plot/plotly";
 
@@ -27,10 +28,19 @@ export interface ReactCall {
   readonly config: PlotlyConfig | undefined;
 }
 
+/** One recorded call to `relayout`. */
+export interface RelayoutCall {
+  readonly element: HTMLElement;
+  readonly update: PlotlyRelayoutUpdate;
+}
+
 /** A Plotly engine that records what it was asked to draw. */
 export class RecordingPlotly implements PlotlyLike {
   readonly calls: ReactCall[] = [];
+  readonly relayouts: RelayoutCall[] = [];
   readonly purged: HTMLElement[] = [];
+  /** Every call, in the order it arrived, so a test can pin the order. */
+  readonly log: ("react" | "relayout" | "purge")[] = [];
 
   react(
     element: HTMLElement,
@@ -39,11 +49,22 @@ export class RecordingPlotly implements PlotlyLike {
     config?: PlotlyConfig,
   ): Promise<PlotlyHTMLElement> {
     this.calls.push({ element, data, layout, config });
+    this.log.push("react");
+    return Promise.resolve(asPlotlyElement(element));
+  }
+
+  relayout(
+    element: HTMLElement,
+    update: PlotlyRelayoutUpdate,
+  ): Promise<PlotlyHTMLElement> {
+    this.relayouts.push({ element, update });
+    this.log.push("relayout");
     return Promise.resolve(asPlotlyElement(element));
   }
 
   purge(element: HTMLElement): void {
     this.purged.push(element);
+    this.log.push("purge");
   }
 
   /** The most recent call, or a failure if nothing was drawn. */

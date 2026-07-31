@@ -23,6 +23,7 @@ export type {
   PlotlyLayout,
   PlotlyLike,
   PlotlyRelayoutEvent,
+  PlotlyRelayoutUpdate,
   PlotlyScene,
   PlotlyTrace,
   Scatter3dMarker,
@@ -31,14 +32,41 @@ export type {
   Vector3,
 } from "./plot/plotly";
 
-export { plotScatter3d, scatter3dSpec } from "./plot/scatter3d";
+export {
+  DEFAULT_SCATTER3D_STYLE,
+  plotScatter3d,
+  scatter3dSpec,
+  validateScatter3dStyle,
+} from "./plot/scatter3d";
 export type {
   PlotScatter3dOptions,
   Scatter3dHandle,
   Scatter3dSpec,
   Scatter3dSpecOptions,
+  Scatter3dStyle,
   Scatter3dTitles,
 } from "./plot/scatter3d";
+
+export { interactiveScatter3d } from "./interactive/scatter3d";
+export type {
+  InteractiveScatter3dHandle,
+  InteractiveScatter3dOptions,
+  Scatter3dValues,
+} from "./interactive/scatter3d";
+
+export { interactiveModeration3d } from "./interactive/moderation3d";
+export type {
+  InteractiveModeration3dHandle,
+  InteractiveModeration3dOptions,
+  Moderation3dValues,
+} from "./interactive/moderation3d";
+
+export { resolvePlot3dTarget } from "./interactive/target";
+export type {
+  Plot3dPanel,
+  Plot3dTarget,
+  ResolvedPlot3dPanel,
+} from "./interactive/target";
 
 export {
   cameraFromRotations,
@@ -64,6 +92,7 @@ export {
   isNumericColumn,
   numericColumns,
   requireNumericColumn,
+  requireThreeNumericColumns,
 } from "./core/frame";
 export type { Column, DataFrame } from "./core/frame";
 
