@@ -23,7 +23,7 @@
  * at rather than tested.
  */
 
-import { fusedMultiplyAdd } from "./arith";
+import { fusedMultiplyAdd, requireCount } from "./arith";
 
 /** R's `rounding_eps`, the slack that keeps a near-multiple from stepping. */
 const ROUNDING_EPS = 1e-10;
@@ -100,13 +100,6 @@ export function rPretty(
   // R zaps an edge that rounding left just off zero, so a range through zero
   // reports a clean 0 rather than 1e-17.
   return edges.map((edge) => (Math.abs(edge) < 1e-14 * step ? 0 : edge));
-}
-
-/** Reject a count that is not a non-negative integer. */
-function requireCount(value: number, name: string): void {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new RangeError(`${name} must be a non-negative integer, got ${value}`);
-  }
 }
 
 /**

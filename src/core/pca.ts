@@ -31,7 +31,7 @@
  * one input instead of a platform's answer.
  */
 
-import { mean, sum, zipWith } from "./arith";
+import { mean, sum, withoutNegativeZero, zipWith } from "./arith";
 import type { Point } from "./regression";
 
 /**
@@ -199,7 +199,7 @@ function signed(vector: Loadings): Loadings {
 
 /** Negate, mapping zero to positive zero so that no −0 reaches a caller. */
 function negated(value: number): number {
-  return value === 0 ? 0 : -value;
+  return withoutNegativeZero(-value);
 }
 
 /**

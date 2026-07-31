@@ -37,7 +37,7 @@
  * that is invertible on paper but too ill-conditioned to invert in doubles.
  */
 
-import { fusedMultiplyAdd, sum } from "./arith";
+import { fusedMultiplyAdd, sum, withoutNegativeZero } from "./arith";
 
 /**
  * The smallest normal double, LAPACK's `dlamch("S")`.
@@ -273,24 +273,13 @@ function solveForIdentity(factorization: Factorization): Matrix2 {
   const [x1, y1] = solveColumn(factorization, firstTop, firstBottom);
   const [x2, y2] = solveColumn(factorization, secondTop, secondBottom);
 
+  // The substitution can leave a zero entry with a sign; R's never carry one.
   return {
     x1: withoutNegativeZero(x1),
     y1: withoutNegativeZero(y1),
     x2: withoutNegativeZero(x2),
     y2: withoutNegativeZero(y2),
   };
-}
-
-/**
- * Map a negative zero to a positive one.
- *
- * A zero entry of an inverse can come out of the substitution with a sign, and
- * R's own zero entries never carry one: of 1498 zero entries over a sweep of
- * 20000 slider settings, R gives a positive zero every time. The same rule is
- * in `pca.ts`.
- */
-function withoutNegativeZero(value: number): number {
-  return value === 0 ? 0 : value;
 }
 
 /** Solve one column of the right-hand side. */

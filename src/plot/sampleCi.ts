@@ -38,6 +38,7 @@ import type {
 } from "../core/sampling";
 import { createScale, drawAxes } from "./axes";
 import type { Scale } from "./axes";
+import { clearSurface, clipToArea } from "./draw";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
 
@@ -75,7 +76,6 @@ const BAD_COLORS = {
   point: "#8b3e2f", // coral4
 } as const;
 
-const BACKGROUND = "#ffffff";
 const MEAN_LINE_COLOR = "#000000";
 /** R: `lwd = 3` on both spans. */
 const SPAN_WIDTH = 3;
@@ -155,9 +155,7 @@ export function plotSampleCi(
   const simulation = simulateSampleCi(rng, simulationOptions);
   const scale = sampleCiScale(width, height, simulation);
 
-  ctx.setLineDash([]);
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, width, height);
+  clearSurface(ctx, width, height);
   drawAxes(ctx, scale, {
     xLabel: "Confidence Intervals",
     yLabel: "Samples",
@@ -167,9 +165,7 @@ export function plotSampleCi(
   // narrower than the widest interval by design, so this is load-bearing.
   const { area } = scale;
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
+  clipToArea(ctx, area);
 
   const rows = simulation.intervals
     .map((interval, index) => ({ interval, row: index + 1 }))

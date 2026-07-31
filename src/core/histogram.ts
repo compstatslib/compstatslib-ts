@@ -22,7 +22,7 @@
  *    reported edges are the unnudged ones.
  */
 
-import { quantile, zipWith } from "./arith";
+import { extent, quantile, sum, zipWith } from "./arith";
 import { rPretty } from "./pretty";
 
 /** R's `fuzz` argument of `hist.default`, in cell widths. */
@@ -93,7 +93,7 @@ export function histogram(
   );
   const counts = binCount(finite, fuzzyBreaks(breaks, widths, finite));
 
-  if (sumOf(counts) < finite.length) {
+  if (sum(counts) < finite.length) {
     throw new RangeError(
       "some values were not counted; the breaks may not span their range",
     );
@@ -130,7 +130,7 @@ function resolveBreaks(
   }
 
   // R's hist() overrides pretty()'s own min.n here, and asks for 1.
-  return rPretty(lowestOf(finite), highestOf(finite), { n: cells, minN: 1 });
+  return rPretty(...extent(finite), { n: cells, minN: 1 });
 }
 
 /**
@@ -146,11 +146,12 @@ function fuzzyBreaks(
   finite: readonly number[],
 ): number[] {
   const positive = widths.filter((width) => width > 0);
+  const [lowest, highest] = extent(finite);
   const scale =
     breaks.length > 5
       ? quantile(widths, 0.5)
       : breaks.length <= 3
-        ? highestOf(finite) - lowestOf(finite)
+        ? highest - lowest
         : Math.min(...positive);
   const nudge = FUZZ * scale;
 
@@ -197,19 +198,4 @@ function binCount(
   }
 
   return counts;
-}
-
-/** Return the smallest value. The array must not be empty. */
-function lowestOf(values: readonly number[]): number {
-  return values.reduce((low, value) => (value < low ? value : low));
-}
-
-/** Return the largest value. The array must not be empty. */
-function highestOf(values: readonly number[]): number {
-  return values.reduce((high, value) => (value > high ? value : high));
-}
-
-/** Add the counts. They are small integers, so plain addition is exact. */
-function sumOf(counts: readonly number[]): number {
-  return counts.reduce((total, count) => total + count, 0);
 }

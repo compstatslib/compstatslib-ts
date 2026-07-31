@@ -15,6 +15,7 @@
  */
 
 import type { Point } from "../core/regression";
+import { pixelInArea } from "../plot/axes";
 import { plotRegr, regrScale } from "../plot/regr";
 import type { PlotRegrOptions } from "../plot/regr";
 import { eventPixel, resolveInteractiveTarget } from "./target";
@@ -75,7 +76,7 @@ export function interactiveRegression(
 
   function handleClick(event: MouseEvent): void {
     const pixel = eventPixel(element, surface, event);
-    if (!insidePlotArea(pixel)) {
+    if (!pixelInArea(scale.area, pixel)) {
       return;
     }
     points = [
@@ -83,17 +84,6 @@ export function interactiveRegression(
       { x: scale.toWorldX(pixel.x), y: scale.toWorldY(pixel.y) },
     ];
     draw();
-  }
-
-  /** Report whether a pixel lies in the plot area. An edge counts as inside. */
-  function insidePlotArea(pixel: { x: number; y: number }): boolean {
-    const { area } = scale;
-    return (
-      pixel.x >= area.left &&
-      pixel.x <= area.right &&
-      pixel.y >= area.top &&
-      pixel.y <= area.bottom
-    );
   }
 
   draw();

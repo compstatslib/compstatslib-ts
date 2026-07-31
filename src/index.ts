@@ -81,7 +81,13 @@ export { pcaDegenerate } from "./data/pcaDegenerate";
 
 export { resolveTarget } from "./plot/target";
 export type { Context2D, PlotTarget, RenderTarget } from "./plot/target";
-export { DEFAULT_MARGINS, createScale, drawAxes, prettyTicks } from "./plot/axes";
+export {
+  DEFAULT_MARGINS,
+  createScale,
+  drawAxes,
+  pixelInArea,
+  prettyTicks,
+} from "./plot/axes";
 export type {
   AxesOptions,
   Extent,

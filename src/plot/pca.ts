@@ -28,6 +28,7 @@ import type { PcaResult } from "../core/pca";
 import type { Point } from "../core/regression";
 import { DEFAULT_MARGINS, createScale, drawAxes } from "./axes";
 import type { Extent, Scale } from "./axes";
+import { DOTTED, clearSurface, clipToArea, drawArrow, drawDots } from "./draw";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
 
@@ -49,16 +50,6 @@ export interface PlotPcaOptions {
 /** R: `xlim = c(-50, 50)` and `ylim = c(-50, 50)`. */
 const DEFAULT_LIMITS: readonly [number, number] = [-50, 50];
 
-const BACKGROUND = "#ffffff";
-/** R's `col = "gray"` is #BEBEBE. The CSS colour of that name is darker. */
-const POINT_COLOR = "#bebebe";
-/** R: `pch = 19, cex = 2`, sized as `plot/regr.ts` sizes the same call. */
-const POINT_RADIUS = 6;
-/** R's `arrows()` draws in `par("fg")`, which is black. */
-const ARROW_COLOR = "#000000";
-const ARROW_WIDTH = 1;
-/** R: `lty = c("solid", "dotted")`, mapped as `plot/regr.ts` maps dotted. */
-const DOTTED = [1, 3];
 /**
  * The length of an arrowhead edge, in pixels.
  *
@@ -66,21 +57,6 @@ const DOTTED = [1, 3];
  * browser calls an inch that is 9.6, rounded here to a round 10.
  */
 const HEAD_LENGTH = 10;
-/** R: `angle = 30`, the default, measured from the shaft. */
-const HEAD_ANGLE = Math.PI / 6;
-/**
- * The shortest arrow that still gets drawn, in pixels.
- *
- * `?arrows`: "The direction of a zero-length arrow is indeterminate, and
- * hence so is the direction of the arrowheads. To allow for rounding error,
- * arrowheads are omitted (with a warning) on any arrow of length less than
- * 1/1000 inch." That is this many pixels. R still draws the shaft, which
- * covers no distance and so paints nothing; this skips the whole arrow, which
- * leaves the same picture and keeps an indeterminate direction from reaching
- * the arrowhead as a NaN. A component with no spread — identical points, or
- * points on a line — reaches this every time.
- */
-const MIN_ARROW_PIXELS = 96 / 1000;
 
 /**
  * Build the scale that `plotPca` draws through, with equal units per pixel.
@@ -153,9 +129,7 @@ export function plotPca(
   const { ctx, width, height } = resolveTarget(target);
   const scale = pcaScale(width, height, options);
 
-  ctx.setLineDash([]);
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, width, height);
+  clearSurface(ctx, width, height);
   drawAxes(ctx, scale, { xLabel: "x", yLabel: "y" });
 
   if (points.length === 0) {
@@ -166,11 +140,9 @@ export function plotPca(
   // -50 to 50 says nothing about where the points are, so this matters.
   const { area } = scale;
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
+  clipToArea(ctx, area);
 
-  drawPoints(ctx, scale, points);
+  drawDots(ctx, scale, points);
 
   const result = points.length >= 3 ? principalComponents(points) : null;
   if (result !== null) {
@@ -197,29 +169,6 @@ function extentOf(limits: readonly [number, number]): Extent {
 function widenedTo(extent: Extent, span: number): Extent {
   const middle = (extent.min + extent.max) / 2;
   return { min: middle - span / 2, max: middle + span / 2 };
-}
-
-/** Draw each point as a filled dot. R: `pch = 19, cex = 2, col = "gray"`. */
-function drawPoints(
-  ctx: Context2D,
-  scale: Scale,
-  points: readonly Point[],
-): void {
-  ctx.save();
-  ctx.setLineDash([]);
-  ctx.fillStyle = POINT_COLOR;
-  for (const point of points) {
-    ctx.beginPath();
-    ctx.arc(
-      scale.toPixelX(point.x),
-      scale.toPixelY(point.y),
-      POINT_RADIUS,
-      0,
-      2 * Math.PI,
-    );
-    ctx.fill();
-  }
-  ctx.restore();
 }
 
 /**
@@ -250,31 +199,5 @@ function drawComponent(
     scale.toPixelY(anchor.y + loadings[1] * sdev),
   ] as const;
 
-  const length = Math.hypot(tip[0] - tail[0], tip[1] - tail[1]);
-  if (!Number.isFinite(length) || length < MIN_ARROW_PIXELS) {
-    return;
-  }
-
-  // Back along the shaft from the tip, then a turn each way for the head.
-  const back = Math.atan2(tail[1] - tip[1], tail[0] - tip[0]);
-  const edge = (turn: number): readonly [number, number] => [
-    tip[0] + HEAD_LENGTH * Math.cos(back + turn),
-    tip[1] + HEAD_LENGTH * Math.sin(back + turn),
-  ];
-
-  ctx.save();
-  ctx.strokeStyle = ARROW_COLOR;
-  ctx.lineWidth = ARROW_WIDTH;
-  // R's `lty` covers the whole arrow, head included, so the dash stays on.
-  ctx.setLineDash([...dash]);
-  ctx.beginPath();
-  ctx.moveTo(tail[0], tail[1]);
-  ctx.lineTo(tip[0], tip[1]);
-  const [firstX, firstY] = edge(HEAD_ANGLE);
-  const [secondX, secondY] = edge(-HEAD_ANGLE);
-  ctx.moveTo(firstX, firstY);
-  ctx.lineTo(tip[0], tip[1]);
-  ctx.lineTo(secondX, secondY);
-  ctx.stroke();
-  ctx.restore();
+  drawArrow(ctx, tail, tip, { headLength: HEAD_LENGTH, dash });
 }

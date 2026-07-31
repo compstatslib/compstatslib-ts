@@ -26,7 +26,7 @@
  * seeded JavaScript generator does not reproduce R's Mersenne Twister.
  */
 
-import { mean, sd } from "./arith";
+import { mean, requireCount, sd } from "./arith";
 import { rnorm, sampleWithoutReplacement, type Rng } from "./rng";
 
 /** R's hardcoded 95% multiplier in `plot_sample_ci()`. Not `qnorm(0.975)`. */
@@ -261,11 +261,4 @@ export function simulateSampleCi(
 /** R's default `distr_func`, `rnorm` with its own defaults. */
 function standardNormal(rng: Rng, n: number): number[] {
   return rnorm(rng, n);
-}
-
-/** Reject a count that is not a non-negative integer. */
-function requireCount(value: number, name: string): void {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new RangeError(`${name} must be a non-negative integer, got ${value}`);
-  }
 }

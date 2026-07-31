@@ -17,7 +17,7 @@
 import type { Point } from "../core/regression";
 import { logitScale, plotLogit } from "../plot/logit";
 import type { PlotLogitOptions } from "../plot/logit";
-import type { Scale } from "../plot/axes";
+import { pixelInArea } from "../plot/axes";
 import { eventPixel, resolveInteractiveTarget } from "./target";
 import type { InteractiveTarget } from "./target";
 
@@ -108,7 +108,7 @@ export function interactiveLogit(
       maxX: rightEdge,
     });
     const pixel = eventPixel(element, surface, event);
-    if (!insidePlotArea(scale, pixel)) {
+    if (!pixelInArea(scale.area, pixel)) {
       return;
     }
 
@@ -146,20 +146,6 @@ export function interactiveLogit(
       element.removeEventListener("click", handleClick);
     },
   };
-}
-
-/** Report whether a pixel lies in the plot area. An edge counts as inside. */
-function insidePlotArea(
-  scale: Scale,
-  pixel: { readonly x: number; readonly y: number },
-): boolean {
-  const { area } = scale;
-  return (
-    pixel.x >= area.left &&
-    pixel.x <= area.right &&
-    pixel.y >= area.top &&
-    pixel.y <= area.bottom
-  );
 }
 
 /** Hold a value between two bounds. */

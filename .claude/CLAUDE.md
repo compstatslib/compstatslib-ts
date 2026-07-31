@@ -124,7 +124,10 @@ Two rules for this layer:
 
 - **Verify against R.** For each ported statistic, compute the expected value
   in the R package and assert against it in a test with a stated tolerance.
-  Do not treat a plausible-looking curve as correct.
+  Do not treat a plausible-looking curve as correct. The R scripts that
+  generate the pinned values live canonically in the R package at
+  `../compstatslib/conformance-fixtures/` — run them from that package's
+  root with `Rscript`; they print at `%.17g` so tests can pin exact doubles.
 - **Seedable RNG.** Random draws must be reproducible for tests and for
   shareable demos. Use an injectable seeded generator, not bare `Math.random()`.
   Note that a seeded JS generator will *not* reproduce R's Mersenne Twister

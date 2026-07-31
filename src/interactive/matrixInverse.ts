@@ -36,6 +36,8 @@
 import type { Matrix2, MatrixInversion } from "../core/matrix";
 import { plotMatrixInverse } from "../plot/matrixInverse";
 import type { RenderTarget } from "../plot/target";
+import { buildSlider, startingSliderValue } from "./controls";
+import type { SliderRange } from "./controls";
 import { resolveControlTarget } from "./target";
 import type { ControlTarget } from "./target";
 
@@ -96,6 +98,12 @@ const ENTRIES = ["x1", "y1", "x2", "y2"] as const;
 const SLIDER_MIN = -2;
 const SLIDER_MAX = 2;
 const SLIDER_STEP = 0.1;
+/** R: all four sliders run -2 to 2 by 0.1. */
+const SLIDER_RANGE: SliderRange = {
+  min: SLIDER_MIN,
+  max: SLIDER_MAX,
+  step: SLIDER_STEP,
+};
 
 const NOTICE_BACKGROUND = "#ffffff";
 /** A colour of this port's own choosing, so a message does not read as a
@@ -124,11 +132,18 @@ export function interactiveMatrixInverse(
   const { onDone } = options;
   const panel = resolveControlTarget(target);
 
+  const startingValue = (name: keyof Matrix2): number =>
+    startingSliderValue(
+      options[name],
+      DEFAULT_MATRIX_INVERSE_VALUES[name],
+      SLIDER_RANGE,
+    );
+
   let values: Matrix2 = {
-    x1: startingValue("x1", options.x1),
-    y1: startingValue("y1", options.y1),
-    x2: startingValue("x2", options.x2),
-    y2: startingValue("y2", options.y2),
+    x1: startingValue("x1"),
+    y1: startingValue("y1"),
+    x2: startingValue("x2"),
+    y2: startingValue("y2"),
   };
 
   const owner = panel.controls.ownerDocument;
@@ -163,28 +178,16 @@ export function interactiveMatrixInverse(
   }
 
   for (const name of ENTRIES) {
-    const wrapper = owner.createElement("label");
-    wrapper.style.display = "block";
-
-    const caption = owner.createElement("span");
-    caption.textContent = `${name} `;
-
-    const readout = owner.createElement("output");
-    readout.textContent = String(values[name]);
+    // R captions each slider with the argument's own name.
+    const { wrapper, input, readout } = buildSlider(
+      owner,
+      name,
+      name,
+      SLIDER_RANGE,
+      values[name],
+    );
     readouts.set(name, readout);
 
-    const input = owner.createElement("input");
-    input.type = "range";
-    input.name = name;
-    input.min = String(SLIDER_MIN);
-    input.max = String(SLIDER_MAX);
-    input.step = String(SLIDER_STEP);
-    input.value = String(values[name]);
-    input.style.width = "100%";
-
-    wrapper.appendChild(caption);
-    wrapper.appendChild(readout);
-    wrapper.appendChild(input);
     panel.controls.appendChild(wrapper);
     built.push(wrapper);
     inputs.push(input);
@@ -213,51 +216,6 @@ export function interactiveMatrixInverse(
       panel.release();
     },
   };
-}
-
-/**
- * Correct one starting value to something the slider can stand at.
- *
- * Three rules, in order. A value that is not a number becomes the minimum,
- * which is what R's own widget does: `if (typeof o.from !== "number" ||
- * isNaN(o.from)) o.from = o.min;` in the `validate()` of the
- * `ion.rangeSlider.js` that ships inside shiny. A value outside the range
- * moves to the nearer bound, from the two lines below that one. A value that
- * misses the step moves to the nearest step.
- *
- * The third rule is not R's: `validate()` says nothing about the step, and R
- * leaves the handle wherever it was asked to stand. An HTML range input does
- * not allow that. It rounds a step-mismatched value to the nearest value it
- * does allow, and takes the larger of two equal neighbours, so a component
- * that held 1.25 would draw one matrix and show a slider standing at another.
- * The step is counted from the minimum, as a browser counts it.
- */
-function startingValue(
-  name: keyof Matrix2,
-  given: number | undefined,
-): number {
-  if (given === undefined) {
-    return DEFAULT_MATRIX_INVERSE_VALUES[name];
-  }
-  if (!Number.isFinite(given)) {
-    return SLIDER_MIN;
-  }
-
-  const clamped = Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, given));
-  // Scaling both sides by the step's own precision keeps a value that sits
-  // exactly halfway from rounding the wrong way: 1.25 is 32.5 steps above the
-  // minimum, and 3.25 / 0.1 alone lands a hair below that.
-  const decimals = decimalsOf(SLIDER_STEP);
-  const factor = 10 ** decimals;
-  const steps = Math.round(
-    ((clamped - SLIDER_MIN) * factor) / (SLIDER_STEP * factor),
-  );
-  return Number((SLIDER_MIN + steps * SLIDER_STEP).toFixed(decimals));
-}
-
-/** Return how many decimals a step carries. */
-function decimalsOf(step: number): number {
-  return String(step).split(".")[1]?.length ?? 0;
 }
 
 /**
