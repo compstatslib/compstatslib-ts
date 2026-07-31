@@ -71,6 +71,15 @@ export type {
 } from "./plot/axes";
 export { logitScale, plotLogit } from "./plot/logit";
 export type { LegendLocation, PlotLogitOptions } from "./plot/logit";
+export { plotSampleCi, sampleCiScale } from "./plot/sampleCi";
+export type { PlotSampleCiOptions } from "./plot/sampleCi";
+export { plotSampling, samplingScale } from "./plot/sampling";
+export type {
+  PlotSamplingOptions,
+  PlotSamplingResult,
+  SamplingPanel,
+  SamplingState,
+} from "./plot/sampling";
 export { plotRegr, regrScale } from "./plot/regr";
 export type { PlotRegrOptions } from "./plot/regr";
 export { formatNumber, formatStat } from "./plot/format";

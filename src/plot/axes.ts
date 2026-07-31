@@ -74,6 +74,14 @@ export interface AxesOptions {
    * plot passes `frame = FALSE`, as its R original does.
    */
   readonly frame?: boolean;
+  /**
+   * Draw the y axis, its ticks and its labels. True by default.
+   *
+   * R's `yaxt = "n"` drops the vertical axis and leaves the horizontal one.
+   * The sampling plot asks for that on each of its three panels, where the
+   * height is a density or a count that no reader needs to measure.
+   */
+  readonly yAxis?: boolean;
 }
 
 /** Margins wide enough for two-digit tick labels and an axis title. */
@@ -195,8 +203,9 @@ export function drawAxes(
   options: AxesOptions = {},
 ): void {
   const { area } = scale;
+  const showYAxis = options.yAxis ?? true;
   const xTicks = prettyTicks(scale.world.x, options.tickCount);
-  const yTicks = prettyTicks(scale.world.y, options.tickCount);
+  const yTicks = showYAxis ? prettyTicks(scale.world.y, options.tickCount) : [];
 
   ctx.save();
   ctx.setLineDash([]);
@@ -208,10 +217,13 @@ export function drawAxes(
   ctx.beginPath();
   if (options.frame ?? true) {
     ctx.rect(area.left, area.top, area.width, area.height);
-  } else {
+  } else if (showYAxis) {
     // Without the box, the two axis lines still carry the ticks.
     ctx.moveTo(area.left, area.top);
     ctx.lineTo(area.left, area.bottom);
+    ctx.lineTo(area.right, area.bottom);
+  } else {
+    ctx.moveTo(area.left, area.bottom);
     ctx.lineTo(area.right, area.bottom);
   }
   for (const tick of xTicks) {
