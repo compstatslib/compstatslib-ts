@@ -1,0 +1,28 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Sample confidence intervals</h2>
+
+<p>
+  Each row is one sample of 100 from a simulated population: its 99% interval
+  in the light color, its 95% interval over that, and a diamond at its mean.
+  Rows whose interval misses the true mean (the vertical line) are drawn in
+  coral — about 5 in every 100. Draw again simulates a fresh population; the
+  page holds one seeded generator, so reloading it replays the same sequence
+  of pictures. This is <code>plot_sample_ci()</code> from the R package.
+</p>
+
+<!--
+  Tall on purpose. One hundred rows want about five pixels each, or the
+  diamonds merge into a stripe.
+-->
+<canvas
+  id="sampleci-canvas"
+  width="700"
+  height="550"
+  style="border: 1px solid #cccccc"
+></canvas>
+
+<p>
+  <button type="button" id="sampleci-again">Draw again</button>
+</p>
+
+<pre id="sampleci-summary">Not drawn yet.</pre>

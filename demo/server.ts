@@ -20,6 +20,14 @@ const server = Bun.serve({
       Bun.file(new URL("./ttest.html", import.meta.url)),
       { headers: { "content-type": "text/html; charset=utf-8" } },
     ),
+    "/sampling.html": new Response(
+      Bun.file(new URL("./sampling.html", import.meta.url)),
+      { headers: { "content-type": "text/html; charset=utf-8" } },
+    ),
+    "/sampleci.html": new Response(
+      Bun.file(new URL("./sampleci.html", import.meta.url)),
+      { headers: { "content-type": "text/html; charset=utf-8" } },
+    ),
   },
 });
 

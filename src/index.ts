@@ -99,6 +99,12 @@ export type {
   ResolvedPanel,
   SplitTarget,
 } from "./interactive/target";
+export { interactiveSampling } from "./interactive/sampling";
+export type {
+  InteractiveSamplingHandle,
+  InteractiveSamplingOptions,
+  SamplingValues,
+} from "./interactive/sampling";
 export { interactiveTTest } from "./interactive/tTest";
 export type {
   InteractiveTTestHandle,
