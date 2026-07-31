@@ -23,6 +23,8 @@
  * at rather than tested.
  */
 
+import { fusedMultiplyAdd } from "./arith";
+
 /** R's `rounding_eps`, the slack that keeps a near-multiple from stepping. */
 const ROUNDING_EPS = 1e-10;
 
@@ -86,61 +88,18 @@ export function rPretty(
   }
 
   const step = (high - low) / cells;
+  // R's `seq.int` computes each point to wider precision than a double
+  // carries and rounds it a single time. Writing `low + index * step` rounds
+  // twice and lands one unit in the last place away often enough to matter:
+  // 1081 of the 5348 swept ranges differed on at least one edge before this.
   const edges = Array.from({ length: cells + 1 }, (_, index) =>
-    stepFrom(low, index, step),
+    fusedMultiplyAdd(index, step, low),
   );
   edges[cells] = high;
 
   // R zaps an edge that rounding left just off zero, so a range through zero
   // reports a clean 0 rather than 1e-17.
   return edges.map((edge) => (Math.abs(edge) < 1e-14 * step ? 0 : edge));
-}
-
-/**
- * Return `low + index * step`, rounded once.
- *
- * R's `seq.int` computes each point this way to wider precision than a double
- * carries, and rounds the result a single time. Writing `low + index * step`
- * in JavaScript rounds twice — once for the product, once for the sum — and
- * lands one unit in the last place away often enough to matter: 1081 of the
- * 5348 swept ranges differed on at least one edge before this.
- *
- * The two helpers below split each operation into the value a double can hold
- * plus the part it drops, so the dropped parts can be added back before the
- * one rounding that remains. Both are the standard error-free transformations
- * (Dekker 1971, Knuth), and both need every intermediate to stay in range,
- * which fails only within a factor of 2^28 of the largest double. There the
- * plain form is used: the result is already dominated by its own overflow.
- */
-function stepFrom(low: number, index: number, step: number): number {
-  const [product, productError] = twoProduct(index, step);
-  const [sum, sumError] = twoSum(low, product);
-  const rounded = sum + (sumError + productError);
-  return Number.isFinite(rounded) ? rounded : low + index * step;
-}
-
-/** Split a double into two halves whose product is exact. Dekker's method. */
-function split(value: number): [number, number] {
-  const scaled = 134217729 * value;
-  const high = scaled - (scaled - value);
-  return [high, value - high];
-}
-
-/** Return the product and the part of it the product cannot hold. */
-function twoProduct(a: number, b: number): [number, number] {
-  const product = a * b;
-  const [aHigh, aLow] = split(a);
-  const [bHigh, bLow] = split(b);
-  const error =
-    aLow * bLow - (product - aHigh * bHigh - aLow * bHigh - aHigh * bLow);
-  return [product, error];
-}
-
-/** Return the sum and the part of it the sum cannot hold. */
-function twoSum(a: number, b: number): [number, number] {
-  const sum = a + b;
-  const carried = sum - a;
-  return [sum, a - (sum - carried) + (b - carried)];
 }
 
 /** Reject a count that is not a non-negative integer. */

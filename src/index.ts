@@ -25,6 +25,8 @@ export type {
 } from "./core/sampling";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
+export { determinant, invertMatrix } from "./core/matrix";
+export type { Matrix2, MatrixInversion, Singularity } from "./core/matrix";
 export { principalComponents } from "./core/pca";
 export type { Loadings, PcaResult } from "./core/pca";
 export {
