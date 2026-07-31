@@ -122,6 +122,12 @@ export type {
   InteractiveLogitHandle,
   InteractiveLogitOptions,
 } from "./interactive/logit";
+export { interactivePca } from "./interactive/pca";
+export type {
+  InteractivePcaHandle,
+  InteractivePcaOptions,
+  InteractivePcaResult,
+} from "./interactive/pca";
 export { interactiveRegression } from "./interactive/regression";
 export type {
   InteractiveRegressionHandle,
