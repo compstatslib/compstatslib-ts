@@ -31,10 +31,15 @@
 import { describe, expect, test } from "bun:test";
 
 import { RecordingPlotly, asPlotlyElement } from "../../test/recording-plotly";
+import type { RecordedListeners } from "../../test/recording-plotly";
 import { moderationSurface } from "../core/moderation";
 import { moderationData } from "../data/moderationData";
 import { cameraFromRotations, moderation3dSpec } from "../plot/moderation3d";
-import type { SurfaceTrace } from "../plot/plotly";
+import type {
+  PlotlyCamera,
+  PlotlyRelayoutEvent,
+  SurfaceTrace,
+} from "../plot/plotly";
 import { interactiveModeration3d } from "./moderation3d";
 import type {
   InteractiveModeration3dOptions,
@@ -81,6 +86,23 @@ async function moveSlider(
   input.dispatchEvent(new Event("input", { bubbles: true }));
   await handle.rendered();
 }
+
+/** Hand the element the event Plotly fires when the user moves the plot. */
+function emitRelayout(plot: HTMLElement, event: PlotlyRelayoutEvent): void {
+  const listeners = plot as unknown as RecordedListeners;
+  for (const handler of listeners.handlers.get("plotly_relayout") ?? []) {
+    handler(event);
+  }
+}
+
+/** How many handlers the element carries for Plotly's move event. */
+function listenerCount(plot: HTMLElement): number {
+  const listeners = plot as unknown as RecordedListeners;
+  return (listeners.handlers.get("plotly_relayout") ?? []).length;
+}
+
+/** A camera as Plotly reports one after the user has dragged the plot. */
+const DRAGGED: PlotlyCamera = { eye: { x: 1.5, y: 0.25, z: -0.5 } };
 
 describe("interactiveModeration3d", () => {
   describe("the control panel", () => {
@@ -281,6 +303,100 @@ describe("interactiveModeration3d", () => {
         { "scene.camera": cameraFromRotations(0, -70) },
         { "scene.camera": cameraFromRotations(270, -70) },
       ]);
+    });
+  });
+
+  describe("the camera the user drags to", () => {
+    test("listens to the element the plot drew into", async () => {
+      const { plot } = await drawn();
+
+      expect(listenerCount(plot)).toBe(1);
+    });
+
+    test("persists a dragged camera into the live layout", async () => {
+      // Plotly's own modebar buttons (orbit, turntable, pan, zoom) relayout
+      // the scene from the stored layout, whose camera is the sliders' one.
+      // A drag lives only in the WebGL scene until it is written back, so
+      // without this push every modebar click snapped the view to the
+      // sliders' angles (user report, 2026-07-31). R cannot show the quirk —
+      // lattice has no mouse rotation at all — so there is nothing to be
+      // faithful to; keeping the view wins.
+      const { plotly, plot } = await drawn();
+
+      emitRelayout(plot, { "scene.camera": DRAGGED });
+
+      expect(plotly.relayouts).toHaveLength(1);
+      expect(plotly.relayouts[0]?.element).toBe(plot);
+      expect(plotly.relayouts[0]?.update).toEqual({ "scene.camera": DRAGGED });
+    });
+
+    test("does not persist the echo of its own push", async () => {
+      // The persisting relayout itself fires plotly_relayout with the same
+      // camera as a fresh object. Pushing again on that echo would relayout
+      // without end, so the comparison must be by value.
+      const { plotly, plot } = await drawn();
+
+      emitRelayout(plot, { "scene.camera": DRAGGED });
+      emitRelayout(plot, {
+        "scene.camera": { eye: { x: 1.5, y: 0.25, z: -0.5 } },
+      });
+
+      expect(plotly.relayouts).toHaveLength(1);
+    });
+
+    test("does not persist the echo of a slider's own push", async () => {
+      const { plotly, plot, controls, handle } = await drawn();
+
+      await moveSlider(handle, controls, "zRot", "270");
+      expect(plotly.relayouts).toHaveLength(1);
+
+      emitRelayout(plot, { "scene.camera": cameraFromRotations(270, -70) });
+
+      expect(plotly.relayouts).toHaveLength(1);
+    });
+
+    test("lets a slider override the drag, as the module documents", async () => {
+      const { plotly, plot, controls, handle } = await drawn();
+
+      emitRelayout(plot, { "scene.camera": DRAGGED });
+      await moveSlider(handle, controls, "zRot", "270");
+
+      expect(plotly.relayouts.map((call) => call.update)).toEqual([
+        { "scene.camera": DRAGGED },
+        { "scene.camera": cameraFromRotations(270, -70) },
+      ]);
+    });
+
+    test("re-persists the drag across a redraw that asks for no new view", async () => {
+      // Such a redraw reacts with the sliders' camera in its layout while
+      // the screen keeps the drag (uirevision). Plotly's stored layout would
+      // then disagree with the view on screen, and the next modebar click
+      // would snap to the sliders' angles after all.
+      const { plotly, plot, controls, handle } = await drawn();
+
+      emitRelayout(plot, { "scene.camera": DRAGGED });
+      await moveSlider(handle, controls, "zRot", "40");
+
+      expect(plotly.relayouts.map((call) => call.update)).toEqual([
+        { "scene.camera": DRAGGED },
+        { "scene.camera": DRAGGED },
+      ]);
+    });
+
+    test("ignores a move that carries no camera", async () => {
+      const { plotly, plot } = await drawn();
+
+      emitRelayout(plot, { "scene.dragmode": "orbit" });
+
+      expect(plotly.relayouts).toHaveLength(0);
+    });
+
+    test("stops listening on destroy", async () => {
+      const { plot, handle } = await drawn();
+
+      handle.destroy();
+
+      expect(listenerCount(plot)).toBe(0);
     });
   });
 

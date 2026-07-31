@@ -91,6 +91,12 @@ const TURNED: PlotlyCamera = {
   eye: { x: 0.5, y: -1.5, z: 0.75 },
 };
 
+/** A second reported camera, unlike the first. */
+const FURTHER: PlotlyCamera = {
+  eye: { x: -1, y: 1, z: 0.5 },
+  up: { x: 0, y: 0, z: 1 },
+};
+
 /** Build the component against a recording engine and a split target. */
 function setup(options: InteractiveScatter3dOptions = {}, data: DataFrame = FRAME) {
   const plotly = new RecordingPlotly();
@@ -580,10 +586,11 @@ describe("interactiveScatter3d", () => {
       expect(plotly.calls).toHaveLength(3);
     });
 
-    test("never asks the engine to relayout: react carries every change", async () => {
-      // The scatterplot has no computed camera. What the user turns is kept
-      // by the uirevision, and what the caller supplied travels in the
-      // layout, so nothing needs pushing at the plot after it is drawn.
+    test("never asks the engine to relayout for a control change", async () => {
+      // The scatterplot has no computed camera. What the caller supplied
+      // travels in the layout, so a picker or slider change needs no push at
+      // the plot. The one relayout this component makes is the camera
+      // persistence tested under "the camera" below.
       const { plotly, controls, handle } = await drawn({ camera: TURNED });
 
       await choose(handle, controls, "x", "d");
@@ -704,6 +711,48 @@ describe("interactiveScatter3d", () => {
       }
 
       expect(listenerCount(plot)).toBe(1);
+    });
+
+    test("persists a captured camera into the live layout", async () => {
+      // Plotly's own modebar buttons (orbit, turntable, pan, zoom) relayout
+      // the scene from the stored layout, and a dragged camera lives only in
+      // the WebGL scene until it is written back. Without this push every
+      // modebar click snapped the view to the default (user report,
+      // 2026-07-31). The R gadget rides the same modebar and shares the
+      // quirk; keeping the view is a deliberate deviation.
+      const { plotly, plot } = await drawn();
+
+      emitRelayout(plot, { "scene.camera": TURNED });
+
+      expect(plotly.relayouts).toHaveLength(1);
+      expect(plotly.relayouts[0]?.element).toBe(plot);
+      expect(plotly.relayouts[0]?.update).toEqual({ "scene.camera": TURNED });
+    });
+
+    test("does not persist the echo of its own push", async () => {
+      // The persisting relayout itself fires plotly_relayout with the same
+      // camera. Pushing again on that echo would relayout without end. The
+      // echo is a fresh object carrying the same numbers, so the comparison
+      // must be by value, not by reference.
+      const { plotly, plot } = await drawn();
+
+      emitRelayout(plot, { "scene.camera": TURNED });
+      emitRelayout(plot, { "scene.camera": { eye: { x: 0.5, y: -1.5, z: 0.75 } } });
+
+      expect(plotly.relayouts).toHaveLength(1);
+    });
+
+    test("persists each new view the user turns to", async () => {
+      const { plotly, plot, handle } = await drawn();
+
+      emitRelayout(plot, { "scene.camera": TURNED });
+      emitRelayout(plot, { "scene.camera": FURTHER });
+
+      expect(plotly.relayouts.map((call) => call.update)).toEqual([
+        { "scene.camera": TURNED },
+        { "scene.camera": FURTHER },
+      ]);
+      expect(handle.getValues().camera).toEqual(FURTHER);
     });
   });
 

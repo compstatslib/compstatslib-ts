@@ -27,7 +27,10 @@
  * turned the plot to through `plotly_relayout`; the component stores that
  * camera and re-passes it into every later draw, so that changing a column
  * does not throw the angle away. Turning the plot draws nothing: Plotly has
- * already moved the picture.
+ * already moved the picture. The captured camera is also written back into
+ * Plotly's own stored layout, because the modebar's buttons relayout the
+ * scene from that layout and would otherwise snap the view to the default —
+ * a Plotly quirk the R gadget shares, and one deliberate deviation here.
  *
  * **Done hands back a state, not a printed call.** R prints a copy-pasteable
  * `plot_scatter3d(...)` line to the console and returns the same arguments
@@ -55,6 +58,7 @@ import type {
   Scatter3dSpec,
   Scatter3dSpecOptions,
 } from "../plot/scatter3d";
+import { sameCamera } from "../plot/plotly";
 import type {
   PlotlyHTMLElement,
   PlotlyLike,
@@ -315,13 +319,26 @@ export function interactiveScatter3d(
     }
   }
 
-  /** R's observer: store the camera, and leave the picture alone. */
+  /**
+   * R's observer: store the camera, and leave the picture alone — with one
+   * addition R does not need. Plotly's own modebar buttons (orbit, turntable,
+   * pan, zoom) relayout the scene from the stored layout, and a dragged
+   * camera lives only in the WebGL scene until it is written back; without
+   * the push below, every modebar click snapped the view to the default. The
+   * push itself echoes through this handler with the same camera as a fresh
+   * object, which is what the value comparison recognises and drops.
+   */
   function handleRelayout(event: PlotlyRelayoutEvent): void {
     const moved = event["scene.camera"];
-    if (moved === undefined) {
+    if (moved === undefined || destroyed || sameCamera(moved, values.camera)) {
       return;
     }
     values = { ...values, camera: moved };
+    if (element !== null && engine !== undefined) {
+      // Fire and forget: the picture is already at this view, so a failure
+      // here (a plot purged mid-flight) has nothing to repair.
+      engine.relayout(element, { "scene.camera": moved }).catch(() => undefined);
+    }
   }
 
   function handleChange(event: Event): void {

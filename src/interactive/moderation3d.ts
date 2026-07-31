@@ -26,8 +26,12 @@
  * preference. The alternative — changing the `uirevision` whenever a slider
  * moves — would have to reach into the layout the plot layer owns, and would
  * throw away the drag on every redraw whether or not the view changed.
- * Nothing is pushed when the rotations have not moved, so a redraw for any
- * other reason leaves the user's own view alone.
+ * Nothing new is pushed when the rotations have not moved, so a redraw for
+ * any other reason leaves the user's own view alone. The one other push this
+ * component makes runs the opposite way: a camera the user drags to is
+ * written back into Plotly's stored layout (see `handleRelayout`), because
+ * the modebar's own buttons relayout the scene from that layout and would
+ * otherwise snap the view to the sliders' angles.
  *
  * **Done hands back the current view.** R returns `data`, which the caller
  * already holds and which says nothing about the picture. The rotations do,
@@ -48,7 +52,13 @@ import type {
   Moderation3dViewOptions,
   PlotModeration3dOptions,
 } from "../plot/moderation3d";
-import type { PlotlyHTMLElement, PlotlyLike } from "../plot/plotly";
+import { sameCamera } from "../plot/plotly";
+import type {
+  PlotlyCamera,
+  PlotlyHTMLElement,
+  PlotlyLike,
+  PlotlyRelayoutEvent,
+} from "../plot/plotly";
 import { buildNote, buildSlider, startingSliderValue } from "./controls";
 import type { SliderRange } from "./controls";
 import { resolvePlot3dTarget } from "./target";
@@ -162,6 +172,13 @@ export function interactiveModeration3d(
   let element: PlotlyHTMLElement | null = null;
   /** The rotations the plot was last told to stand at, or null before then. */
   let painted: { readonly zRot: number; readonly xRot: number } | null = null;
+  /**
+   * The camera this component last put into Plotly's stored layout — by a
+   * slider's push or by persisting a drag — or undefined before either. What
+   * the capture handler compares against to recognise its own echo.
+   */
+  let seenCamera: PlotlyCamera | undefined;
+  let listening = false;
   let destroyed = false;
   let inFlight: Promise<void> | null = null;
   let queued = false;
@@ -191,6 +208,13 @@ export function interactiveModeration3d(
     spec = { traces: drawn.traces, layout: drawn.layout, note: drawn.note };
     note.show(drawn.note);
 
+    // One listener for the life of the component: Plotly hands back the same
+    // element every time, so attaching per draw would pile them up.
+    if (!listening) {
+      listening = true;
+      element.on("plotly_relayout", handleRelayout);
+    }
+
     const moved =
       painted !== null &&
       (painted.zRot !== wanted.zRot || painted.xRot !== wanted.xRot);
@@ -198,7 +222,38 @@ export function interactiveModeration3d(
 
     const camera = drawn.layout.scene.camera;
     if (moved && camera !== undefined) {
+      seenCamera = camera;
       await drawn.plotly.relayout(element, { "scene.camera": camera });
+    } else if (seenCamera !== undefined && !sameCamera(seenCamera, camera)) {
+      // A redraw that asked for no new view: the react above rewrote the
+      // stored layout with the sliders' camera while the screen keeps the
+      // user's drag (uirevision). Re-persist the drag, or Plotly's own
+      // relayouts would rebuild at the sliders' angles after all.
+      await drawn.plotly.relayout(element, { "scene.camera": seenCamera });
+    }
+  }
+
+  /**
+   * Persist a camera the user dragged to into Plotly's stored layout.
+   *
+   * Plotly's own modebar buttons (orbit, turntable, pan, zoom) relayout the
+   * scene from that layout, and a drag lives only in the WebGL scene until it
+   * is written back; without this, every modebar click snapped the view to
+   * the sliders' angles. The push itself echoes through this handler with the
+   * same camera as a fresh object, which is what the value comparison
+   * recognises and drops. The sliders stay in charge: their own pushes set
+   * `seenCamera` first, so a slider still overrides any drag before it.
+   */
+  function handleRelayout(event: PlotlyRelayoutEvent): void {
+    const moved = event["scene.camera"];
+    if (moved === undefined || destroyed || sameCamera(moved, seenCamera)) {
+      return;
+    }
+    seenCamera = moved;
+    if (element !== null && engine !== undefined) {
+      // Fire and forget: the picture is already at this view, so a failure
+      // here (a plot purged mid-flight) has nothing to repair.
+      engine.relayout(element, { "scene.camera": moved }).catch(() => undefined);
     }
   }
 
@@ -296,6 +351,7 @@ export function interactiveModeration3d(
         node.remove();
       }
       if (element !== null) {
+        element.removeAllListeners("plotly_relayout");
         engine?.purge(element);
       }
       panel.release();

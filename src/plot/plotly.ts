@@ -203,6 +203,41 @@ export interface PlotlyLike {
   purge(element: HTMLElement): void;
 }
 
+/**
+ * Whether two cameras stand at the same view.
+ *
+ * The interactive components write a camera the user dragged to back into the
+ * live layout, and the `relayout` that does so fires `plotly_relayout` again
+ * with the same camera as a fresh object. Comparing by value is what lets the
+ * capture handlers recognise that echo and stop, so this must never be
+ * replaced with a reference comparison.
+ *
+ * @param a One camera, or nothing.
+ * @param b The other, or nothing.
+ * @returns True when both are absent, or both present with equal parts.
+ */
+export function sameCamera(
+  a: PlotlyCamera | undefined,
+  b: PlotlyCamera | undefined,
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    sameVector(a.eye, b.eye) &&
+    sameVector(a.center, b.center) &&
+    sameVector(a.up, b.up)
+  );
+}
+
+/** Whether two optional vectors carry the same coordinates. */
+function sameVector(a: Vector3 | undefined, b: Vector3 | undefined): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return a.x === b.x && a.y === b.y && a.z === b.z;
+}
+
 /** The one load, shared by every caller. */
 let loading: Promise<PlotlyLike> | undefined;
 
