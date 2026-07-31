@@ -48,6 +48,14 @@ async function loadFragment(name: string): Promise<Element> {
   running?.destroy();
   running = null;
   const response = await fetch(`/${name}.html`);
+  if (!response.ok) {
+    // The route table is fixed when the server starts, so a fragment added
+    // since then 404s here even though this script already knows about it.
+    throw new Error(
+      `demo: /${name}.html answered ${response.status}. ` +
+        "If the fragment is new, restart the dev server.",
+    );
+  }
   if (demo === null) {
     throw new Error("demo: the page has no #demo element.");
   }
