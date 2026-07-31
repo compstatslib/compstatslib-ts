@@ -84,6 +84,8 @@ export type {
   SamplingPanel,
   SamplingState,
 } from "./plot/sampling";
+export { pcaScale, plotPca } from "./plot/pca";
+export type { PlotPcaOptions } from "./plot/pca";
 export { plotRegr, regrScale } from "./plot/regr";
 export type { PlotRegrOptions } from "./plot/regr";
 export { formatNumber, formatStat } from "./plot/format";
