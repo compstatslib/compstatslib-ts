@@ -23,6 +23,19 @@ export type {
   SampleDraw,
   SampleInterval,
 } from "./core/sampling";
+export {
+  frameRows,
+  isNumericColumn,
+  numericColumns,
+  requireNumericColumn,
+} from "./core/frame";
+export type { Column, DataFrame } from "./core/frame";
+export { moderationSurface } from "./core/moderation";
+export type {
+  ModerationOptions,
+  ModerationSurface,
+  ModerationTerm,
+} from "./core/moderation";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
 export { determinant, invertMatrix } from "./core/matrix";
@@ -62,6 +75,8 @@ export {
   normalCdf,
 } from "./core/special";
 
+export { moderationData } from "./data/moderationData";
+export type { ModerationData } from "./data/moderationData";
 export { pcaDegenerate } from "./data/pcaDegenerate";
 
 export { resolveTarget } from "./plot/target";
