@@ -12,6 +12,10 @@ const server = Bun.serve({
       Bun.file(new URL("./regression.html", import.meta.url)),
       { headers: { "content-type": "text/html; charset=utf-8" } },
     ),
+    "/logit.html": new Response(
+      Bun.file(new URL("./logit.html", import.meta.url)),
+      { headers: { "content-type": "text/html; charset=utf-8" } },
+    ),
     "/ttest.html": new Response(
       Bun.file(new URL("./ttest.html", import.meta.url)),
       { headers: { "content-type": "text/html; charset=utf-8" } },

@@ -1,0 +1,26 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive logit</h2>
+
+<p>
+  Click in the plot area to add points. A click above the middle line makes a
+  1, a click below it makes a 0, and the logistic curve and statistics update
+  on every click. This is <code>interactive_logit()</code> from the R package.
+</p>
+
+<!--
+  Wide on purpose. The x window runs 0..50 while y is only 0..1, so a short,
+  wide surface matches the proportions of the R plot.
+-->
+<canvas
+  id="logit-canvas"
+  width="800"
+  height="420"
+  style="border: 1px solid #cccccc; touch-action: none"
+></canvas>
+
+<p>
+  <button type="button" id="logit-done">Done</button>
+  <button type="button" id="logit-reset">Reset</button>
+</p>
+
+<pre id="logit-points">No points yet.</pre>

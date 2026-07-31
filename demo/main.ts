@@ -7,11 +7,13 @@
  */
 
 import {
+  interactiveLogit,
   interactiveRegression,
   interactiveTTest,
   machinePrecision,
 } from "../src/index";
 import type {
+  InteractiveLogitHandle,
   InteractiveRegressionHandle,
   InteractiveTTestHandle,
 } from "../src/index";
@@ -24,7 +26,11 @@ if (precision) {
 const demo = document.querySelector("#demo");
 
 /** The demo that is running now. The page stops it before it starts another. */
-let running: InteractiveRegressionHandle | InteractiveTTestHandle | null = null;
+let running:
+  | InteractiveLogitHandle
+  | InteractiveRegressionHandle
+  | InteractiveTTestHandle
+  | null = null;
 
 /** Load a fragment into `#demo`. */
 async function loadFragment(name: string): Promise<Element> {
@@ -92,6 +98,55 @@ async function startRegression(): Promise<void> {
     });
 }
 
+/** Start the interactive logit in the loaded fragment. */
+async function startLogit(): Promise<void> {
+  const container = await loadFragment("logit");
+  const canvas = container.querySelector("canvas");
+  const output = container.querySelector("#logit-points");
+  if (!(canvas instanceof HTMLCanvasElement) || output === null) {
+    throw new Error("demo: the logit fragment is incomplete.");
+  }
+
+  // The crisp-canvas recipe from src/plot/target.ts, as in the regression
+  // demo: hold the layout size, grow the pixel store by the screen's density,
+  // scale the context once, and hand over a surface in layout pixels.
+  const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+  const width = canvas.width;
+  const height = canvas.height;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("demo: the logit canvas gave no 2D context.");
+  }
+  ctx.scale(ratio, ratio);
+
+  const handle = interactiveLogit(
+    { surface: { ctx, width, height }, element: canvas },
+    {
+      onDone: (points) => {
+        output.textContent =
+          points.length === 0
+            ? "No points yet."
+            : points
+                .map((point) => `x = ${point.x.toFixed(2)}, y = ${point.y}`)
+                .join("\n");
+      },
+    },
+  );
+  running = handle;
+
+  container.querySelector("#logit-done")?.addEventListener("click", () => {
+    handle.done();
+  });
+  container.querySelector("#logit-reset")?.addEventListener("click", () => {
+    handle.reset();
+    output.textContent = "No points yet.";
+  });
+}
+
 /** Start the interactive t test in the loaded fragment. */
 async function startTTest(): Promise<void> {
   const container = await loadFragment("ttest");
@@ -124,6 +179,8 @@ for (const button of document.querySelectorAll("[data-demo]")) {
     const name = button.getAttribute("data-demo");
     if (name === "regression") {
       void startRegression();
+    } else if (name === "logit") {
+      void startLogit();
     } else if (name === "ttest") {
       void startTTest();
     }
