@@ -34,6 +34,7 @@ import type {
   PlotSamplingResult,
   SamplingState,
 } from "../plot/sampling";
+import { buildSelect } from "./controls";
 import { resolveControlTarget } from "./target";
 import type { ControlTarget } from "./target";
 
@@ -216,36 +217,6 @@ export function interactiveSampling(
       panel.release();
     },
   };
-}
-
-/** Build one labelled select, with R's choices in it. */
-function buildSelect(
-  owner: Document,
-  name: string,
-  label: string,
-  choices: readonly number[],
-  selected: number,
-): { wrapper: HTMLElement; input: HTMLSelectElement } {
-  const wrapper = owner.createElement("label");
-  wrapper.style.display = "block";
-
-  const caption = owner.createElement("span");
-  caption.textContent = `${label} `;
-
-  const input = owner.createElement("select");
-  input.name = name;
-  input.style.width = "100%";
-  for (const choice of choices) {
-    const option = owner.createElement("option");
-    option.value = String(choice);
-    option.textContent = String(choice);
-    input.appendChild(option);
-  }
-  input.value = String(selected);
-
-  wrapper.appendChild(caption);
-  wrapper.appendChild(input);
-  return { wrapper, input };
 }
 
 /** Take the asked-for value if the select offers it, else its first choice. */

@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import { mean, quantile, quantiles, sd, sum, zipWith } from "./arith";
+import {
+  extent,
+  mean,
+  quantile,
+  quantiles,
+  requireCount,
+  sd,
+  sum,
+  withoutNegativeZero,
+  zipWith,
+} from "./arith";
 
 /**
  * Assert agreement with R, relative 1e-12 scaled by max(1, |expected|), the
@@ -139,5 +149,67 @@ describe("zipWith", () => {
 
   test("stops at the shorter array", () => {
     expect(zipWith([1, 2, 3], [10], (a, b) => a + b)).toEqual([11]);
+  });
+});
+
+describe("extent", () => {
+  test("returns the lowest and the highest value", () => {
+    expect(extent([3, 1, 4, 1, 5])).toEqual([1, 5]);
+  });
+
+  test("returns a single value as both ends", () => {
+    expect(extent([7])).toEqual([7, 7]);
+  });
+
+  test("handles negative values", () => {
+    expect(extent([-2.5, -9, -0.5])).toEqual([-9, -0.5]);
+  });
+
+  test("returns R's range(numeric(0)) shape for no values", () => {
+    expect(extent([])).toEqual([
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ]);
+  });
+
+  test("does not overflow the call stack on a long column", () => {
+    const long = Array.from({ length: 500000 }, (_, index) => index);
+    expect(extent(long)).toEqual([0, 499999]);
+  });
+});
+
+describe("withoutNegativeZero", () => {
+  test("maps a negative zero to a positive one", () => {
+    expect(Object.is(withoutNegativeZero(-0), 0)).toBe(true);
+  });
+
+  test("leaves a positive zero alone", () => {
+    expect(Object.is(withoutNegativeZero(0), 0)).toBe(true);
+  });
+
+  test("returns every other value unchanged", () => {
+    expect(withoutNegativeZero(-2.5)).toBe(-2.5);
+    expect(withoutNegativeZero(3)).toBe(3);
+  });
+});
+
+describe("requireCount", () => {
+  test("accepts a non-negative integer", () => {
+    expect(() => requireCount(0, "reps")).not.toThrow();
+    expect(() => requireCount(10, "reps")).not.toThrow();
+  });
+
+  test("rejects a negative count, naming it", () => {
+    expect(() => requireCount(-1, "reps")).toThrow(
+      "reps must be a non-negative integer, got -1",
+    );
+  });
+
+  test("rejects a fractional count", () => {
+    expect(() => requireCount(2.5, "n")).toThrow(RangeError);
+  });
+
+  test("rejects a non-finite count", () => {
+    expect(() => requireCount(Number.NaN, "n")).toThrow(RangeError);
   });
 });

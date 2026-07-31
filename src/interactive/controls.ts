@@ -8,9 +8,11 @@
  * to the console. They are here so that the two components differ in what
  * they control, not in how a control is made.
  *
- * The 2D components build their controls inline. They came first, and each
- * builds only one kind; the sweep that decides whether they should share this
- * module is the reuse audit at the end of the port.
+ * The 2D components came first and built their controls inline. The reuse
+ * audit at the end of the port found the same builders written out again in
+ * each of them, so they share this module too: `interactiveTTest` and
+ * `interactiveMatrixInverse` for the slider and the standing rule,
+ * `interactiveSampling` for the picker.
  */
 
 /** Where a slider may stand: R's `min`, `max` and `step`. */
@@ -45,11 +47,11 @@ export interface BuiltNote {
 /**
  * Correct a starting value to something the slider can stand at.
  *
- * Three rules, in order, following `interactiveMatrixInverse`, which took
- * them from the `validate()` of the `ion.rangeSlider.js` that ships inside
- * shiny. A value that is not a number becomes the minimum; a value outside
- * the range moves to the nearer bound; a value that misses the step moves to
- * the nearest step, counted from the minimum.
+ * Three rules, in order, taken from the `validate()` of the
+ * `ion.rangeSlider.js` that ships inside shiny. A value that is not a number
+ * becomes the minimum; a value outside the range moves to the nearer bound; a
+ * value that misses the step moves to the nearest step, counted from the
+ * minimum.
  *
  * The third rule is not R's — R leaves the handle wherever it was asked to
  * stand — but an HTML range input rounds a step-mismatched value by itself,
@@ -140,7 +142,9 @@ export function buildSlider(
  * @param owner The document to build in.
  * @param name The name the component reads the event by.
  * @param label R's own caption.
- * @param choices The options, in the order R lists them.
+ * @param choices The options, in the order R lists them. A numeric choice
+ *   reaches the DOM as its own text, which is how R's own numeric choices
+ *   arrive there.
  * @param selected The option to start on.
  * @returns The wrapper to append, and the input to listen to.
  */
@@ -148,8 +152,8 @@ export function buildSelect(
   owner: Document,
   name: string,
   label: string,
-  choices: readonly string[],
-  selected: string,
+  choices: readonly (string | number)[],
+  selected: string | number,
 ): BuiltSelect {
   const wrapper = owner.createElement("label");
   wrapper.style.display = "block";
@@ -162,11 +166,11 @@ export function buildSelect(
   input.style.width = "100%";
   for (const choice of choices) {
     const option = owner.createElement("option");
-    option.value = choice;
-    option.textContent = choice;
+    option.value = String(choice);
+    option.textContent = String(choice);
     input.appendChild(option);
   }
-  input.value = selected;
+  input.value = String(selected);
 
   wrapper.appendChild(caption);
   wrapper.appendChild(input);

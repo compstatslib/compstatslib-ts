@@ -37,7 +37,7 @@
  * rows whose controls were held at the mean of 199.
  */
 
-import { mean, sum, zipWith } from "./arith";
+import { extent, mean, sum, zipWith } from "./arith";
 import { frameRows, requireNumericColumn, type DataFrame } from "./frame";
 import { leastSquares } from "./ols";
 
@@ -250,18 +250,5 @@ function rSeq(from: number, to: number, length: number): number[] {
   const by = (to - from) / (length - 1);
   return Array.from({ length }, (_, index) =>
     index === 0 ? from : index === length - 1 ? to : from + index * by,
-  );
-}
-
-/**
- * Return the smallest and the largest value, as R's `range()` does.
- *
- * Written as a fold rather than `Math.min(...values)`, which overflows the
- * call stack on a long column.
- */
-function extent(values: readonly number[]): [number, number] {
-  return values.reduce<[number, number]>(
-    ([low, high], value) => [Math.min(low, value), Math.max(high, value)],
-    [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
   );
 }

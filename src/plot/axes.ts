@@ -156,6 +156,28 @@ export function createScale(options: ScaleOptions): Scale {
 }
 
 /**
+ * Report whether a pixel lies in the plot area. An edge counts as inside.
+ *
+ * The interactive components ask this of every click, to keep a click on the
+ * margin — the tick labels and the axis titles — from becoming a data point.
+ *
+ * @param area The plot area, from a scale.
+ * @param pixel A position on the surface, in layout pixels.
+ * @returns Whether the position is in the area, edges included.
+ */
+export function pixelInArea(
+  area: PlotArea,
+  pixel: { readonly x: number; readonly y: number },
+): boolean {
+  return (
+    pixel.x >= area.left &&
+    pixel.x <= area.right &&
+    pixel.y >= area.top &&
+    pixel.y <= area.bottom
+  );
+}
+
+/**
  * Choose readable tick values inside an extent.
  *
  * The step is 1, 2, or 5 times a power of ten, as in R's `pretty()`. Unlike

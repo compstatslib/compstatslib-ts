@@ -20,6 +20,7 @@ import { DEFAULT_T_TEST_OPTIONS } from "../core/ttest";
 import type { TTestStats } from "../core/ttest";
 import { plotTTest } from "../plot/tTest";
 import type { PlotTTestOptions } from "../plot/tTest";
+import { buildSlider } from "./controls";
 import { resolveControlTarget } from "./target";
 import type { ControlTarget } from "./target";
 
@@ -165,28 +166,14 @@ export function interactiveTTest(
   }
 
   for (const spec of SLIDERS) {
-    const wrapper = owner.createElement("label");
-    wrapper.style.display = "block";
-
-    const caption = owner.createElement("span");
-    caption.textContent = `${spec.label} `;
-
-    const readout = owner.createElement("output");
-    readout.textContent = String(values[spec.name]);
+    const { wrapper, input, readout } = buildSlider(
+      owner,
+      spec.name,
+      spec.label,
+      spec,
+      values[spec.name],
+    );
     readouts.set(spec.name, readout);
-
-    const input = owner.createElement("input");
-    input.type = "range";
-    input.name = spec.name;
-    input.min = String(spec.min);
-    input.max = String(spec.max);
-    input.step = String(spec.step);
-    input.value = String(values[spec.name]);
-    input.style.width = "100%";
-
-    wrapper.appendChild(caption);
-    wrapper.appendChild(readout);
-    wrapper.appendChild(input);
     mount(wrapper, input);
   }
 

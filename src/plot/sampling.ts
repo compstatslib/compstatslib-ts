@@ -28,7 +28,7 @@
  * that does nothing would carry the defect forward as if it were a feature.
  */
 
-import { mean } from "../core/arith";
+import { extent, mean } from "../core/arith";
 import { histogram } from "../core/histogram";
 import type { Histogram } from "../core/histogram";
 import { kernelDensity } from "../core/kde";
@@ -38,6 +38,7 @@ import type { Rng } from "../core/rng";
 import { drawSamples } from "../core/sampling";
 import { createScale, drawAxes } from "./axes";
 import type { Extent, Scale } from "./axes";
+import { DOTTED, clearSurface, clipToArea } from "./draw";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
 
@@ -131,15 +132,12 @@ const PANELS: readonly SamplingPanel[] = ["population", "samples", "statistic"];
  */
 const PANEL_MARGINS = { top: 8, right: 24, bottom: 28, left: 24 };
 
-const BACKGROUND = "#ffffff";
 const CURVE_COLOR = "#000000";
 const TEXT_COLOR = "#000000";
 /** R: `rgb(0.7, 0.7, 0.7, 0.5)`, one curve per sample. */
 const SAMPLE_CURVE_COLOR = "rgba(179, 179, 179, 0.5)";
 /** R's `hist()` default `col`, with `border = FALSE`. */
 const BAR_COLOR = "lightgray";
-/** R: `lty = "dotted"` on the population curve. */
-const DOTTED = [1, 3];
 /** R: `lwd = 2` on the population and pooled curves. */
 const CURVE_WIDTH = 2;
 /** R: `lwd = 1` on each sample's own curve. */
@@ -238,9 +236,7 @@ export function plotSampling(
     : { samples: [] as readonly (readonly number[])[], thetas: [] as readonly number[] };
   const sampleTheta = [...(state?.sampleTheta ?? []), ...draw.thetas];
 
-  ctx.setLineDash([]);
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, width, height);
+  clearSurface(ctx, width, height);
 
   drawDensityPanel(
     ctx,
@@ -295,10 +291,8 @@ function frozenWindow(
   if (population.length === 0) {
     return { min: 0, max: 1 };
   }
-  return {
-    min: population.reduce((low, value) => (value < low ? value : low)),
-    max: population.reduce((high, value) => (value > high ? value : high)),
-  };
+  const [min, max] = extent(population);
+  return { min, max };
 }
 
 /**
@@ -390,9 +384,7 @@ function drawCurve(
 ): void {
   const { area } = scale;
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
+  clipToArea(ctx, area);
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.setLineDash(dotted ? DOTTED : []);
@@ -422,9 +414,7 @@ function drawBars(ctx: Context2D, scale: Scale, counted: Histogram): void {
   const foot = scale.toPixelY(0);
 
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
+  clipToArea(ctx, area);
   ctx.setLineDash([]);
   ctx.fillStyle = BAR_COLOR;
   counted.counts.forEach((count, index) => {

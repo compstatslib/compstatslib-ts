@@ -25,7 +25,7 @@
  * runs the FFT over the reported window gives a visibly narrower curve.
  */
 
-import { quantiles, sd } from "./arith";
+import { extent, quantiles, sd } from "./arith";
 
 /** Points in the reported grid. R's `density(n = 512)` default. */
 const GRID_SIZE = 512;
@@ -147,8 +147,7 @@ export function kernelDensity(
     throw new RangeError("need at least 1 finite value, got none");
   }
 
-  const lowest = finite.reduce((low, value) => (value < low ? value : low));
-  const highest = finite.reduce((high, value) => (value > high ? value : high));
+  const [lowest, highest] = extent(finite);
   const from = lowest - CUT * bw;
   const to = highest + CUT * bw;
   const lo = from - EXT * bw;

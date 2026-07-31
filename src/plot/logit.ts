@@ -13,6 +13,7 @@ import type { LogitFit } from "../core/logit";
 import type { Point } from "../core/regression";
 import { createScale, drawAxes } from "./axes";
 import type { Extent, Scale } from "./axes";
+import { DOTTED, clearSurface, clipToArea, drawDots } from "./draw";
 import { formatStat } from "./format";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
@@ -49,16 +50,9 @@ const WORLD_Y: Extent = { min: 0, max: 1 };
 const DEFAULT_MIN_X = 0;
 const DEFAULT_MAX_X = 1;
 
-const BACKGROUND = "#ffffff";
-/** R's `col = "gray"` is #BEBEBE. The CSS colour of that name is darker. */
-const POINT_COLOR = "#bebebe";
 const HALF_LINE_COLOR = "lightgray";
 const CURVE_COLOR = "cornflowerblue";
 const TEXT_COLOR = "#000000";
-/** R: `pch = 19, cex = 2`. */
-const POINT_RADIUS = 6;
-/** R: `lty = "dotted"`. */
-const DOTTED = [1, 3];
 /** R: `lwd = 2` on the curve. */
 const CURVE_WIDTH = 2;
 /** R: `seq(min_x, max_x, len = 500)`. */
@@ -132,12 +126,10 @@ export function plotLogit(
   const legendLocation = options.legendLoc ?? "topleft";
   const scale = logitScale(width, height, points, options);
 
-  ctx.setLineDash([]);
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, width, height);
+  clearSurface(ctx, width, height);
   drawAxes(ctx, scale, { xLabel: "x", yLabel: "y" });
 
-  drawPoints(ctx, scale, points);
+  drawDots(ctx, scale, points);
   // R draws this after the points, and draws it on an empty frame too:
   // plot_points_logit() ends with abline(h = 0.5) whether or not it had data.
   drawHalfLine(ctx, scale);
@@ -156,29 +148,6 @@ export function plotLogit(
     drawStats(ctx, scale, fit, legendLocation);
   }
   return fit;
-}
-
-/** Draw each point as a filled dot. */
-function drawPoints(
-  ctx: Context2D,
-  scale: Scale,
-  points: readonly Point[],
-): void {
-  ctx.save();
-  ctx.setLineDash([]);
-  ctx.fillStyle = POINT_COLOR;
-  for (const point of points) {
-    ctx.beginPath();
-    ctx.arc(
-      scale.toPixelX(point.x),
-      scale.toPixelY(point.y),
-      POINT_RADIUS,
-      0,
-      2 * Math.PI,
-    );
-    ctx.fill();
-  }
-  ctx.restore();
 }
 
 /** Draw the dotted line at one half. R: `abline(h = 0.5)`. */
@@ -216,9 +185,7 @@ function drawCurve(ctx: Context2D, scale: Scale, fit: LogitFit): void {
   });
 
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
+  clipToArea(ctx, area);
   ctx.strokeStyle = CURVE_COLOR;
   ctx.lineWidth = CURVE_WIDTH;
   ctx.setLineDash([]);

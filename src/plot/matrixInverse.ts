@@ -26,20 +26,20 @@
  *
  * **The arrowhead is a physical size.** R asks for `length = 0.25`, measured
  * in inches, so the head does not shrink with a short vector. A vector short
- * enough loses its arrow altogether: see `MIN_ARROW_PIXELS`.
+ * enough loses its arrow altogether: see `MIN_ARROW_PIXELS` in `draw.ts`.
  */
 
 import { invertMatrix } from "../core/matrix";
 import type { Matrix2, MatrixInversion } from "../core/matrix";
 import { createScale, drawAxes } from "./axes";
 import type { Extent, Scale } from "./axes";
+import { clearSurface, clipToArea, drawArrow } from "./draw";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
 
 /** R: `xlim = c(-3, 3)` and `ylim = c(-3, 3)`, fixed in the function body. */
 const WORLD: Extent = { min: -3, max: 3 };
 
-const BACKGROUND = "#ffffff";
 /** R's `rgb(1, 0, 0, 0.1)`, the fill of the matrix. */
 const MATRIX_FILL = "#FF00001A";
 /** R's `rgb(0, 0, 1, 0.1)`, the fill of the inverse. */
@@ -58,21 +58,6 @@ const LINE_WIDTH = 1;
  * what R draws.
  */
 const HEAD_LENGTH = 24;
-/** R: `angle = 30`, the default, measured from the shaft. */
-const HEAD_ANGLE = Math.PI / 6;
-/**
- * The shortest arrow that still gets drawn, in pixels.
- *
- * `?arrows`: "The direction of a zero-length arrow is indeterminate, and hence
- * so is the direction of the arrowheads. To allow for rounding error,
- * arrowheads are omitted (with a warning) on any arrow of length less than
- * 1/1000 inch." That is this many pixels. R still draws the shaft, which
- * covers no distance and so paints nothing; this skips the whole arrow, which
- * leaves the same picture. One column near zero with a large second column
- * reaches this and still has an inverse, so it is not only a singular-matrix
- * case. The same rule is in `plot/pca.ts`.
- */
-const MIN_ARROW_PIXELS = 96 / 1000;
 
 /**
  * Build the scale that `plotMatrixInverse` draws through.
@@ -118,9 +103,7 @@ export function plotMatrixInverse(
   }
 
   const scale = matrixInverseScale(width, height);
-  ctx.setLineDash([]);
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, width, height);
+  clearSurface(ctx, width, height);
   // R: `frame.plot = FALSE` drops the box and keeps both axes. The axes carry
   // no titles: R's own read "Index" and "NA", which `plot(NA, ...)` produces
   // from the missing value it was passed and which describe nothing.
@@ -131,9 +114,7 @@ export function plotMatrixInverse(
   // hundreds, and the window is three units wide.
   const { area } = scale;
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
+  clipToArea(ctx, area);
 
   drawMatrix(ctx, scale, matrix, MATRIX_FILL);
   drawMatrix(ctx, scale, inversion.inverse, INVERSE_FILL);
@@ -153,8 +134,8 @@ function drawMatrix(
   fill: string,
 ): void {
   drawParallelogram(ctx, scale, matrix, fill);
-  drawArrow(ctx, scale, matrix.x1, matrix.y1);
-  drawArrow(ctx, scale, matrix.x2, matrix.y2);
+  drawColumnArrow(ctx, scale, matrix.x1, matrix.y1);
+  drawColumnArrow(ctx, scale, matrix.x2, matrix.y2);
 }
 
 /**
@@ -204,7 +185,7 @@ function drawParallelogram(
  * The head goes at the far end alone, which is what `arrows()` does with its
  * default `code = 2`.
  */
-function drawArrow(
+function drawColumnArrow(
   ctx: Context2D,
   scale: Scale,
   x: number,
@@ -213,30 +194,9 @@ function drawArrow(
   const tail = [scale.toPixelX(0), scale.toPixelY(0)] as const;
   const tip = [scale.toPixelX(x), scale.toPixelY(y)] as const;
 
-  const length = Math.hypot(tip[0] - tail[0], tip[1] - tail[1]);
-  if (!Number.isFinite(length) || length < MIN_ARROW_PIXELS) {
-    return;
-  }
-
-  // Back along the shaft from the tip, then a turn each way for the head.
-  const back = Math.atan2(tail[1] - tip[1], tail[0] - tip[0]);
-  const edge = (turn: number): readonly [number, number] => [
-    tip[0] + HEAD_LENGTH * Math.cos(back + turn),
-    tip[1] + HEAD_LENGTH * Math.sin(back + turn),
-  ];
-
-  ctx.save();
-  ctx.setLineDash([]);
-  ctx.strokeStyle = ARROW_COLOR;
-  ctx.lineWidth = LINE_WIDTH;
-  ctx.beginPath();
-  ctx.moveTo(tail[0], tail[1]);
-  ctx.lineTo(tip[0], tip[1]);
-  const [firstX, firstY] = edge(HEAD_ANGLE);
-  const [secondX, secondY] = edge(-HEAD_ANGLE);
-  ctx.moveTo(firstX, firstY);
-  ctx.lineTo(tip[0], tip[1]);
-  ctx.lineTo(secondX, secondY);
-  ctx.stroke();
-  ctx.restore();
+  drawArrow(ctx, tail, tip, {
+    headLength: HEAD_LENGTH,
+    color: ARROW_COLOR,
+    lineWidth: LINE_WIDTH,
+  });
 }

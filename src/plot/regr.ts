@@ -14,6 +14,7 @@ import type { Point, RegressionFit } from "../core/regression";
 import { createScale, drawAxes } from "./axes";
 import { formatStat } from "./format";
 import type { Extent, Scale } from "./axes";
+import { DOTTED, clearSurface, clipToArea, drawDots } from "./draw";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
 
@@ -28,16 +29,9 @@ export interface PlotRegrOptions {
 /** R: `xlim = c(-5, max_x)` and `ylim = c(-5, max_x)`, with `max_x = 50`. */
 const WORLD: Extent = { min: -5, max: 50 };
 
-const BACKGROUND = "#ffffff";
-/** R's `col = "gray"` is #BEBEBE. The CSS colour of that name is darker. */
-const POINT_COLOR = "#bebebe";
 const CROSSHAIR_COLOR = "lightgray";
 const LINE_COLOR = "cornflowerblue";
 const TEXT_COLOR = "#000000";
-/** R: `pch = 19, cex = 2`. */
-const POINT_RADIUS = 6;
-/** R: `lty = "dotted"`. */
-const DOTTED = [1, 3];
 const STATS_FONT = "12px monospace";
 const STATS_LINE_HEIGHT = 15;
 const STATS_PADDING = 8;
@@ -81,9 +75,7 @@ export function plotRegr(
   const showStats = options.stats ?? true;
   const scale = regrScale(width, height);
 
-  ctx.setLineDash([]);
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, width, height);
+  clearSurface(ctx, width, height);
   drawAxes(ctx, scale, { xLabel: "x", yLabel: "y" });
 
   const fit = linearRegression(points);
@@ -91,7 +83,7 @@ export function plotRegr(
     return null;
   }
 
-  drawPoints(ctx, scale, points);
+  drawDots(ctx, scale, points);
   if (points.length < 2 || !showRegression) {
     return fit;
   }
@@ -104,29 +96,6 @@ export function plotRegr(
     drawStats(ctx, scale, fit);
   }
   return fit;
-}
-
-/** Draw each point as a filled dot. */
-function drawPoints(
-  ctx: Context2D,
-  scale: Scale,
-  points: readonly Point[],
-): void {
-  ctx.save();
-  ctx.setLineDash([]);
-  ctx.fillStyle = POINT_COLOR;
-  for (const point of points) {
-    ctx.beginPath();
-    ctx.arc(
-      scale.toPixelX(point.x),
-      scale.toPixelY(point.y),
-      POINT_RADIUS,
-      0,
-      2 * Math.PI,
-    );
-    ctx.fill();
-  }
-  ctx.restore();
 }
 
 /**
@@ -172,9 +141,7 @@ function drawFittedLine(
 ): void {
   const { area } = scale;
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
+  clipToArea(ctx, area);
   ctx.strokeStyle = LINE_COLOR;
   ctx.lineWidth = 2;
   ctx.setLineDash([]);

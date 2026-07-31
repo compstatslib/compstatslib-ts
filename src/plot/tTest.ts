@@ -15,6 +15,7 @@ import { tTestStats } from "../core/ttest";
 import type { TTestOptions, TTestStats } from "../core/ttest";
 import { createScale, drawAxes } from "./axes";
 import type { Extent, Scale } from "./axes";
+import { clearSurface, clipToArea } from "./draw";
 import { formatNumber, formatStat } from "./format";
 import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
@@ -31,7 +32,6 @@ export interface PlotTTestOptions extends TTestOptions {
 /** R: `xlim = c(-6, 6)` in both `t_null_plot()` and `t_alt_lines()`. */
 const WORLD_X: Extent = { min: -6, max: 6 };
 
-const BACKGROUND = "#ffffff";
 /** R: `rgb(0.75, 0.1, 0.1)`. */
 const NULL_COLOR = "#bf1a1a";
 /** R: `rgb(1, 0.5, 0.5)`. */
@@ -156,9 +156,7 @@ export function plotTTest(
   const stats = tTestStats(statOptions);
   const scale = buildScale(width, height, stats, showErrorMatrix);
 
-  ctx.setLineDash([]);
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, width, height);
+  clearSurface(ctx, width, height);
   drawAxes(ctx, scale, { frame: false });
 
   // R draws the null first, then the alternative over it. Within each, the
@@ -192,7 +190,7 @@ function drawCurve(
   dash: readonly number[],
 ): void {
   ctx.save();
-  clipToArea(ctx, scale);
+  clipToArea(ctx, scale.area);
   ctx.strokeStyle = color;
   ctx.lineWidth = LINE_WIDTH;
   ctx.setLineDash([...dash]);
@@ -253,7 +251,7 @@ function drawFill(
   const baseline = scale.toPixelY(0);
 
   ctx.save();
-  clipToArea(ctx, scale);
+  clipToArea(ctx, scale.area);
   ctx.fillStyle = color;
   ctx.setLineDash([]);
   ctx.beginPath();
@@ -283,7 +281,7 @@ function drawMedianSegment(
   }
 
   ctx.save();
-  clipToArea(ctx, scale);
+  clipToArea(ctx, scale.area);
   ctx.strokeStyle = ALT_FILL;
   ctx.lineWidth = LINE_WIDTH;
   ctx.setLineDash([]);
@@ -295,14 +293,6 @@ function drawMedianSegment(
   );
   ctx.stroke();
   ctx.restore();
-}
-
-/** Keep drawing inside the plot area, as base graphics does by default. */
-function clipToArea(ctx: Context2D, scale: Scale): void {
-  const { area } = scale;
-  ctx.beginPath();
-  ctx.rect(area.left, area.top, area.width, area.height);
-  ctx.clip();
 }
 
 /**

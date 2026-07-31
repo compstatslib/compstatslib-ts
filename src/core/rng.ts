@@ -18,6 +18,8 @@
  * for cryptography.
  */
 
+import { requireCount } from "./arith";
+
 /** A source of uniform values in the interval [0, 1). */
 export type Rng = () => number;
 
@@ -186,11 +188,4 @@ export function sampleWithoutReplacement<T>(
   }
 
   return pool.slice(0, k);
-}
-
-/** Reject a count that is not a non-negative integer. */
-function requireCount(value: number, name: string): void {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new RangeError(`${name} must be a non-negative integer, got ${value}`);
-  }
 }

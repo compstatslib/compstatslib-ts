@@ -16,6 +16,49 @@ export function mean(values: readonly number[]): number {
 }
 
 /**
+ * Return the smallest and the largest value, as R's `range()` does.
+ *
+ * Written as a fold rather than `Math.min(...values)`, which overflows the
+ * call stack on a long column.
+ *
+ * @param values The observations.
+ * @returns The lowest and the highest value. An empty array returns
+ *   [Infinity, -Infinity], the shape of R's `range(numeric(0))`.
+ *
+ * A comparison keeps the accumulator when it is false, so a NaN entry is
+ * skipped rather than carried through. No caller supports NaN input: the
+ * modules that call this either drop the non-finite values first or state
+ * that they do not handle R's NA.
+ */
+export function extent(values: readonly number[]): [number, number] {
+  return values.reduce<[number, number]>(
+    ([low, high], value) => [
+      value < low ? value : low,
+      value > high ? value : high,
+    ],
+    [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  );
+}
+
+/**
+ * Map a negative zero to a positive one.
+ *
+ * A computed zero can come out of an algorithm with a sign that R's own
+ * zeros never carry: of 1498 zero entries of a matrix inverse over a sweep of
+ * 20000 slider settings, R gives a positive zero every time.
+ */
+export function withoutNegativeZero(value: number): number {
+  return value === 0 ? 0 : value;
+}
+
+/** Reject a count that is not a non-negative integer. */
+export function requireCount(value: number, name: string): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new RangeError(`${name} must be a non-negative integer, got ${value}`);
+  }
+}
+
+/**
  * Combine two arrays element by element.
  *
  * Stop at the end of the shorter array.
