@@ -1,0 +1,34 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive matrix inverse</h2>
+
+<p>
+  Move the sliders to change the matrix. The red parallelogram is spanned by
+  the columns of the matrix, the blue one by the columns of its inverse; the
+  area of each is its determinant. A singular matrix has no inverse, so the
+  plot shows R's own error instead — try all four sliders at 1. This is
+  <code>interactive_matrix_inverse()</code> from the R package.
+</p>
+
+<!--
+  Square-ish on purpose. R passes no asp here, so the parallelograms shear
+  with the plot area exactly as they do on a non-square R device; this size
+  leaves the plot area close to square so a unit square looks square.
+-->
+<div
+  id="matrixinverse-container"
+  style="
+    width: 760px;
+    max-width: 100%;
+    height: 620px;
+    border: 1px solid #cccccc;
+  "
+></div>
+
+<pre id="matrixinverse-result">No result yet.</pre>
+
+<p>
+  <button type="button" id="matrixinverse-done">Done</button>
+  <button type="button" id="matrixinverse-singular">Go singular</button>
+</p>
+
+<pre id="matrixinverse-values">No values yet.</pre>

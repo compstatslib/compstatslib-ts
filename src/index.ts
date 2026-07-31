@@ -25,6 +25,8 @@ export type {
 } from "./core/sampling";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
+export { determinant, invertMatrix } from "./core/matrix";
+export type { Matrix2, MatrixInversion, Singularity } from "./core/matrix";
 export { principalComponents } from "./core/pca";
 export type { Loadings, PcaResult } from "./core/pca";
 export {
@@ -73,6 +75,7 @@ export type {
   Scale,
   ScaleOptions,
 } from "./plot/axes";
+export { matrixInverseScale, plotMatrixInverse } from "./plot/matrixInverse";
 export { logitScale, plotLogit } from "./plot/logit";
 export type { LegendLocation, PlotLogitOptions } from "./plot/logit";
 export { plotSampleCi, sampleCiScale } from "./plot/sampleCi";
@@ -105,6 +108,14 @@ export type {
   ResolvedPanel,
   SplitTarget,
 } from "./interactive/target";
+export {
+  DEFAULT_MATRIX_INVERSE_VALUES,
+  interactiveMatrixInverse,
+} from "./interactive/matrixInverse";
+export type {
+  InteractiveMatrixInverseHandle,
+  InteractiveMatrixInverseOptions,
+} from "./interactive/matrixInverse";
 export { interactiveSampling } from "./interactive/sampling";
 export type {
   InteractiveSamplingHandle,

@@ -8,6 +8,7 @@
 
 import {
   interactiveLogit,
+  interactiveMatrixInverse,
   interactivePca,
   interactiveRegression,
   interactiveSampling,
@@ -20,10 +21,12 @@ import {
 } from "../src/index";
 import type {
   InteractiveLogitHandle,
+  InteractiveMatrixInverseHandle,
   InteractivePcaHandle,
   InteractiveRegressionHandle,
   InteractiveSamplingHandle,
   InteractiveTTestHandle,
+  Matrix2,
   Point,
 } from "../src/index";
 
@@ -37,6 +40,7 @@ const demo = document.querySelector("#demo");
 /** The demo that is running now. The page stops it before it starts another. */
 let running:
   | InteractiveLogitHandle
+  | InteractiveMatrixInverseHandle
   | InteractivePcaHandle
   | InteractiveRegressionHandle
   | InteractiveSamplingHandle
@@ -319,6 +323,74 @@ async function startPca(): Promise<void> {
   });
 }
 
+/** Start the interactive matrix inverse in the loaded fragment. */
+async function startMatrixInverse(): Promise<void> {
+  const container = await loadFragment("matrixinverse");
+  const host = container.querySelector("#matrixinverse-container");
+  const result = container.querySelector("#matrixinverse-result");
+  const output = container.querySelector("#matrixinverse-values");
+  if (!(host instanceof HTMLElement) || result === null || output === null) {
+    throw new Error("demo: the matrix inverse fragment is incomplete.");
+  }
+
+  const showResult = (handle: InteractiveMatrixInverseHandle): void => {
+    const report = handle.getResult();
+    if (report.singularity === null) {
+      result.textContent = `det(A) = ${report.determinant}`;
+      return;
+    }
+    result.textContent = [
+      `det(A) = ${report.determinant}`,
+      report.singularity === "exact"
+        ? `no inverse: exactly singular (pivot U[${report.zeroPivot},${report.zeroPivot}] is 0)`
+        : `no inverse: computationally singular (rcond = ${report.rcond})`,
+    ].join("\n");
+  };
+
+  // The component takes starting values only at construction, so the
+  // "Go singular" button restarts it — which also exercises destroy() in a
+  // real browser, like the PCA demo's dataset button.
+  const begin = (
+    initial: Partial<Matrix2>,
+  ): InteractiveMatrixInverseHandle => {
+    const handle = interactiveMatrixInverse(host, {
+      ...initial,
+      onDone: (values) => {
+        output.textContent = [
+          `x1 = ${values.x1}`,
+          `y1 = ${values.y1}`,
+          `x2 = ${values.x2}`,
+          `y2 = ${values.y2}`,
+        ].join("\n");
+      },
+    });
+    showResult(handle);
+    return handle;
+  };
+
+  let handle = begin({});
+  running = handle;
+
+  // The sliders sit inside the host, so their input events bubble here. The
+  // slider's own listener runs first, which makes getResult() fresh.
+  host.addEventListener("input", () => {
+    showResult(handle);
+  });
+
+  container
+    .querySelector("#matrixinverse-done")
+    ?.addEventListener("click", () => {
+      handle.done();
+    });
+  container
+    .querySelector("#matrixinverse-singular")
+    ?.addEventListener("click", () => {
+      handle.destroy();
+      handle = begin({ x1: 1, y1: 1, x2: 1, y2: 1 });
+      running = handle;
+    });
+}
+
 /** Start the sample-CI demonstration in the loaded fragment. */
 async function startSampleCi(): Promise<void> {
   const container = await loadFragment("sampleci");
@@ -378,6 +450,8 @@ for (const button of document.querySelectorAll("[data-demo]")) {
       void startSampleCi();
     } else if (name === "pca") {
       void startPca();
+    } else if (name === "matrixinverse") {
+      void startMatrixInverse();
     }
   });
 }

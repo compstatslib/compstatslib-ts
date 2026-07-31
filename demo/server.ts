@@ -32,6 +32,10 @@ const server = Bun.serve({
       Bun.file(new URL("./pca.html", import.meta.url)),
       { headers: { "content-type": "text/html; charset=utf-8" } },
     ),
+    "/matrixinverse.html": new Response(
+      Bun.file(new URL("./matrixinverse.html", import.meta.url)),
+      { headers: { "content-type": "text/html; charset=utf-8" } },
+    ),
   },
 });
 
