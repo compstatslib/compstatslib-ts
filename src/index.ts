@@ -25,6 +25,8 @@ export type {
 } from "./core/sampling";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
+export { principalComponents } from "./core/pca";
+export type { Loadings, PcaResult } from "./core/pca";
 export {
   DEFAULT_LOGIT_EPSILON,
   DEFAULT_LOGIT_MAX_ITERATIONS,
@@ -57,6 +59,8 @@ export {
   logGamma,
   normalCdf,
 } from "./core/special";
+
+export { pcaDegenerate } from "./data/pcaDegenerate";
 
 export { resolveTarget } from "./plot/target";
 export type { Context2D, PlotTarget, RenderTarget } from "./plot/target";
