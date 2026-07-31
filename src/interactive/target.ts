@@ -195,6 +195,94 @@ export function resolveControlTarget(target: ControlTarget): ResolvedPanel {
 }
 
 /**
+ * An element for Plotly to fill, and an element to build controls in.
+ *
+ * The third target shape of the port, after `SplitTarget` and `PanelTarget`.
+ * The 3D components need it because Plotly draws into an element of its own
+ * rather than onto a canvas: there is no context to hand around, and the
+ * element the plot lives in is the element the engine later purges.
+ */
+export interface Plot3dPanel {
+  /** Where Plotly draws. The component gives this element to the plot. */
+  readonly plot: HTMLElement;
+  /** Where the component builds its inputs. */
+  readonly controls: HTMLElement;
+}
+
+/**
+ * What a 3D component accepts.
+ *
+ * Pass a container element in a browser and the component fills it. Pass the
+ * two parts to hold them apart, which is how the tests run.
+ */
+export type Plot3dTarget = HTMLElement | Plot3dPanel;
+
+/** A resolved 3D panel, and a way to take back anything built for it. */
+export interface ResolvedPlot3dPanel extends Plot3dPanel {
+  /** Remove what this resolver created. A no-op when the caller supplied it. */
+  release(): void;
+}
+
+/** The height a plot element falls back to when the container declares none. */
+const FALLBACK_PLOT_HEIGHT = 480;
+
+/**
+ * Reduce a 3D target to a plot element and a place to build controls.
+ *
+ * Given a container, this builds the two elements in R's own arrangement: a
+ * strip of controls across the top, and the plot filling what is left. R's
+ * gadget lays both 3D families out that way (`flex-direction: column`, the
+ * control rows `flex-shrink: 0`, the plot `flex: 1`).
+ *
+ * @param target A container element, or the two parts.
+ * @returns The two parts and a way to undo what was built.
+ * @throws Error If a container is a canvas, which Plotly cannot draw into.
+ */
+export function resolvePlot3dTarget(target: Plot3dTarget): ResolvedPlot3dPanel {
+  if ("plot" in target) {
+    return {
+      plot: target.plot,
+      controls: target.controls,
+      release: () => undefined,
+    };
+  }
+
+  if (target.tagName === "CANVAS") {
+    throw new Error(
+      "interactive target: pass a container element to build the panel in, " +
+        "not a canvas. Plotly draws into an element of its own.",
+    );
+  }
+
+  const owner = target.ownerDocument;
+  const controls = owner.createElement("div");
+  controls.style.display = "flex";
+  controls.style.flexWrap = "wrap";
+  controls.style.gap = "12px";
+  controls.style.padding = "8px";
+  controls.style.flexShrink = "0";
+
+  const plot = owner.createElement("div");
+  plot.style.flex = "1 1 auto";
+  plot.style.minHeight =
+    target.clientHeight > 0 ? "0" : `${FALLBACK_PLOT_HEIGHT}px`;
+
+  target.style.display = "flex";
+  target.style.flexDirection = "column";
+  target.appendChild(controls);
+  target.appendChild(plot);
+
+  return {
+    plot,
+    controls,
+    release: () => {
+      controls.remove();
+      plot.remove();
+    },
+  };
+}
+
+/**
  * How many device pixels the screen puts in a layout pixel.
  *
  * Anything other than a positive number, which is what a test environment

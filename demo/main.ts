@@ -29,6 +29,21 @@ import type {
   Matrix2,
   Point,
 } from "../src/index";
+// Types only: a value import of the 3D entry would make the page bundler
+// inline all of Plotly (it cannot split dynamic imports). The values arrive
+// at runtime from /3d-lib.js, which the server bundles with Plotly external.
+import type {
+  InteractiveModeration3dHandle,
+  InteractiveScatter3dHandle,
+  PlotlyLike,
+} from "../src/3d";
+
+declare global {
+  interface Window {
+    /** Set by /plotly.min.js once `ensurePlotly` has loaded it. */
+    Plotly?: PlotlyLike;
+  }
+}
 
 const precision = document.querySelector("#precision");
 if (precision) {
@@ -41,11 +56,48 @@ const demo = document.querySelector("#demo");
 let running:
   | InteractiveLogitHandle
   | InteractiveMatrixInverseHandle
+  | InteractiveModeration3dHandle
   | InteractivePcaHandle
   | InteractiveRegressionHandle
   | InteractiveSamplingHandle
+  | InteractiveScatter3dHandle
   | InteractiveTTestHandle
   | null = null;
+
+/**
+ * Load Plotly from the server, once, and hand back `window.Plotly`. The 3D
+ * demos pass it through the `plotly` option, so the library's own dynamic
+ * import never runs.
+ */
+async function ensurePlotly(): Promise<PlotlyLike> {
+  if (window.Plotly !== undefined) {
+    return window.Plotly;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "/plotly.min.js";
+    script.addEventListener("load", () => {
+      resolve();
+    });
+    script.addEventListener("error", () => {
+      reject(new Error("demo: /plotly.min.js failed to load."));
+    });
+    document.head.appendChild(script);
+  });
+  if (window.Plotly === undefined) {
+    throw new Error("demo: /plotly.min.js loaded but set no window.Plotly.");
+  }
+  return window.Plotly;
+}
+
+/**
+ * Import the 3D library the server bundles from live source. The specifier
+ * is computed so the page bundler leaves the import to the browser.
+ */
+async function load3dLib(): Promise<typeof import("../src/3d")> {
+  const path = "/3d-lib.js";
+  return (await import(path)) as typeof import("../src/3d");
+}
 
 /** Load a fragment into `#demo`. */
 async function loadFragment(name: string): Promise<Element> {
@@ -391,6 +443,85 @@ async function startMatrixInverse(): Promise<void> {
     });
 }
 
+/** Start the interactive 3D scatterplot in the loaded fragment. */
+async function startScatter3d(): Promise<void> {
+  const container = await loadFragment("scatter3d");
+  const host = container.querySelector("#scatter3d-container");
+  const output = container.querySelector("#scatter3d-values");
+  if (!(host instanceof HTMLElement) || output === null) {
+    throw new Error("demo: the scatter3d fragment is incomplete.");
+  }
+
+  const [plotly, lib] = await Promise.all([ensurePlotly(), load3dLib()]);
+
+  const handle = lib.interactiveScatter3d(host, lib.moderationData, {
+    plotly,
+    onDone: (values) => {
+      // The values are the port's answer to R's printed call: feed them back
+      // to plotScatter3d (or interactiveScatter3d) to reproduce the view.
+      output.textContent = JSON.stringify(values, null, 2);
+    },
+  });
+  running = handle;
+  await handle.rendered();
+
+  container.querySelector("#scatter3d-done")?.addEventListener("click", () => {
+    handle.done();
+  });
+}
+
+/** Start the interactive 3D moderation surface in the loaded fragment. */
+async function startModeration3d(): Promise<void> {
+  const container = await loadFragment("moderation3d");
+  const host = container.querySelector("#moderation3d-container");
+  const output = container.querySelector("#moderation3d-values");
+  const control = container.querySelector("#moderation3d-control");
+  if (
+    !(host instanceof HTMLElement) ||
+    output === null ||
+    !(control instanceof HTMLButtonElement)
+  ) {
+    throw new Error("demo: the moderation3d fragment is incomplete.");
+  }
+
+  const [plotly, lib] = await Promise.all([ensurePlotly(), load3dLib()]);
+
+  // The component takes its model only at construction, so the control
+  // toggle restarts it — the PCA and matrix-inverse demo precedent.
+  const begin = (withControl: boolean): InteractiveModeration3dHandle =>
+    lib.interactiveModeration3d(host, lib.moderationData, {
+      outcome: "y",
+      iv: "x",
+      mod: "z",
+      ...(withControl ? { controls: ["w"] } : {}),
+      plotly,
+      onDone: (values) => {
+        output.textContent = JSON.stringify(values, null, 2);
+      },
+    });
+
+  let withControl = false;
+  let handle = begin(withControl);
+  running = handle;
+  await handle.rendered();
+
+  container
+    .querySelector("#moderation3d-done")
+    ?.addEventListener("click", () => {
+      handle.done();
+    });
+  control.addEventListener("click", () => {
+    handle.destroy();
+    withControl = !withControl;
+    control.textContent = withControl
+      ? "Drop control w"
+      : "Include control w";
+    handle = begin(withControl);
+    running = handle;
+    void handle.rendered();
+  });
+}
+
 /** Start the sample-CI demonstration in the loaded fragment. */
 async function startSampleCi(): Promise<void> {
   const container = await loadFragment("sampleci");
@@ -452,6 +583,10 @@ for (const button of document.querySelectorAll("[data-demo]")) {
       void startPca();
     } else if (name === "matrixinverse") {
       void startMatrixInverse();
+    } else if (name === "scatter3d") {
+      void startScatter3d();
+    } else if (name === "moderation3d") {
+      void startModeration3d();
     }
   });
 }
