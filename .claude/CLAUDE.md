@@ -175,6 +175,11 @@ bun run dev                       # demo site at http://localhost:3000
 
 Set `PORT` to move the demo server off port 3000.
 
+The demo server's route table is fixed at startup, but Bun rebundles the
+page script on every request. A fragment added after the server started
+therefore 404s while the page looks current. After adding a demo fragment,
+restart the dev server and curl the new route before manual testing.
+
 There are two TypeScript configs. `tsconfig.json` type-checks everything and
 emits nothing. `tsconfig.build.json` extends it, drops `*.test.ts`, and emits
 declarations only. `bun run build` uses both.
