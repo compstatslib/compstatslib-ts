@@ -9,12 +9,17 @@
 import {
   interactiveLogit,
   interactiveRegression,
+  interactiveSampling,
   interactiveTTest,
   machinePrecision,
+  plotSampleCi,
+  rnorm,
+  seededRng,
 } from "../src/index";
 import type {
   InteractiveLogitHandle,
   InteractiveRegressionHandle,
+  InteractiveSamplingHandle,
   InteractiveTTestHandle,
 } from "../src/index";
 
@@ -29,6 +34,7 @@ const demo = document.querySelector("#demo");
 let running:
   | InteractiveLogitHandle
   | InteractiveRegressionHandle
+  | InteractiveSamplingHandle
   | InteractiveTTestHandle
   | null = null;
 
@@ -174,6 +180,94 @@ async function startTTest(): Promise<void> {
   });
 }
 
+/** Start the interactive sampling demonstration in the loaded fragment. */
+async function startSampling(): Promise<void> {
+  const container = await loadFragment("sampling");
+  const host = container.querySelector("#sampling-container");
+  const output = container.querySelector("#sampling-state");
+  if (!(host instanceof HTMLElement) || output === null) {
+    throw new Error("demo: the sampling fragment is incomplete.");
+  }
+
+  // The population is seeded, so the page shows the same bimodal shape on
+  // every load — R's own example, c(rnorm(1e5, 4), rnorm(1e5, -4)), at half
+  // the size. The draw stream is left unseeded: pressing Sample after a
+  // reload gives new samples, which is the point of the demonstration.
+  const populationRng = seededRng(42);
+  const population = [
+    ...rnorm(populationRng, 50000, { mean: 4, sd: 1 }),
+    ...rnorm(populationRng, 50000, { mean: -4, sd: 1 }),
+  ];
+
+  const handle = interactiveSampling(host, population, {
+    onDone: (state) => {
+      const count = state.sampleTheta.length;
+      const shown = state.sampleTheta
+        .slice(-5)
+        .map((theta) => theta.toFixed(4))
+        .join(", ");
+      output.textContent = [
+        `statistics collected = ${count}`,
+        `window = ${state.xMin.toFixed(3)} .. ${state.xMax.toFixed(3)}`,
+        count === 0 ? "no values" : `last values: ${shown}`,
+      ].join("\n");
+    },
+  });
+  running = handle;
+
+  container.querySelector("#sampling-done")?.addEventListener("click", () => {
+    handle.done();
+  });
+  container.querySelector("#sampling-reset")?.addEventListener("click", () => {
+    handle.reset();
+    output.textContent = "No draws yet.";
+  });
+}
+
+/** Start the sample-CI demonstration in the loaded fragment. */
+async function startSampleCi(): Promise<void> {
+  const container = await loadFragment("sampleci");
+  const canvas = container.querySelector("canvas");
+  const output = container.querySelector("#sampleci-summary");
+  if (!(canvas instanceof HTMLCanvasElement) || output === null) {
+    throw new Error("demo: the sample-CI fragment is incomplete.");
+  }
+
+  // The crisp-canvas recipe from src/plot/target.ts, as in the regression
+  // and logit demos: hold the layout size, grow the pixel store by the
+  // screen's density, scale the context once, and hand over a surface in
+  // layout pixels.
+  const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+  const width = canvas.width;
+  const height = canvas.height;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("demo: the sample-CI canvas gave no 2D context.");
+  }
+  ctx.scale(ratio, ratio);
+
+  // One seeded generator for the page: every press draws the next picture of
+  // one reproducible sequence, so a reload replays what the reader saw.
+  const rng = seededRng(7);
+  const draw = (): void => {
+    const simulation = plotSampleCi({ ctx, width, height }, { rng });
+    const missing = simulation.intervals.filter(
+      (interval) => interval.excludesPopulationMean,
+    ).length;
+    output.textContent = [
+      `population mean = ${simulation.populationMean.toFixed(4)}`,
+      `samples missing it = ${missing} of ${simulation.intervals.length}`,
+    ].join("\n");
+  };
+  draw();
+
+  container.querySelector("#sampleci-again")?.addEventListener("click", draw);
+}
+
 for (const button of document.querySelectorAll("[data-demo]")) {
   button.addEventListener("click", () => {
     const name = button.getAttribute("data-demo");
@@ -183,6 +277,10 @@ for (const button of document.querySelectorAll("[data-demo]")) {
       void startLogit();
     } else if (name === "ttest") {
       void startTTest();
+    } else if (name === "sampling") {
+      void startSampling();
+    } else if (name === "sampleci") {
+      void startSampleCi();
     }
   });
 }

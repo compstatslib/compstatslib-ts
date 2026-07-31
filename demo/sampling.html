@@ -1,0 +1,31 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive sampling</h2>
+
+<p>
+  Press Sample to draw from a bimodal population. The top panel shows the
+  population, the middle panel shows the samples of the last draw, and the
+  bottom panel piles up the sampling statistic across draws. The selects
+  change what the next press does. This is
+  <code>interactive_sampling()</code> from the R package.
+</p>
+
+<!--
+  Tall on purpose. Three stacked panels share this box, so a short container
+  squeezes each panel into a band too thin to read.
+-->
+<div
+  id="sampling-container"
+  style="
+    width: 900px;
+    max-width: 100%;
+    height: 640px;
+    border: 1px solid #cccccc;
+  "
+></div>
+
+<p>
+  <button type="button" id="sampling-done">Done</button>
+  <button type="button" id="sampling-reset">Reset</button>
+</p>
+
+<pre id="sampling-state">No draws yet.</pre>

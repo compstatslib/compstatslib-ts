@@ -1,4 +1,28 @@
 export { machinePrecision } from "./core/precision";
+export { quantile, quantiles, sd } from "./core/arith";
+export { bwNrd0, kernelDensity } from "./core/kde";
+export type {
+  KernelDensityEstimate,
+  KernelDensityOptions,
+} from "./core/kde";
+export { histogram, nclassSturges } from "./core/histogram";
+export type { Histogram, HistogramOptions } from "./core/histogram";
+export { rPretty } from "./core/pretty";
+export type { RPrettyOptions } from "./core/pretty";
+export {
+  drawSamples,
+  sampleConfidenceIntervals,
+  simulateSampleCi,
+} from "./core/sampling";
+export type {
+  DistributionFn,
+  DrawSamplesOptions,
+  Interval,
+  SampleCiOptions,
+  SampleCiSimulation,
+  SampleDraw,
+  SampleInterval,
+} from "./core/sampling";
 export { linearRegression } from "./core/regression";
 export type { Point, RegressionFit } from "./core/regression";
 export {
@@ -10,6 +34,13 @@ export {
 export type { LogitFit, LogitOptions } from "./core/logit";
 export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols";
 export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols";
+export {
+  rnorm,
+  runif,
+  sampleWithoutReplacement,
+  seededRng,
+} from "./core/rng";
+export type { Rng, RnormOptions, RunifOptions } from "./core/rng";
 export { dt, pt, qt } from "./core/tdist";
 export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest";
 export type {
@@ -40,6 +71,15 @@ export type {
 } from "./plot/axes";
 export { logitScale, plotLogit } from "./plot/logit";
 export type { LegendLocation, PlotLogitOptions } from "./plot/logit";
+export { plotSampleCi, sampleCiScale } from "./plot/sampleCi";
+export type { PlotSampleCiOptions } from "./plot/sampleCi";
+export { plotSampling, samplingScale } from "./plot/sampling";
+export type {
+  PlotSamplingOptions,
+  PlotSamplingResult,
+  SamplingPanel,
+  SamplingState,
+} from "./plot/sampling";
 export { plotRegr, regrScale } from "./plot/regr";
 export type { PlotRegrOptions } from "./plot/regr";
 export { formatNumber, formatStat } from "./plot/format";
@@ -59,6 +99,12 @@ export type {
   ResolvedPanel,
   SplitTarget,
 } from "./interactive/target";
+export { interactiveSampling } from "./interactive/sampling";
+export type {
+  InteractiveSamplingHandle,
+  InteractiveSamplingOptions,
+  SamplingValues,
+} from "./interactive/sampling";
 export { interactiveTTest } from "./interactive/tTest";
 export type {
   InteractiveTTestHandle,

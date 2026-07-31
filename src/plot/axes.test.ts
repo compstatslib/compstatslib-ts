@@ -226,3 +226,58 @@ describe("drawAxes without a frame", () => {
     expect(ctx.callsTo("rect")).toHaveLength(1);
   });
 });
+
+describe("drawAxes without a y axis", () => {
+  // R's `yaxt = "n"` drops the vertical axis and keeps the horizontal one.
+  // The sampling plot asks for that on all three of its panels.
+  const scale = createScale({
+    width: 600,
+    height: 400,
+    x: { min: 0, max: 10 },
+    y: { min: 0, max: 10 },
+  });
+
+  test("draws no y ticks and no y tick labels", () => {
+    const ctx = new RecordingContext();
+    drawAxes(ctx, scale, { frame: false, yAxis: false });
+    const { area } = scale;
+
+    // Every tick mark left of the plot area belongs to the y axis.
+    const yTicks = ctx
+      .callsTo("lineTo")
+      .filter((call) => (call.args[0] as number) < area.left);
+    expect(yTicks).toHaveLength(0);
+    // The x tick labels sit below the area; nothing is written beside it.
+    const besideArea = ctx
+      .callsTo("fillText")
+      .filter((call) => (call.args[2] as number) < area.bottom);
+    expect(besideArea).toHaveLength(0);
+  });
+
+  test("draws only the horizontal axis line", () => {
+    const ctx = new RecordingContext();
+    drawAxes(ctx, scale, { frame: false, yAxis: false });
+    const { area } = scale;
+
+    expect(ctx.callsTo("moveTo")[0]?.args).toEqual([area.left, area.bottom]);
+    expect(ctx.callsTo("lineTo")[0]?.args).toEqual([area.right, area.bottom]);
+  });
+
+  test("still draws the x ticks and their labels", () => {
+    const ctx = new RecordingContext();
+    drawAxes(ctx, scale, { frame: false, yAxis: false });
+
+    expect(ctx.callsTo("fillText").length).toBeGreaterThan(1);
+    expect(ctx.callsTo("stroke").length).toBeGreaterThan(0);
+  });
+
+  test("keeps the y axis by default", () => {
+    const ctx = new RecordingContext();
+    drawAxes(ctx, scale, { frame: false });
+    const { area } = scale;
+
+    expect(
+      ctx.callsTo("lineTo").filter((call) => (call.args[0] as number) < area.left),
+    ).not.toHaveLength(0);
+  });
+});
