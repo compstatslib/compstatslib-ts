@@ -21,9 +21,11 @@ function rather than guessing at behavior.
 
 ## Status
 
-Early port. The repository is scaffolded but no source code exists yet. When
-adding the first code, update this file's Commands section with the real
-commands.
+The port is complete. All 9 function families from the R package are
+implemented across the three layers, with both bundled datasets exported from
+R and a demo page per family. The full test suite asserts core math against
+R-computed conformance fixtures. Not yet done: CDN/IIFE bundle and the first
+npm publish.
 
 ## Architecture
 
