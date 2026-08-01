@@ -1,5 +1,5 @@
 /**
- * The 3D entry point: `compstatslib/3d`.
+ * The 3D entry point: `@compstats/core/3d`.
  *
  * The two 3D families of the R package draw through Plotly.js, which is four
  * megabytes of browser code. They therefore live behind this entry rather than

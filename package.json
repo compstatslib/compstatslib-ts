@@ -1,9 +1,17 @@
 {
-  "name": "compstatslib",
+  "name": "@compstats/core",
   "version": "0.1.0",
   "type": "module",
   "description": "Interactive visualizations for computational statistics concepts, in the browser.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/compstatslib/compstatslib-ts.git"
+  },
+  "homepage": "https://github.com/compstatslib/compstatslib-ts",
+  "bugs": {
+    "url": "https://github.com/compstatslib/compstatslib-ts/issues"
+  },
   "files": [
     "dist"
   ],
