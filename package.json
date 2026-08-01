@@ -1,0 +1,49 @@
+{
+  "name": "@compstats/core",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Interactive visualizations for computational statistics concepts, in the browser.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/compstatslib/compstatslib-ts.git"
+  },
+  "homepage": "https://github.com/compstatslib/compstatslib-ts",
+  "bugs": {
+    "url": "https://github.com/compstatslib/compstatslib-ts/issues"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./3d": {
+      "types": "./dist/3d.d.ts",
+      "import": "./dist/3d.js",
+      "default": "./dist/3d.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts src/3d.ts --outdir dist --target browser --format esm --sourcemap=linked --external plotly.js-dist-min && bunx tsc -p tsconfig.build.json",
+    "typecheck": "bunx tsc --noEmit",
+    "test": "bun test",
+    "dev": "bun run demo/server.ts"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.0.0",
+    "@types/bun": "^1.3.0",
+    "happy-dom": "^20.0.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "plotly.js-dist-min": "^3.7.0"
+  }
+}

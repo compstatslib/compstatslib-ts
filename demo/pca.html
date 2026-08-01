@@ -1,0 +1,40 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive PCA</h2>
+
+<p>
+  Click in the plot to add points. From the third point, the two principal
+  component arrows appear — PC1 solid, PC2 dotted, each as long as the spread
+  it explains — and turn with every point after it. This is
+  <code>interactive_pca()</code> from the R package.
+</p>
+
+<p>
+  <label>
+    <input type="checkbox" id="pca-meancenter" checked />
+    mean-center: anchor the arrows on the middle of the data. Unchecked
+    anchors them on the origin. The components do not change — only where
+    the arrows sit.
+  </label>
+</p>
+
+<canvas
+  id="pca-canvas"
+  width="620"
+  height="620"
+  style="border: 1px solid #cccccc; touch-action: none"
+></canvas>
+
+<p>
+  <button type="button" id="pca-done">Done</button>
+  <button type="button" id="pca-reset">Reset</button>
+  <button type="button" id="pca-load">Load pca_degenerate</button>
+</p>
+
+<p>
+  The bundled <code>pca_degenerate</code> dataset (16 points, exported from
+  the R package) spreads almost equally in two directions: its arrows come
+  out nearly the same length, so the first component is barely more
+  "principal" than the second.
+</p>
+
+<pre id="pca-fit">No points yet.</pre>

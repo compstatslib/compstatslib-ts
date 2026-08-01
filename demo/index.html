@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>compstatslib demos</title>
+  </head>
+  <body>
+    <h1>compstatslib demos</h1>
+
+    <ul>
+      <li><button type="button" data-demo="regression">regression</button></li>
+      <li><button type="button" data-demo="logit">logit</button></li>
+      <li><button type="button" data-demo="ttest">t-test</button></li>
+      <li><button type="button" data-demo="sampling">sampling</button></li>
+      <li><button type="button" data-demo="sampleci">sample CI</button></li>
+      <li><button type="button" data-demo="pca">PCA</button></li>
+      <li>
+        <button type="button" data-demo="matrixinverse">matrix inverse</button>
+      </li>
+      <li><button type="button" data-demo="scatter3d">scatter 3D</button></li>
+      <li>
+        <button type="button" data-demo="moderation3d">moderation 3D</button>
+      </li>
+    </ul>
+
+    <!-- Demo fragments load here. -->
+    <div id="demo"></div>
+
+    <p>machinePrecision() = <span id="precision">not loaded</span></p>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

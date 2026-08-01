@@ -21,9 +21,11 @@ function rather than guessing at behavior.
 
 ## Status
 
-Early port. The repository is scaffolded but no source code exists yet. When
-adding the first code, update this file's Commands section with the real
-commands.
+The port is complete. All 9 function families from the R package are
+implemented across the three layers, with both bundled datasets exported from
+R and a demo page per family. The full test suite asserts core math against
+R-computed conformance fixtures. Not yet done: CDN/IIFE bundle and the first
+npm publish.
 
 ## Architecture
 
@@ -124,7 +126,10 @@ Two rules for this layer:
 
 - **Verify against R.** For each ported statistic, compute the expected value
   in the R package and assert against it in a test with a stated tolerance.
-  Do not treat a plausible-looking curve as correct.
+  Do not treat a plausible-looking curve as correct. The R scripts that
+  generate the pinned values live canonically in the R package at
+  `../compstatslib/conformance-fixtures/` — run them from that package's
+  root with `Rscript`; they print at `%.17g` so tests can pin exact doubles.
 - **Seedable RNG.** Random draws must be reproducible for tests and for
   shareable demos. Use an injectable seeded generator, not bare `Math.random()`.
   Note that a seeded JS generator will *not* reproduce R's Mersenne Twister
@@ -165,15 +170,24 @@ without a stated reason.
 
 ```bash
 bun install
-bun test                          # bun:test
-bun test path/to/file.test.ts     # single test file
+bun test                          # bun:test, preloads test/setup.ts
+bun test src/core/precision.test.ts   # single test file
 bun test --watch
-bun run build                     # library build (bun build)
-bun run typecheck                 # bunx tsc --noEmit
-bun run dev                       # demo site
+bun run build                     # bun build -> dist/, then tsc -> dist/*.d.ts
+bun run typecheck                 # bunx tsc --noEmit (src, demo, test)
+bun run dev                       # demo site at http://localhost:3000
 ```
 
-Update this block with the actual scripts once `package.json` exists.
+Set `PORT` to move the demo server off port 3000.
+
+The demo server's route table is fixed at startup, but Bun rebundles the
+page script on every request. A fragment added after the server started
+therefore 404s while the page looks current. After adding a demo fragment,
+restart the dev server and curl the new route before manual testing.
+
+There are two TypeScript configs. `tsconfig.json` type-checks everything and
+emits nothing. `tsconfig.build.json` extends it, drops `*.test.ts`, and emits
+declarations only. `bun run build` uses both.
 
 Bun specifics that matter here:
 
@@ -186,13 +200,24 @@ Bun specifics that matter here:
 - For tests that touch the DOM, preload `happy-dom` via `bunfig.toml` rather
   than reaching for jsdom. Tests of `core/` need neither.
 - Bun runs TypeScript directly, so the demo site and scratch scripts need no
-  separate build step during development.
+  separate build step during development. `demo/server.ts` imports
+  `index.html`; Bun bundles the page and its TypeScript on request.
+- Do not put `"sideEffects": false` in `package.json`. Bun 1.3.14 then drops
+  the body of each re-exported module from the bundle but keeps the export
+  name. The result is a `dist/index.js` that fails at import time. Verify a
+  build by importing `dist/index.js` and calling into it, not by reading the
+  bundler summary.
 
 ## Conventions
 
 - **Strict TypeScript.** `strict: true`; no `any` in public signatures.
 - **`core/` stays pure** — no DOM access, no I/O, no randomness that isn't
   passed in. This is what keeps the statistics testable and reusable.
+- **Map/`sum()`-style iteration in `core/`** — prefer `map` with the shared
+  `sum`/`zipWith` helpers in `src/core/arith.ts` over index-based `for` loops.
+  Index loops force `as number` casts under strict index checking and read
+  further from the math (`sum(devX.map((d) => d * d))` is visibly Σ(x−x̄)²).
+  Use an index loop only with a stated reason.
 - **Test the math, snapshot the rest.** Numerical results get exact assertions
   against R-verified values. Rendering gets light structural checks; do not
   chase pixel-perfect parity with base R.

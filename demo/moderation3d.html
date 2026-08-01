@@ -1,0 +1,29 @@
+<!-- A fragment. demo/main.ts fetches it and puts it in #demo. -->
+<h2>Interactive 3D moderation</h2>
+
+<p>
+  The surface is the fitted moderated regression <code>y ~ x * z</code> over
+  the bundled <code>moderation_data</code>; its twist is the interaction.
+  Drag to rotate freely, or use the Z-rotation slider: 0 aligns the IV slope
+  plane with the screen, 270 the moderator slope plane. "Include control w"
+  refits with the noise predictor <code>w</code> in the model, held at its
+  mean over the surface. This is <code>interactive_moderation_3d()</code>
+  from the R package.
+</p>
+
+<div
+  id="moderation3d-container"
+  style="
+    width: 960px;
+    max-width: 100%;
+    height: 640px;
+    border: 1px solid #cccccc;
+  "
+></div>
+
+<p>
+  <button type="button" id="moderation3d-done">Done</button>
+  <button type="button" id="moderation3d-control">Include control w</button>
+</p>
+
+<pre id="moderation3d-values">No values yet.</pre>
