@@ -15,7 +15,8 @@
  *   Ainv <- solve(A)
  *   A_col <- rgb(1, 0, 0, 0.1)
  *   Ainv_col <- rgb(0, 0, 1, 0.1)
- *   plot(NA, xlim = c(-3, 3), ylim = c(-3, 3), frame.plot = FALSE)
+ *   plot(NA, xlim = c(-3, 3), ylim = c(-3, 3), frame.plot = FALSE,
+ *        xlab = "x", ylab = "y")
  *   plot_matrix_det(A, A_col)
  *   plot_matrix_det(Ainv, Ainv_col)
  * }
@@ -300,19 +301,18 @@ describe("plotMatrixInverse, with an invertible matrix", () => {
     expect(visited).toContainEqual([scale.area.right, scale.area.bottom]);
   });
 
-  test("gives the axes no titles, since R's own are an artifact", () => {
-    // R's plot(NA, ...) labels the axes "Index" and "NA", which is what
-    // xy.coords does with a single NA and says nothing about the picture.
+  test("titles the axes x and y", () => {
+    // R's plot(NA, ...) used to deparse its first argument into the titles,
+    // giving "Index" and "NA" — an artifact of xy.coords reading a single NA,
+    // and a bug R fixed in 0.8.0 by naming the two axes explicitly.
     const { ctx, target } = makeTarget();
 
     plotMatrixInverse(target, DEFAULT_MATRIX);
 
-    expect(ctx.texts().length).toBeGreaterThan(0);
-    for (const label of ["Index", "NA", "x", "y"]) {
+    expect(ctx.texts()).toContain("x");
+    expect(ctx.texts()).toContain("y");
+    for (const label of ["Index", "NA"]) {
       expect(ctx.texts()).not.toContain(label);
-    }
-    for (const text of ctx.texts()) {
-      expect(Number.isNaN(Number(text))).toBe(false);
     }
   });
 

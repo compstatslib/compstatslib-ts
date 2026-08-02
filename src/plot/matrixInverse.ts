@@ -104,10 +104,10 @@ export function plotMatrixInverse(
 
   const scale = matrixInverseScale(width, height);
   clearSurface(ctx, width, height);
-  // R: `frame.plot = FALSE` drops the box and keeps both axes. The axes carry
-  // no titles: R's own read "Index" and "NA", which `plot(NA, ...)` produces
-  // from the missing value it was passed and which describe nothing.
-  drawAxes(ctx, scale, { frame: false });
+  // R: `frame.plot = FALSE` drops the box and keeps both axes. R names the two
+  // titles explicitly, because `plot(NA, ...)` otherwise deparses the missing
+  // value it was passed into them and the axes read "Index" and "NA".
+  drawAxes(ctx, scale, { frame: false, xLabel: "x", yLabel: "y" });
 
   // R's device clips the plot region; canvas clips nothing. This is not a
   // detail here: the inverse of a nearly singular matrix has entries in the
