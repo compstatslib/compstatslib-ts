@@ -1,7 +1,7 @@
 /**
  * Ordinary least-squares regression of y on x.
  *
- * This is the statistics half of `plot_regr()` in the R package. R gets these
+ * This is the statistics half of `plot_regression()` in the R package. R gets these
  * numbers from `lm()`, `cor()`, and `summary()$r.squared`. Verified against R
  * in `regression.test.ts`.
  */

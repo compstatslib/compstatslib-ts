@@ -3,9 +3,9 @@
  *
  * This is the port of `interactive_regression()` in
  * `../compstatslib/R/regression_interactive.R`. R holds the points in a
- * reactive value and calls `plot_regr()` on every change, forwarding its `...`
+ * reactive value and calls `plot_regression()` on every change, forwarding its `...`
  * arguments. This module does the same: it owns the points and the clicks, and
- * it hands every draw to `plotRegr`. It contains no drawing code and no
+ * it hands every draw to `plotRegression`. It contains no drawing code and no
  * statistics.
  *
  * R's `runGadget()` blocks and returns the points when the user clicks "Done".
@@ -16,18 +16,18 @@
 
 import type { Point } from "../core/regression";
 import { pixelInArea } from "../plot/axes";
-import { plotRegr, regrScale } from "../plot/regr";
-import type { PlotRegrOptions } from "../plot/regr";
+import { plotRegression, regressionScale } from "../plot/regression";
+import type { PlotRegressionOptions } from "../plot/regression";
 import { eventPixel, resolveInteractiveTarget } from "./target";
 import type { InteractiveTarget } from "./target";
 
 /**
  * What the component accepts.
  *
- * The options of `plotRegr` pass through to it unchanged. This is the
+ * The options of `plotRegression` pass through to it unchanged. This is the
  * equivalent of R's `...` forwarding.
  */
-export interface InteractiveRegressionOptions extends PlotRegrOptions {
+export interface InteractiveRegressionOptions extends PlotRegressionOptions {
   /** Points to start from. R takes these as its `points` argument. */
   readonly initialPoints?: readonly Point[];
   /** What to run on `done()`. */
@@ -56,7 +56,7 @@ export interface InteractiveRegressionHandle {
  *
  * @param target A canvas, or a surface and an element. See `./target.ts`.
  * @param options Points to start from, a done callback, and the options of
- * `plotRegr`.
+ * `plotRegression`.
  * @returns The handle to the running component.
  * @throws Error If a canvas gives no 2D context.
  */
@@ -66,12 +66,12 @@ export function interactiveRegression(
 ): InteractiveRegressionHandle {
   const { initialPoints, onDone, ...plotOptions } = options;
   const { surface, element } = resolveInteractiveTarget(target);
-  const scale = regrScale(surface.width, surface.height);
+  const scale = regressionScale(surface.width, surface.height);
 
   let points: readonly Point[] = initialPoints ?? [];
 
   function draw(): void {
-    plotRegr(surface, points, plotOptions);
+    plotRegression(surface, points, plotOptions);
   }
 
   function handleClick(event: MouseEvent): void {

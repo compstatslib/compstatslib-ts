@@ -2,7 +2,7 @@
  * The regression plot: points, the mean crosshair, the fitted line, and a
  * block of statistics.
  *
- * This is the drawing half of `plot_regr()` in
+ * This is the drawing half of `plot_regression()` in
  * `../compstatslib/R/regression_plot.R`. Every number it draws comes from
  * `linearRegression` in `src/core/regression.ts`; this module computes no
  * statistics of its own.
@@ -19,7 +19,7 @@ import { resolveTarget } from "./target";
 import type { Context2D, PlotTarget } from "./target";
 
 /** What to show. Both default to true, as in R. */
-export interface PlotRegrOptions {
+export interface PlotRegressionOptions {
   /** Draw the mean crosshair and the fitted line. */
   readonly regression?: boolean;
   /** List the statistics at the top left. Needs `regression`. */
@@ -38,7 +38,7 @@ const STATS_PADDING = 8;
 const STATS_LABEL_WIDTH = 13;
 
 /**
- * Build the scale that `plotRegr` draws through.
+ * Build the scale that `plotRegression` draws through.
  *
  * The interactive layer needs this to turn a click into a world coordinate.
  * It reads the scale from here so that the world window stays defined in one
@@ -48,7 +48,7 @@ const STATS_LABEL_WIDTH = 13;
  * @param height The pixel height of the surface.
  * @returns The map between world values and pixels.
  */
-export function regrScale(width: number, height: number): Scale {
+export function regressionScale(width: number, height: number): Scale {
   return createScale({ width, height, x: WORLD, y: WORLD });
 }
 
@@ -65,15 +65,15 @@ export function regrScale(width: number, height: number): Scale {
  * @returns The fit that the plot drew, or null if there are no points. R
  * returns the points instead, which the caller already holds.
  */
-export function plotRegr(
+export function plotRegression(
   target: PlotTarget,
   points: readonly Point[],
-  options: PlotRegrOptions = {},
+  options: PlotRegressionOptions = {},
 ): RegressionFit | null {
   const { ctx, width, height } = resolveTarget(target);
   const showRegression = options.regression ?? true;
   const showStats = options.stats ?? true;
-  const scale = regrScale(width, height);
+  const scale = regressionScale(width, height);
 
   clearSurface(ctx, width, height);
   drawAxes(ctx, scale, { xLabel: "x", yLabel: "y" });

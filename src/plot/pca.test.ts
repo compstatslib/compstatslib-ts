@@ -75,7 +75,7 @@ const HEIGHT = 464;
 /** R's default `xlim` and `ylim`. */
 const WORLD = { min: -50, max: 50 };
 
-/** R: `lty = "dotted"`, mapped as `plot/regr.ts` maps it. */
+/** R: `lty = "dotted"`, mapped as `plot/regression.ts` maps it. */
 const DOTTED = [1, 3];
 
 /** The general 8-point set of the PCA fixtures, F2. */

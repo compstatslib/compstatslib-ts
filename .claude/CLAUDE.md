@@ -46,8 +46,8 @@ src/
 ### The plot/interactive coupling is deliberate
 
 In the R package these are *not* independent — `interactive_regression()` holds
-the clicked points and calls `plot_regr()` on every update, forwarding its
-`...` arguments untouched. Preserve that relationship:
+the clicked points and calls `plot_regression()` on every update, forwarding
+its `...` arguments untouched. Preserve that relationship:
 
 - Each `interactive*` function wraps exactly one `plot*` function.
 - The interactive layer owns **state and input handling only**. It must not
@@ -67,7 +67,7 @@ and a single options object.
 
 | R | TypeScript |
 | --- | --- |
-| `plot_regr(points, regression, stats)` | `plotRegr(target, points, opts?)` |
+| `plot_regression(points, regression, stats)` | `plotRegression(target, points, opts?)` |
 | `interactive_regression(points, ...)` | `interactiveRegression(target, opts?)` |
 | `plot_logit(points, formula, ...)` | `plotLogit(target, points, opts?)` |
 | `interactive_logit(...)` | `interactiveLogit(target, opts?)` |
@@ -97,10 +97,11 @@ and a single options object.
   records read better for click-collected point sets, columns for bundled
   datasets.
 - **Return-and-plot.** Several R functions both draw and return values
-  (`plot_regr` returns points; `plot_sampling` returns a `vars` cache used to
-  accumulate across draws). In TS, prefer returning the computed result from
-  the `core/` function and letting the caller hold accumulated state
-  explicitly — do not hide accumulation in a mutable module-level variable.
+  (`plot_regression` returns points; `plot_sampling` returns a `vars` cache
+  used to accumulate across draws). In TS, prefer returning the computed
+  result from the `core/` function and letting the caller hold accumulated
+  state explicitly — do not hide accumulation in a mutable module-level
+  variable.
 - **Gadget return values.** R's `runGadget()` blocks and returns the collected
   points on "Done". In a browser nothing blocks: expose collected state via a
   callback or a returned handle with an accessor, and document it.

@@ -110,8 +110,8 @@ export type {
 } from "./plot/sampling";
 export { pcaScale, plotPca } from "./plot/pca";
 export type { PlotPcaOptions } from "./plot/pca";
-export { plotRegr, regrScale } from "./plot/regr";
-export type { PlotRegrOptions } from "./plot/regr";
+export { plotRegression, regressionScale } from "./plot/regression";
+export type { PlotRegressionOptions } from "./plot/regression";
 export { formatNumber, formatStat } from "./plot/format";
 export { plotTTest, tTestScale } from "./plot/tTest";
 export type { PlotTTestOptions } from "./plot/tTest";

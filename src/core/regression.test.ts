@@ -1,5 +1,5 @@
 /**
- * Tests for the linear-regression core, ported from `plot_regr()` in
+ * Tests for the linear-regression core, ported from `plot_regression()` in
  * `../compstatslib/R/regression_plot.R`.
  *
  * Every expected value below comes from R 4.5.3, printed at full double
@@ -246,7 +246,7 @@ describe("linearRegression", () => {
   }
 
   describe("zero points", () => {
-    // R's plot_regr() returns early for an empty frame. There is no y value to
+    // R's plot_regression() returns early for an empty frame. There is no y value to
     // report, so this port reports no fit at all.
     test("returns null", () => {
       expect(linearRegression([])).toBeNull();
