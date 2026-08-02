@@ -3,8 +3,8 @@
  * stand.
  *
  * Both 3D gadgets of the R package are panels of shiny inputs above a plot,
- * and both need the same three things: a labelled slider that shows its own
- * value, a labelled picker, and a line of text for what R would have written
+ * and both need the same three things: a labeled slider that shows its own
+ * value, a labeled picker, and a line of text for what R would have written
  * to the console. They are here so that the two components differ in what
  * they control, not in how a control is made.
  *
@@ -96,7 +96,7 @@ function decimalsOf(step: number): number {
 }
 
 /**
- * Build one labelled slider that shows its own value.
+ * Build one labeled slider that shows its own value.
  *
  * @param owner The document to build in.
  * @param name The name the component reads the event by.
@@ -137,7 +137,7 @@ export function buildSlider(
 }
 
 /**
- * Build one labelled picker.
+ * Build one labeled picker.
  *
  * @param owner The document to build in.
  * @param name The name the component reads the event by.

@@ -72,7 +72,7 @@ function surfaceTrace(spec: { readonly traces: readonly unknown[] }): SurfaceTra
 const SURFACE = moderationSurface(moderationData, MODEL);
 
 describe("moderation3dSpec grid", () => {
-  test("builds one surface trace with no colour bar", () => {
+  test("builds one surface trace with no color bar", () => {
     const spec = moderation3dSpec(SURFACE, MODEL);
 
     expect(spec.traces.length).toBe(1);

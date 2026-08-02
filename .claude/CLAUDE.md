@@ -225,6 +225,11 @@ Bun specifics that matter here:
 - **Prefer Bun and Web APIs over dependencies.** `Bun.file`, `fetch`, and the
   standard library cover most needs. Every added dependency has to survive
   bundling for the browser, which is the whole point of this port.
+- **en-US spelling everywhere** — identifiers, comments, docs and any string a
+  user reads. The R package declares `Language: en-US`; the port follows, so
+  `color` not `colour`, `center` not `centre`, `behavior` not `behaviour`.
+  Names that quote R or a Web API keep their own spelling (`col = "gray"`,
+  plotly's `color`), which en-US makes easy.
 - **Markdown linting** — after editing or creating any `.md` file, run
   `/ray-md-lint` to ensure it is lint-free.
 - **TDD** — use the `ray-tdd` skill for new functionality; the porting workflow

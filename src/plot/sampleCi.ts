@@ -10,7 +10,7 @@
  * picture — at 95% confidence, about one row in twenty should miss.
  *
  * Drawing order is faithful to R and is not incidental. R draws every row in
- * the good colours, then draws the missing ones again on top, then the mean
+ * the good colors, then draws the missing ones again on top, then the mean
  * line last:
  *
  * ```r
@@ -59,7 +59,7 @@ export interface PlotSampleCiOptions extends SampleCiOptions {
 /**
  * R's palette names, resolved with `col2rgb()`.
  *
- * Only `lightskyblue` and `lightcoral` are also CSS colour names. The other
+ * Only `lightskyblue` and `lightcoral` are also CSS color names. The other
  * four are R's own palette and mean nothing to a browser, so all six are
  * written as literals — the same choice slice 1 made when R's `gray` turned
  * out to be `#bebebe` rather than the darker CSS `gray`.
@@ -111,7 +111,7 @@ export function sampleCiScale(
   height: number,
   simulation: SampleCiSimulation,
 ): Scale {
-  const centre = Number.isFinite(simulation.populationMean)
+  const center = Number.isFinite(simulation.populationMean)
     ? simulation.populationMean
     : 0;
   const half = Number.isFinite(simulation.populationSd)
@@ -121,7 +121,7 @@ export function sampleCiScale(
   return createScale({
     width,
     height,
-    x: { min: centre - half, max: centre + half },
+    x: { min: center - half, max: center + half },
     y: { min: 1, max: Math.max(1, simulation.intervals.length) },
   });
 }
@@ -202,7 +202,7 @@ function isDrawable(interval: SampleInterval): boolean {
 }
 
 /**
- * Draw a set of rows in one colour scheme, in R's three passes.
+ * Draw a set of rows in one color scheme, in R's three passes.
  *
  * The wider interval goes down first so the narrower one reads on top of it,
  * and the sample mean goes over both.

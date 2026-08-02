@@ -6,7 +6,7 @@
  * `../compstatslib/R/sampling_plot.R`. The panels, top to bottom:
  *
  * 1. the population's density, dotted;
- * 2. this draw's samples — each sample's own density in translucent grey,
+ * 2. this draw's samples — each sample's own density in translucent gray,
  *    with the density of all of them pooled drawn over the top;
  * 3. a histogram of every statistic drawn so far, this call and all before it.
  *
@@ -430,7 +430,7 @@ function drawBars(ctx: Context2D, scale: Scale, counted: Histogram): void {
  * Write a panel's label at the left of the window, halfway up its content.
  *
  * R: `text(xmin, max(y)/2, label, adj = 0)` — left-justified at the window's
- * left edge and centred on that height.
+ * left edge and centerd on that height.
  */
 function drawLabel(
   ctx: Context2D,

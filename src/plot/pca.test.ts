@@ -133,8 +133,8 @@ function strokedPaths(ctx: RecordingContext): StrokedPath[] {
   return paths;
 }
 
-/** Where each point was drawn, as the centre of its filled circle. */
-function drawnPointCentres(
+/** Where each point was drawn, as the center of its filled circle. */
+function drawnPointCenters(
   ctx: RecordingContext,
 ): (readonly [number, number])[] {
   return ctx
@@ -222,7 +222,7 @@ describe("pcaScale", () => {
 
 describe("plotPca", () => {
   describe("no points", () => {
-    test("draws framed axes labelled x and y", () => {
+    test("draws framed axes labeled x and y", () => {
       const { ctx, target } = makeTarget();
 
       plotPca(target, []);
@@ -257,7 +257,7 @@ describe("plotPca", () => {
 
       const result = plotPca(target, [{ x: 10, y: 20 }]);
 
-      expect(drawnPointCentres(ctx)).toHaveLength(1);
+      expect(drawnPointCenters(ctx)).toHaveLength(1);
       expect(strokedPaths(ctx)).toHaveLength(0);
       expect(result).toBeNull();
     });
@@ -270,7 +270,7 @@ describe("plotPca", () => {
         { x: 10, y: 20 },
       ]);
 
-      expect(drawnPointCentres(ctx)).toHaveLength(2);
+      expect(drawnPointCenters(ctx)).toHaveLength(2);
       expect(strokedPaths(ctx)).toHaveLength(0);
       // The core would answer for two points. R's plot guards before asking,
       // and so does this.
@@ -284,7 +284,7 @@ describe("plotPca", () => {
 
       plotPca(target, fixture);
 
-      expect(drawnPointCentres(ctx)).toHaveLength(fixture.length);
+      expect(drawnPointCenters(ctx)).toHaveLength(fixture.length);
       expect(ctx.callsTo("fill").length).toBeGreaterThanOrEqual(
         fixture.length,
       );
@@ -318,8 +318,8 @@ describe("plotPca", () => {
         (point) =>
           [scale.toPixelX(point.x), scale.toPixelY(point.y)] as const,
       );
-      expect(drawnPointCentres(ctx)).toEqual(expected);
-      expect(drawnPointCentres(centered.ctx)).toEqual(expected);
+      expect(drawnPointCenters(ctx)).toEqual(expected);
+      expect(drawnPointCenters(centered.ctx)).toEqual(expected);
     });
   });
 
@@ -341,7 +341,7 @@ describe("plotPca", () => {
       expect(plotPca(target, fixture)).toEqual(result);
     });
 
-    test("runs each shaft from -vec to +vec about the centre", () => {
+    test("runs each shaft from -vec to +vec about the center", () => {
       const { ctx, target } = makeTarget();
 
       plotPca(target, fixture);
@@ -420,7 +420,7 @@ describe("plotPca", () => {
       expect(paths[1]?.style.strokeStyle).toBe("#000000");
     });
 
-    test("anchors on the data centre while meancenter is on", () => {
+    test("anchors on the data center while meancenter is on", () => {
       const { ctx, target } = makeTarget();
 
       plotPca(target, fixture);
@@ -489,7 +489,7 @@ describe("plotPca", () => {
 
       expect(strokedPaths(ctx)).toHaveLength(0);
       expect(result?.sdev).toEqual([0, 0]);
-      expect(drawnPointCentres(ctx)).toHaveLength(3);
+      expect(drawnPointCenters(ctx)).toHaveLength(3);
     });
 
     test("skips the second arrow for collinear points", () => {
@@ -530,7 +530,7 @@ describe("plotPca", () => {
       const drawn = ctx.calls.flatMap((call) =>
         call.args.filter((arg): arg is number => typeof arg === "number"),
       );
-      expect(drawnPointCentres(ctx)).toHaveLength(3);
+      expect(drawnPointCenters(ctx)).toHaveLength(3);
       expect(drawn.length).toBeGreaterThan(10);
       expect(drawn.every((value) => Number.isFinite(value))).toBe(true);
     });

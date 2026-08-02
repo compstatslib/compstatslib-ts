@@ -58,11 +58,11 @@ export interface Scatter3dMarker {
   readonly opacity: number;
   /** R's `size`, in pixels. */
   readonly size: number;
-  /** One value per point, when a numeric column drives the colour. */
+  /** One value per point, when a numeric column drives the color. */
   readonly color?: readonly number[];
   /** The scale those values are read through. */
   readonly colorscale?: string;
-  /** Whether the scale is drawn beside the plot as a colour bar. */
+  /** Whether the scale is drawn beside the plot as a color bar. */
   readonly showscale?: boolean;
 }
 
@@ -131,7 +131,7 @@ export interface PlotlyLayout {
   readonly scene: PlotlyScene;
 }
 
-/** The behaviour of the plot, as opposed to its content. */
+/** The behavior of the plot, as opposed to its content. */
 export interface PlotlyConfig {
   /** Whether the plot follows the size of the element that holds it. */
   readonly responsive?: boolean;
@@ -209,7 +209,7 @@ export interface PlotlyLike {
  * The interactive components write a camera the user dragged to back into the
  * live layout, and the `relayout` that does so fires `plotly_relayout` again
  * with the same camera as a fresh object. Comparing by value is what lets the
- * capture handlers recognise that echo and stop, so this must never be
+ * capture handlers recognize that echo and stop, so this must never be
  * replaced with a reference comparison.
  *
  * @param a One camera, or nothing.

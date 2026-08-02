@@ -3,7 +3,7 @@
  * `../compstatslib/R/regression_plot.R`.
  *
  * These are structural checks. The test counts the shapes that reach the
- * context, reads their colours, and reads the text of the statistics block. It
+ * context, reads their colors, and reads the text of the statistics block. It
  * does not compare pixels with base R.
  *
  * The four-point fixture is the example in the R documentation,
@@ -43,7 +43,7 @@ function expectedScale() {
   return createScale({ width: WIDTH, height: HEIGHT, x: WORLD, y: WORLD });
 }
 
-/** Return the strokes drawn in one colour. */
+/** Return the strokes drawn in one color. */
 function strokesIn(ctx: RecordingContext, color: string) {
   return ctx.callsTo("stroke").filter((call) => call.style.strokeStyle === color);
 }
@@ -117,10 +117,10 @@ describe("plotRegression", () => {
       const { ctx, target } = makeTarget();
       plotRegression(target, fixture);
       const scale = expectedScale();
-      const centres = ctx
+      const centers = ctx
         .callsTo("arc")
         .map((call) => [call.args[0], call.args[1]]);
-      expect(centres).toEqual(
+      expect(centers).toEqual(
         fixture.map((point) => [
           scale.toPixelX(point.x),
           scale.toPixelY(point.y),

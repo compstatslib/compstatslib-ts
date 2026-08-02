@@ -170,8 +170,8 @@ describe("scatter3dSpec trace and layout", () => {
   });
 });
 
-describe("scatter3dSpec colour", () => {
-  test("maps a numeric column onto one trace with a colour bar", () => {
+describe("scatter3dSpec color", () => {
+  test("maps a numeric column onto one trace with a color bar", () => {
     const spec = scatter3dSpec(COLORED, {
       x: "a",
       y: "b",
@@ -242,7 +242,7 @@ describe("scatter3dSpec colour", () => {
     ).toBe(true);
   });
 
-  test("draws one plain trace when no colour column is named", () => {
+  test("draws one plain trace when no color column is named", () => {
     const spec = scatter3dSpec(THREE);
     const [trace] = traces(spec);
 
@@ -303,7 +303,7 @@ describe("scatter3dSpec refusals", () => {
     ).toThrow('Column "nope" (passed as `x`) is not in the data.');
   });
 
-  test("refuses an axis column that is not numeric, pointing at colour", () => {
+  test("refuses an axis column that is not numeric, pointing at color", () => {
     expect(() =>
       scatter3dSpec(COLORED, { x: "grp", y: "a", z: "b" }),
     ).toThrow(
@@ -315,7 +315,7 @@ describe("scatter3dSpec refusals", () => {
     ).toThrow('Column "flag" (passed as `y`) is true or false;');
   });
 
-  test("refuses a colour column that is not there", () => {
+  test("refuses a color column that is not there", () => {
     expect(() => scatter3dSpec(THREE, { color: "nope" })).toThrow(
       'Column "nope" (passed as `color`) is not in the data.',
     );

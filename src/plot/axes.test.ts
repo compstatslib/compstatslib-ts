@@ -88,7 +88,7 @@ describe("createScale", () => {
     });
   });
 
-  test("centres a world range of zero width", () => {
+  test("centers a world range of zero width", () => {
     const scale = createScale({
       width: 600,
       height: 400,

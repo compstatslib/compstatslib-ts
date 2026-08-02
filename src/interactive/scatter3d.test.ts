@@ -265,7 +265,7 @@ describe("interactiveScatter3d", () => {
       }
     });
 
-    test("offers R's `(none)` sentinel and every column for colour", async () => {
+    test("offers R's `(none)` sentinel and every column for color", async () => {
       const { controls } = await drawn();
       const options = [...picker(controls, "color").options].map(
         (option) => option.value,
@@ -274,7 +274,7 @@ describe("interactiveScatter3d", () => {
       expect(options).toEqual(["(none)", "a", "b", "c", "grp", "d"]);
     });
 
-    test("starts on the first three numeric columns and no colour", async () => {
+    test("starts on the first three numeric columns and no color", async () => {
       const { controls } = await drawn();
 
       expect(picker(controls, "x").value).toBe("a");
@@ -468,7 +468,7 @@ describe("interactiveScatter3d", () => {
       ).toThrow(/Initial `z` \("nope"\) is not a numeric column/);
     });
 
-    test("refuses an initial colour column that is not in the frame", () => {
+    test("refuses an initial color column that is not in the frame", () => {
       const plotly = new RecordingPlotly();
       const controls = document.createElement("div");
 
@@ -540,7 +540,7 @@ describe("interactiveScatter3d", () => {
       expect(handle.getValues().x).toBe("d");
     });
 
-    test("splits the points when a categorical colour column is chosen", async () => {
+    test("splits the points when a categorical color column is chosen", async () => {
       const { plotly, controls, handle } = await drawn();
 
       await choose(handle, controls, "color", "grp");
@@ -549,7 +549,7 @@ describe("interactiveScatter3d", () => {
       expect(handle.getValues().color).toBe("grp");
     });
 
-    test("takes the colour off again on R's `(none)` sentinel", async () => {
+    test("takes the color off again on R's `(none)` sentinel", async () => {
       const { plotly, controls, handle } = await drawn({ color: "grp" });
 
       await choose(handle, controls, "color", "(none)");

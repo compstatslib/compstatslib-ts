@@ -11,9 +11,9 @@
  * Three decisions are worth stating.
  *
  * **The engine is Plotly, not lattice.** R draws this surface with
- * `lattice::wireframe(drape = TRUE, colorkey = FALSE)`, which colours the mesh
- * by height and hides the key. A Plotly surface is coloured by height already,
- * so the port sets `showscale: false` and keeps the rest. The colours
+ * `lattice::wireframe(drape = TRUE, colorkey = FALSE)`, which colors the mesh
+ * by height and hides the key. A Plotly surface is colored by height already,
+ * so the port sets `showscale: false` and keeps the rest. The colors
  * themselves are Plotly's, not lattice's: a browser has no lattice palette,
  * and the teaching point of the picture is the twist of the surface, not its
  * hue.

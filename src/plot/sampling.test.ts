@@ -3,7 +3,7 @@
  * `../compstatslib/R/sampling_plot.R`.
  *
  * These are structural checks, as in the other plot tests: the test counts the
- * shapes that reach the context and reads their colours, dash patterns and
+ * shapes that reach the context and reads their colors, dash patterns and
  * text. It does not compare pixels with base R.
  *
  * What it does check closely is the state the function hands back, because
@@ -53,14 +53,14 @@ function makeTarget(
 /** A population wide enough for a density and a few distinct samples. */
 const population = Array.from({ length: 200 }, (_unused, index) => index / 4);
 
-/** Return every stroke drawn in one colour. */
+/** Return every stroke drawn in one color. */
 function strokesIn(ctx: RecordingContext, color: string) {
   return ctx
     .callsTo("stroke")
     .filter((call) => call.style.strokeStyle === color);
 }
 
-/** Return every filled rectangle drawn in one colour. */
+/** Return every filled rectangle drawn in one color. */
 function barsIn(ctx: RecordingContext, color: string) {
   return ctx
     .callsTo("fillRect")
@@ -254,7 +254,7 @@ describe("plotSampling drawing", () => {
     expect(dotted).toHaveLength(1);
   });
 
-  test("draws one translucent grey curve per sample, under the pooled one", () => {
+  test("draws one translucent gray curve per sample, under the pooled one", () => {
     const { ctx, target } = makeTarget();
     plotSampling(target, population, {
       rng: seededRng(17),
@@ -282,7 +282,7 @@ describe("plotSampling drawing", () => {
           call.style.lineWidth === 2 &&
           call.style.strokeStyle !== SAMPLE_CURVE_COLOR,
       );
-    const greyIndices = ctx.calls
+    const grayIndices = ctx.calls
       .map((call, index) => ({ call, index }))
       .filter(
         ({ call }) =>
@@ -302,9 +302,9 @@ describe("plotSampling drawing", () => {
       .map(({ index }) => index);
 
     expect(solidHeavy).toHaveLength(2);
-    expect(pooledIndices[0]).toBeLessThan(greyIndices[0] as number);
+    expect(pooledIndices[0]).toBeLessThan(grayIndices[0] as number);
     expect(pooledIndices[1]).toBeGreaterThan(
-      greyIndices[greyIndices.length - 1] as number,
+      grayIndices[grayIndices.length - 1] as number,
     );
   });
 
@@ -321,7 +321,7 @@ describe("plotSampling drawing", () => {
     // the caller to compute again.
     expect(result.histogram).not.toBeNull();
     expect(result.histogram?.counts).toHaveLength(bars.length);
-    // border = FALSE: nothing is stroked in the bar colour.
+    // border = FALSE: nothing is stroked in the bar color.
     expect(strokesIn(ctx, BAR_COLOR)).toHaveLength(0);
   });
 

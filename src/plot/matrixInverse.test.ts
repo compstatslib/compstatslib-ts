@@ -48,7 +48,7 @@
  *    ±3, which this port drops as it drops it everywhere.)
  * 3. **Both axes are drawn, the box is not.** `frame.plot = FALSE` removes
  *    `box()` and leaves `axes = TRUE`, exactly as the t-test plot does.
- * 4. **The colours are three fixed values.** `rgb(1,0,0,0.1)` is `#FF00001A`,
+ * 4. **The colors are three fixed values.** `rgb(1,0,0,0.1)` is `#FF00001A`,
  *    `rgb(0,0,1,0.1)` is `#0000FF1A`, `rgb(0,0,0,0.3)` is `#0000004D`, each
  *    checked with `col2rgb(..., alpha = TRUE)`.
  * 5. **`arrows()` runs on its defaults**: `length = 0.25` inches, `angle =
@@ -328,7 +328,7 @@ describe("plotMatrixInverse, with an invertible matrix", () => {
     expect(rect?.args).toEqual([area.left, area.top, area.width, area.height]);
   });
 
-  test("draws the two parallelograms in R's colours, A first", () => {
+  test("draws the two parallelograms in R's colors, A first", () => {
     const { ctx, target } = makeTarget();
 
     plotMatrixInverse(target, DEFAULT_MATRIX);

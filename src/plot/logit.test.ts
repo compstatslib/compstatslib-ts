@@ -3,7 +3,7 @@
  * `plot_points_logit()` in `../compstatslib/R/logit_plot.R`.
  *
  * These are structural checks. The test counts the shapes that reach the
- * context, reads their colours and dash patterns, and reads the text of the
+ * context, reads their colors and dash patterns, and reads the text of the
  * legend. It does not compare pixels with base R.
  *
  * The twelve-point fixture is the one in `src/core/logit.test.ts`, where R
@@ -53,7 +53,7 @@ function makeTarget(
   return { ctx, target: { ctx, width, height } };
 }
 
-/** Return the strokes drawn in one colour. */
+/** Return the strokes drawn in one color. */
 function strokesIn(ctx: RecordingContext, color: string) {
   return ctx
     .callsTo("stroke")
@@ -139,7 +139,7 @@ describe("plotLogit", () => {
   });
 
   describe("the twelve-point fixture", () => {
-    test("draws one dot per point in R's grey", () => {
+    test("draws one dot per point in R's gray", () => {
       const { ctx, target } = makeTarget();
       plotLogit(target, mainPoints);
       const dots = ctx
