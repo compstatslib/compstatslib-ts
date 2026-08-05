@@ -36,6 +36,21 @@ renames rather than breaking changes with a deprecation cycle.
   deparsed its first argument into the titles, so the axes read "Index" and
   "NA"; the port reproduced that by drawing no titles at all. R fixed it in
   0.8.0 and this follows.
+* `linearRegression()`, `logisticRegression()`, and `principalComponents()`
+  drop points with a non-finite coordinate before fitting, as R's `na.omit`
+  does and as `moderationSurface()` already did. The first fit straight
+  through NaN, the second refused it with a `RangeError`, and the third
+  answered all-NaN components. Fitted values, linear predictors, and scores
+  keep input order with NaN marking the dropped points; an input with no
+  complete point returns null, the existing "nothing to fit" answer.
+  `logisticRegression()` no longer throws on a non-finite predictor, and its
+  0-or-1 outcome rule now applies to the complete points alone. `logitScale()`
+  ignores a non-finite predictor too, so one missing value no longer poisons
+  the whole window.
+* `scatter3dSpec()` and `moderation3dSpec()` emit scene axis titles in
+  Plotly's object form, `title: { text }`. Plotly v2 silently drops a
+  bare-string title, so no 3D plot ever showed its column names.
+  `PlotlyAxis.title` is typed to the object form for the same reason.
 
 ### Other
 

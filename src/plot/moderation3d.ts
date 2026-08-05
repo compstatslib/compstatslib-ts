@@ -213,9 +213,9 @@ export function moderation3dSpec(
   const layout: PlotlyLayout = {
     uirevision: UIREVISION,
     scene: {
-      xaxis: { title: model.iv },
-      yaxis: { title: model.mod },
-      zaxis: { title: model.outcome, range },
+      xaxis: { title: { text: model.iv } },
+      yaxis: { title: { text: model.mod } },
+      zaxis: { title: { text: model.outcome }, range },
       uirevision: UIREVISION,
       camera,
     },

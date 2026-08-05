@@ -116,9 +116,11 @@ describe("moderation3dSpec layout", () => {
   test("titles the axes with the column names, the outcome standing up", () => {
     const { layout } = moderation3dSpec(SURFACE, MODEL);
 
-    expect(layout.scene.xaxis.title).toBe("x");
-    expect(layout.scene.yaxis.title).toBe("z");
-    expect(layout.scene.zaxis.title).toBe("y");
+    // Plotly v2 silently drops a bare-string title; only the object form
+    // shows the column names on screen.
+    expect(layout.scene.xaxis.title).toEqual({ text: "x" });
+    expect(layout.scene.yaxis.title).toEqual({ text: "z" });
+    expect(layout.scene.zaxis.title).toEqual({ text: "y" });
   });
 
   test("takes the vertical range from the surface", () => {

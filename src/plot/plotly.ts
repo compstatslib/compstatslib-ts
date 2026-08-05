@@ -100,7 +100,12 @@ export type PlotlyTrace = Scatter3dTrace | SurfaceTrace;
 
 /** One axis of a 3D scene. */
 export interface PlotlyAxis {
-  readonly title: string;
+  /**
+   * The axis label, in Plotly's object form. Plotly v2 silently drops a
+   * bare-string title, so the type refuses the shorthand that would compile
+   * and then show nothing.
+   */
+  readonly title: { readonly text: string };
   /**
    * The values the axis spans, as `[low, high]`. Plotly fits the data when
    * the range is absent.

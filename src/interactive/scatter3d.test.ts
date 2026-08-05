@@ -346,9 +346,9 @@ describe("interactiveScatter3d", () => {
       expect(picker(controls, "color").value).toBe("grp");
       const { scene } = plotly.last().layout;
       expect([scene.xaxis.title, scene.yaxis.title, scene.zaxis.title]).toEqual([
-        "d",
-        "c",
-        "a",
+        { text: "d" },
+        { text: "c" },
+        { text: "a" },
       ]);
       // Three levels of `grp` give three traces, as the plot layer decides,
       // and between them they carry every row of the chosen column.
@@ -412,7 +412,7 @@ describe("interactiveScatter3d", () => {
       // render and into the Done output".
       const { plotly, handle } = await drawn({ titles: { x: "Score" } });
 
-      expect(plotly.last().layout.scene.xaxis.title).toBe("Score");
+      expect(plotly.last().layout.scene.xaxis.title).toEqual({ text: "Score" });
       expect(handle.getValues().titles).toEqual({ x: "Score" });
     });
 
@@ -536,7 +536,7 @@ describe("interactiveScatter3d", () => {
 
       expect(plotly.calls).toHaveLength(2);
       expect(lastTraces(plotly)[0]?.x).toEqual(FRAME.d as number[]);
-      expect(plotly.last().layout.scene.xaxis.title).toBe("d");
+      expect(plotly.last().layout.scene.xaxis.title).toEqual({ text: "d" });
       expect(handle.getValues().x).toBe("d");
     });
 
