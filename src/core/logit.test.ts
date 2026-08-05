@@ -384,13 +384,16 @@ describe("logisticRegression", () => {
       );
     });
 
-    test("a predictor that is not finite", () => {
-      expect(() =>
-        logisticRegression([
-          { x: Number.NaN, y: 0 },
-          { x: 2, y: 1 },
-        ]),
-      ).toThrow(RangeError);
+    test("a non-finite predictor is missing, not rejected", () => {
+      // This threw a RangeError before the na.omit pass: the port refused
+      // what R would silently drop. Now the row leaves the fit instead and
+      // the survivor is an intercept-only model, R's glm(y ~ x) on one row.
+      const fit = logisticRegression([
+        { x: Number.NaN, y: 0 },
+        { x: 2, y: 1 },
+      ]);
+      expect(fit?.slope).toBeNull();
+      expect(fit?.fitted[0]).toBeNaN();
     });
   });
 
@@ -445,5 +448,81 @@ describe("predictLogit", () => {
     const fit = logisticRegression(pointsFrom([20, 20, 20, 20], [0, 1, 0, 1]));
     expectClose(predictLogit(fit as NonNullable<typeof fit>, 0), 0.5);
     expectClose(predictLogit(fit as NonNullable<typeof fit>, 1000), 0.5);
+  });
+});
+
+describe("logisticRegression: missing values, R's na.omit", () => {
+  // Every expected value comes from R 4.5.3, printed with sprintf("%.17g").
+  //
+  // ```r
+  // d <- data.frame(
+  //   x = c(0.2, 1.1, NA, 2.5, 3.0, 4.2, 5.1, 1.9),
+  //   y = c(0,   1,   1,  NA,  0,   1,   1,   0)
+  // )
+  // m <- glm(y ~ x, family = binomial, data = d)   # na.omit drops rows 3, 4
+  // coef(m); fitted(m); m$deviance; m$null.deviance; m$aic; m$iter
+  // ```
+  const withMissing = pointsFrom(
+    [0.2, 1.1, Number.NaN, 2.5, 3.0, 4.2, 5.1, 1.9],
+    [0, 1, 1, Number.NaN, 0, 1, 1, 0],
+  );
+
+  test("fits the complete rows alone, as R's glm does", () => {
+    const fit = logisticRegression(withMissing);
+    expectClose(fit?.intercept as number, -1.8632412046875804);
+    expectClose(fit?.slope as number, 0.72714482673942726);
+    expectClose(fit?.deviance as number, 6.5660909561548673);
+    expectClose(fit?.nullDeviance as number, 8.317766166719343);
+    expectClose(fit?.aic as number, 10.566090956154866);
+    expect(fit?.iterations).toBe(3);
+    expect(fit?.converged).toBe(true);
+  });
+
+  test("pads fitted with NaN at the dropped rows, keeping input order", () => {
+    const fitted = logisticRegression(withMissing)?.fitted ?? [];
+    const expected = [
+      0.15215317571597703, 0.25666370073720429, Number.NaN, Number.NaN,
+      0.57888387655706697, 0.76687822559084384, 0.86356223739468918,
+      0.38185879284192664,
+    ];
+    expect(fitted.length).toBe(expected.length);
+    for (const [index, value] of expected.entries()) {
+      if (Number.isNaN(value)) {
+        expect(fitted[index]).toBeNaN();
+        expect(
+          logisticRegression(withMissing)?.linearPredictors[index],
+        ).toBeNaN();
+      } else {
+        expectClose(fitted[index] as number, value);
+      }
+    }
+  });
+
+  test("answers exactly as it would on the filtered input", () => {
+    const filtered = logisticRegression(
+      pointsFrom([0.2, 1.1, 3.0, 4.2, 5.1, 1.9], [0, 1, 0, 1, 1, 0]),
+    );
+    const fit = logisticRegression(withMissing);
+    expect(fit?.intercept).toBe(filtered?.intercept as number);
+    expect(fit?.slope).toBe(filtered?.slope as number);
+    expect(fit?.deviance).toBe(filtered?.deviance as number);
+  });
+
+  test("validates the outcome only where the row is complete", () => {
+    // R's na.omit removes the row before glm ever sees its outcome, so an
+    // invalid y on an incomplete row is gone, not rejected.
+    const fit = logisticRegression([
+      { x: Number.NaN, y: 0.5 },
+      { x: 1, y: 0 },
+      { x: 2, y: 1 },
+    ]);
+    expect(fit).not.toBeNull();
+    expect(fit?.fitted[0]).toBeNaN();
+  });
+
+  test("returns null when no row is complete, as with no rows at all", () => {
+    expect(
+      logisticRegression(pointsFrom([Number.NaN, 2], [0, Number.NaN])),
+    ).toBeNull();
   });
 });

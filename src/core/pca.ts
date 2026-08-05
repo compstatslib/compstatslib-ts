@@ -32,6 +32,7 @@
  */
 
 import { mean, sum, withoutNegativeZero, zipWith } from "./arith";
+import { completePointRows } from "./regression";
 import type { Point } from "./regression";
 
 /**
@@ -67,7 +68,8 @@ export interface PcaResult {
   readonly center: Point;
   /**
    * The points in component coordinates, in input order. R's `pca$x`, with
-   * `x` holding the PC1 score and `y` the PC2 score.
+   * `x` holding the PC1 score and `y` the PC2 score. Both coordinates are
+   * NaN where the point was dropped for a missing value.
    */
   readonly scores: readonly Point[];
 }
@@ -89,34 +91,50 @@ export interface PcaResult {
  * the same and lets a near-zero `sdev[1]` say that the second direction
  * carries no spread.
  *
+ * A point with a non-finite coordinate is dropped before the components are
+ * computed, R's `na.omit`; its scores report NaN in both coordinates,
+ * keeping input order (the `na.exclude` padding `moderationSurface` uses).
+ * R's own `prcomp()` errors on a missing value, so the R usage this mirrors
+ * is `prcomp(na.omit(points))` — the fold-in keeps a spreadsheet with one
+ * missing row from blanking the whole picture.
+ *
  * @param points The observations. The function does not modify them.
- * @returns The components, or null if there are no points.
+ * @returns The components, or null if no point is complete.
  */
 export function principalComponents(
   points: readonly Point[],
 ): PcaResult | null {
-  if (points.length === 0) {
+  const rows = completePointRows(points);
+  if (rows.length === 0) {
     return null;
   }
+  const complete = rows.map((row) => points[row] as Point);
 
-  const centerX = mean(points.map((point) => point.x));
-  const centerY = mean(points.map((point) => point.y));
-  const devX = points.map((point) => point.x - centerX);
-  const devY = points.map((point) => point.y - centerY);
+  const centerX = mean(complete.map((point) => point.x));
+  const centerY = mean(complete.map((point) => point.y));
+  const devX = complete.map((point) => point.x - centerX);
+  const devY = complete.map((point) => point.y - centerY);
 
   // R's `prcomp` divides the singular values by sqrt(max(1, n - 1)), so the
   // variances carry the n - 1 divisor with the same guard at one point.
-  const divisor = Math.max(1, points.length - 1);
+  const divisor = Math.max(1, complete.length - 1);
   const varX = sum(devX.map((d) => d * d)) / divisor;
   const varY = sum(devY.map((d) => d * d)) / divisor;
   const covariance = sum(zipWith(devX, devY, (dx, dy) => dx * dy)) / divisor;
 
   const [first, second] = componentsOf(varX, varY, covariance);
 
-  const scores = zipWith(devX, devY, (dx, dy) => ({
-    x: dx * first.loadings[0] + dy * first.loadings[1],
-    y: dx * second.loadings[0] + dy * second.loadings[1],
-  }));
+  // R's na.exclude padding: scores in input order, NaN where a point was
+  // dropped.
+  const scores = points.map(() => ({ x: Number.NaN, y: Number.NaN }));
+  rows.forEach((row, survivor) => {
+    const dx = devX[survivor] as number;
+    const dy = devY[survivor] as number;
+    scores[row] = {
+      x: dx * first.loadings[0] + dy * first.loadings[1],
+      y: dx * second.loadings[0] + dy * second.loadings[1],
+    };
+  });
 
   return {
     sdev: [sdevOf(first.variance), sdevOf(second.variance)],

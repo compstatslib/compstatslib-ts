@@ -347,3 +347,78 @@ describe("linearRegression", () => {
     });
   });
 });
+
+describe("linearRegression: missing values, R's na.omit", () => {
+  // Every expected value comes from R 4.5.3, printed with sprintf("%.17g").
+  //
+  // ```r
+  // d <- data.frame(
+  //   x = c(1.5, 2, NA, 4, 5.5, 6),
+  //   y = c(2.5, 3.1, 9.9, 5.0, NA, 7.3)
+  // )
+  // m <- lm(y ~ x, data = d)                 # na.omit drops rows 3 and 5
+  // coef(m); fitted(m); summary(m)$r.squared; deviance(m)
+  // cc <- na.omit(d); cor(cc$x, cc$y)
+  // sum((cc$y - mean(cc$y))^2); sum((fitted(m) - mean(cc$y))^2)
+  // ```
+  const withMissing = pointsFrom(
+    [1.5, 2, Number.NaN, 4, 5.5, 6],
+    [2.5, 3.1, 9.9, 5.0, Number.NaN, 7.3],
+  );
+
+  test("fits the complete rows alone, as R's lm does", () => {
+    const fit = linearRegression(withMissing);
+    expectCloseToR(fit?.intercept ?? null, 0.92709359605911201);
+    expectCloseToR(fit?.slope ?? null, 1.0512315270935964);
+    expectCloseToR(fit?.correlation ?? null, 0.99904921850418893);
+    expectCloseToR(fit?.ssr ?? null, 14.020800492610839);
+    expectCloseToR(fit?.sse ?? null, 0.026699507389162436);
+    expectCloseToR(fit?.sst ?? null, 14.047499999999999);
+    expectCloseToR(fit?.rSquared ?? null, 0.9980993409938308);
+  });
+
+  test("pads fitted with NaN at the dropped rows, keeping input order", () => {
+    // R's na.exclude padding, the same convention moderationSurface uses.
+    const fitted = linearRegression(withMissing)?.fitted ?? [];
+    const expected = [
+      2.5039408866995072, 3.0295566502463056, Number.NaN, 5.132019704433497,
+      Number.NaN, 7.2344827586206897,
+    ];
+    expect(fitted.length).toBe(expected.length);
+    for (const [index, value] of expected.entries()) {
+      if (Number.isNaN(value)) {
+        expect(fitted[index]).toBeNaN();
+      } else {
+        expectCloseToR(fitted[index] ?? null, value);
+      }
+    }
+  });
+
+  test("answers exactly as it would on the filtered input", () => {
+    const filtered = linearRegression(
+      pointsFrom([1.5, 2, 4, 6], [2.5, 3.1, 5.0, 7.3]),
+    );
+    const fit = linearRegression(withMissing);
+    expect(fit?.intercept).toBe(filtered?.intercept as number);
+    expect(fit?.slope).toBe(filtered?.slope as number);
+    expect(fit?.sse).toBe(filtered?.sse as number);
+  });
+
+  test("an infinity is missing the same way NaN is", () => {
+    // Anything non-finite would poison the fit; moderationSurface set this
+    // rule and the point cores follow it.
+    const fit = linearRegression(
+      pointsFrom([1.5, 2, Number.POSITIVE_INFINITY, 4, 5.5, 6],
+        [2.5, 3.1, 9.9, 5.0, Number.NEGATIVE_INFINITY, 7.3]),
+    );
+    expectCloseToR(fit?.slope ?? null, 1.0512315270935964);
+  });
+
+  test("returns null when no row is complete, as with no rows at all", () => {
+    // R's lm() errors ("0 (non-NA) cases"); this port already answers null
+    // for "nothing to fit" and an all-missing input is that same answer.
+    expect(
+      linearRegression(pointsFrom([Number.NaN, 2], [1, Number.NaN])),
+    ).toBeNull();
+  });
+});

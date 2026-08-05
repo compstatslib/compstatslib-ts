@@ -30,11 +30,12 @@
  * exercises. The other rules are recorded in
  * `.claude/plans/moderation-fixtures.md` section 4 if they are ever wanted.
  *
- * **Missing values are not handled anywhere.** R's `lm()` drops incomplete
- * rows through `na.omit` and R's `hold_value()` averages with `na.rm = TRUE`.
- * This port does neither: a `NaN` in a column travels through the fit and the
- * surface. One rule everywhere is easier to reason about than a fit on 198
- * rows whose controls were held at the mean of 199.
+ * **Missing values leave the fit, as R's do.** `lm()` drops incomplete rows
+ * through `na.omit` and `hold_value()` averages with `na.rm = TRUE`; this
+ * port does the same, with NaN standing in for `NA` and any non-finite value
+ * counting as missing. The details — the `na.exclude`-style NaN padding of
+ * `fitted` and `residuals`, the one departure on `zlim` — are on
+ * `moderationSurface` itself.
  */
 
 import { extent, mean, sum, zipWith } from "./arith";

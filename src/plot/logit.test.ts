@@ -245,6 +245,18 @@ describe("plotLogit", () => {
       expect(scale.world.x).toEqual({ min: 2, max: 50 });
     });
 
+    test("ignores a non-finite predictor instead of poisoning the window", () => {
+      // The core drops the missing row (na.omit); if the window still took
+      // Math.min against its NaN, every pixel of the picture would go NaN
+      // and the plot would silently draw nothing.
+      const scale = logitScale(WIDTH, HEIGHT, [
+        { x: -6, y: 0 },
+        { x: Number.NaN, y: 1 },
+        { x: 8, y: 1 },
+      ]);
+      expect(scale.world.x).toEqual({ min: -6, max: 8 });
+    });
+
     test("holds y at 0 to 1 whatever the data", () => {
       expect(logitScale(WIDTH, HEIGHT, mainPoints).world.y).toEqual({
         min: 0,
