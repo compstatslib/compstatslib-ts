@@ -161,8 +161,9 @@ export function cameraFromRotations(zRot: number, xRot: number): EyeCamera {
  *   axes, and the controls decide whether there is a note.
  * @param view How to look at the surface.
  * @returns The trace, the layout, and the note about held predictors.
- * @throws RangeError If a rotation is not finite, or a given vertical range is
- *   not two finite numbers.
+ * @throws RangeError If a rotation is not finite, if a given vertical range is
+ *   not two finite numbers, or if any height of the surface is not finite —
+ *   a non-finite height would crash the WebGL engine for the whole page.
  */
 export function moderation3dSpec(
   surface: ModerationSurface,
@@ -189,6 +190,16 @@ export function moderation3dSpec(
   const heights = surface.modValues.map((_, j) =>
     surface.ivValues.map((__, i) => surface.predictions[j * steps + i] as number),
   );
+
+  // A NaN in the height field does not fail politely: it crashes WebGL inside
+  // plotly.js, and every surface drawn on the page afterwards fails too.
+  // Refuse here so that no caller can poison the engine.
+  if (!surface.predictions.every(Number.isFinite)) {
+    throw new RangeError(
+      "the surface must have finite heights everywhere; " +
+        "a prediction is NaN or infinite",
+    );
+  }
 
   const trace: SurfaceTrace = {
     type: "surface",

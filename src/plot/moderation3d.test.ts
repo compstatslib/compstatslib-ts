@@ -326,4 +326,18 @@ describe("plotModeration3d", () => {
       moderation3dSpec(SURFACE, MODEL, { zlim: [0, Number.NaN] }),
     ).toThrow("`zlim` must be two finite numbers.");
   });
+
+  test("refuses a surface with non-finite heights before the engine sees it", () => {
+    // A NaN height field does not fail politely: it crashes WebGL inside
+    // plotly.js and every surface drawn on the page after it fails too. The
+    // spec must refuse the surface so no caller can reach that state.
+    const doctored = {
+      ...SURFACE,
+      predictions: SURFACE.predictions.map(() => Number.NaN),
+    };
+
+    expect(() => moderation3dSpec(doctored, MODEL, {})).toThrow(
+      /finite height/,
+    );
+  });
 });

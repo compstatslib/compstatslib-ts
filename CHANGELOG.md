@@ -20,6 +20,18 @@ renames rather than breaking changes with a deprecation cycle.
 
 ### Bug fixes
 
+* `moderationSurface()` drops rows with missing values before fitting, as
+  R's `lm()` does with `na.action = na.omit`; it fit straight through NaN,
+  so one missing cell made every coefficient and all 225 surface heights
+  NaN. Fitted values and residuals keep input order with NaN marking the
+  dropped rows, a control is held at its finite mean (R's `hold_value()`
+  with `na.rm = TRUE`), and a model with no complete rows throws a
+  `RangeError`. One stated departure: R computes zlim with no `na.rm` and
+  fails on a missing outcome; the port draws what it fits.
+* `moderation3dSpec()` refuses a surface with a non-finite height. A NaN
+  height field crashes WebGL inside plotly.js, and the crash poisons every
+  later 3D surface on the page; the spec now throws a `RangeError` before
+  the engine can see it.
 * `plotMatrixInverse()` titles its axes `x` and `y`. R's `plot(NA, ...)`
   deparsed its first argument into the titles, so the axes read "Index" and
   "NA"; the port reproduced that by drawing no titles at all. R fixed it in

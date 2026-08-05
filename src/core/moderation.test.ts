@@ -775,3 +775,114 @@ describe("moderationSurface: refusals", () => {
     ).toThrow(RangeError);
   });
 });
+
+describe("moderationSurface: missing values, R's na.omit", () => {
+  /**
+   * The app layer above this library imports CSVs the way R's `read.csv`
+   * does: a missing numeric cell becomes NaN. `lm()` drops such rows before
+   * fitting (`na.action = na.omit`), and `hold_value()` takes its mean with
+   * `na.rm = TRUE` — so `plot_moderation_3d()` fits real-world data with
+   * holes in it. The port must do the same, not fit through NaN.
+   *
+   * Fixture from R 4.5.3, printed with `sprintf("%.17g", x)`:
+   *
+   * ```r
+   * d <- data.frame(
+   *   y = c(3, 5, NA, 8, 10, 9),
+   *   x = c(1, 2, 3, 4, 5, 6),
+   *   z = c(2, 1, 4, 3, 6, 5),
+   *   w = c(10, 20, 30, NA, 50, 40)
+   * )
+   * m <- lm(y ~ x * z, data = d)             # na.omit drops row 3
+   * coef(m); fitted(m); residuals(m)
+   * seq_x <- seq(min(d$x), max(d$x), length.out = 15)
+   * seq_z <- seq(min(d$z), max(d$z), length.out = 15)
+   * grid <- setNames(expand.grid(seq_x, seq_z), c("x", "z"))
+   * pred <- predict(m, grid)
+   * range(c(d$y[!is.na(d$y)], pred))          # zlim over finite outcomes
+   * mean(d$w, na.rm = TRUE)                   # hold_value()
+   * ```
+   *
+   * One departure, stated: R computes zlim as `range(c(data[[dv]],
+   * grid[[dv]]))` with no `na.rm`, so a missing outcome makes R's zlim NA
+   * and the wireframe fails. The port takes the range over the finite
+   * outcomes instead, because a caller who was allowed to fit must also be
+   * allowed to draw.
+   */
+  const data: DataFrame = {
+    y: [3, 5, NaN, 8, 10, 9],
+    x: [1, 2, 3, 4, 5, 6],
+    z: [2, 1, 4, 3, 6, 5],
+    w: [10, 20, 30, NaN, 50, 40],
+  };
+  const MODEL = { outcome: "y", iv: "x", mod: "z" } as const;
+
+  const NA_COEFFICIENTS = [
+    -0.18750000000000019, 1.8124999999999996, 1.3125000000000011,
+    -0.25000000000000006,
+  ];
+  /** `fitted(m)`, named by the surviving rows 1, 2, 4, 5, 6. */
+  const NA_FITTED = [3.75, 4.25, 8, 9.25, 9.75];
+  /** `pred[c(1, 2, 113, 225)]`, 1-based. */
+  const NA_PREDICTIONS: readonly (readonly [number, number])[] = [
+    [0, 2.6875000000000004],
+    [1, 3.2455357142857144],
+    [112, 7.6875000000000009],
+    [224, 9.5625000000000018],
+  ];
+  const NA_ZLIM = [2.6875000000000004, 10.499999999999998];
+
+  test("drops a row whose outcome is missing before fitting, as R's lm does", () => {
+    const surface = moderationSurface(data, MODEL);
+
+    NA_COEFFICIENTS.forEach((expected, index) => {
+      expectCloseToR(surface.coefficients[index]?.value as number, expected);
+    });
+  });
+
+  test("keeps fitted and residuals in input order, NaN where a row was dropped", () => {
+    const surface = moderationSurface(data, MODEL);
+
+    expect(surface.fitted).toHaveLength(6);
+    expect(surface.fitted[2]).toBeNaN();
+    expect(surface.residuals[2]).toBeNaN();
+    [0, 1, 3, 4, 5].forEach((row, survivor) => {
+      expectCloseToR(surface.fitted[row] as number, NA_FITTED[survivor] as number);
+    });
+    expectCloseToR(surface.residuals[0] as number, -0.74999999999999989);
+  });
+
+  test("predicts a finite surface past the missing row", () => {
+    const surface = moderationSurface(data, MODEL);
+
+    expect(surface.predictions.every(Number.isFinite)).toBe(true);
+    NA_PREDICTIONS.forEach(([index, expected]) => {
+      expectCloseToR(surface.predictions[index] as number, expected);
+    });
+  });
+
+  test("takes zlim over the finite outcomes, a stated departure from R", () => {
+    const surface = moderationSurface(data, MODEL);
+
+    expectCloseToR(surface.zlim[0], NA_ZLIM[0] as number);
+    expectCloseToR(surface.zlim[1], NA_ZLIM[1] as number);
+  });
+
+  test("holds a control at its finite mean, R's hold_value(na.rm = TRUE)", () => {
+    const surface = moderationSurface(data, {
+      ...MODEL,
+      controls: ["w"],
+    });
+
+    expectCloseToR(surface.holds["w"] as number, 30);
+  });
+
+  test("refuses a model with no complete rows", () => {
+    expect(() =>
+      moderationSurface(
+        { y: [NaN, NaN], x: [1, 2], z: [2, 1] },
+        { outcome: "y", iv: "x", mod: "z" },
+      ),
+    ).toThrow(/complete/);
+  });
+});
