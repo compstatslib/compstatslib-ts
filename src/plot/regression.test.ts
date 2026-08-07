@@ -17,7 +17,7 @@ import { describe, expect, test } from "bun:test";
 import type { Point } from "../core/regression";
 import { RecordingContext } from "../../test/recording-context";
 import { createScale } from "./axes";
-import { plotRegression } from "./regression";
+import { plotRegression, regressionScale } from "./regression";
 import type { RenderTarget } from "./target";
 
 const WIDTH = 600;
@@ -227,6 +227,90 @@ describe("plotRegression", () => {
       plotRegression(target, fixture, { stats: false });
       expect(strokesIn(ctx, "cornflowerblue")).toHaveLength(1);
       expect(statLines(ctx)).toHaveLength(0);
+    });
+  });
+
+  describe("window overrides", () => {
+    // The teaching window stays the default. A caller with real data passes
+    // its own limits, as plotPca allows.
+    const XLIM: readonly [number, number] = [100, 900];
+    const YLIM: readonly [number, number] = [10, 30];
+    const data: Point[] = [
+      { x: 150, y: 12 },
+      { x: 400, y: 20 },
+      { x: 850, y: 28 },
+    ];
+
+    function customScale() {
+      return createScale({
+        width: WIDTH,
+        height: HEIGHT,
+        x: { min: 100, max: 900 },
+        y: { min: 10, max: 30 },
+      });
+    }
+
+    test("regressionScale honours xlim and ylim", () => {
+      const scale = regressionScale(WIDTH, HEIGHT, { xlim: XLIM, ylim: YLIM });
+      const expected = customScale();
+      expect(scale.world).toEqual(expected.world);
+      expect(scale.toPixelX(400)).toBe(expected.toPixelX(400));
+      expect(scale.toPixelY(20)).toBe(expected.toPixelY(20));
+    });
+
+    test("without options, regressionScale keeps the R window", () => {
+      expect(regressionScale(WIDTH, HEIGHT).world).toEqual({
+        x: { min: -5, max: 50 },
+        y: { min: -5, max: 50 },
+      });
+    });
+
+    test("dots land at the pixels of the custom window", () => {
+      const { ctx, target } = makeTarget();
+      plotRegression(target, data, { xlim: XLIM, ylim: YLIM });
+      const scale = customScale();
+      const dots = ctx.callsTo("arc");
+      expect(dots).toHaveLength(3);
+      expect(dots.map((call) => [call.args[0], call.args[1]])).toEqual(
+        data.map((point) => [scale.toPixelX(point.x), scale.toPixelY(point.y)]),
+      );
+    });
+
+    test("the crosshair spans the custom window from its low edges", () => {
+      // R runs the segments from 0; a window that does not contain 0 clamps
+      // that origin to its nearest edge.
+      const { ctx, target } = makeTarget();
+      plotRegression(target, data, { xlim: XLIM, ylim: YLIM });
+      const scale = customScale();
+      const meanX = (150 + 400 + 850) / 3;
+      const meanY = 20;
+      const dashed = ctx.calls.filter(
+        (call) =>
+          (call.method === "moveTo" || call.method === "lineTo") &&
+          call.style.lineDash.length > 0,
+      );
+      expect(dashed.map((call) => call.args)).toEqual([
+        [scale.toPixelX(100), scale.toPixelY(meanY)],
+        [scale.toPixelX(900), scale.toPixelY(meanY)],
+        [scale.toPixelX(meanX), scale.toPixelY(10)],
+        [scale.toPixelX(meanX), scale.toPixelY(meanY)],
+      ]);
+    });
+
+    test("the fitted line crosses the custom window edge to edge", () => {
+      const { ctx, target } = makeTarget();
+      plotRegression(target, data, { xlim: XLIM, ylim: YLIM });
+      const scale = customScale();
+      const fit = plotRegression(makeTarget().target, data)!;
+      const line = ctx.calls.filter(
+        (call) =>
+          (call.method === "moveTo" || call.method === "lineTo") &&
+          call.style.strokeStyle === "cornflowerblue",
+      );
+      expect(line.map((call) => call.args)).toEqual([
+        [scale.toPixelX(100), scale.toPixelY(fit.intercept! + fit.slope! * 100)],
+        [scale.toPixelX(900), scale.toPixelY(fit.intercept! + fit.slope! * 900)],
+      ]);
     });
   });
 
