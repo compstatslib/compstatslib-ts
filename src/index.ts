@@ -2,6 +2,7 @@ export { machinePrecision } from "./core/precision";
 export {
   mean,
   meanAbsoluteDeviation,
+  median,
   quantile,
   quantiles,
   sd,
@@ -58,12 +59,19 @@ export type { LogitFit, LogitOptions } from "./core/logit";
 export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols";
 export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols";
 export {
+  rlnorm,
   rnorm,
+  rt,
   runif,
   sampleWithoutReplacement,
   seededRng,
 } from "./core/rng";
-export type { Rng, RnormOptions, RunifOptions } from "./core/rng";
+export type {
+  Rng,
+  RlnormOptions,
+  RnormOptions,
+  RunifOptions,
+} from "./core/rng";
 export { dt, pt, qt } from "./core/tdist";
 export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest";
 export type {

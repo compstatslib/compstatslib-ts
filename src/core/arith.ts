@@ -210,6 +210,25 @@ export function quantiles(
   return probs.map((p) => type7(sorted, p));
 }
 
+/**
+ * Return the median, the value with half the observations on each side.
+ *
+ * R's `median()` sorts the values and, on an even count, averages the two in
+ * the middle. That is the type-7 quantile at 0.5, which weights those same two
+ * values by a half each, so this delegates rather than repeat the rule. The
+ * two forms land on the same double, the halves included.
+ *
+ * The sampling demonstration offers this as one of its choices of statistic.
+ * It marks the center in the units of the data, as the mean does, but a value
+ * far from the center moves it very little, because only the ordering counts.
+ *
+ * @param values The observations. The function does not modify them.
+ * @returns The median, or NaN for no values. R returns NA there.
+ */
+export function median(values: readonly number[]): number {
+  return quantile(values, 0.5);
+}
+
 /** Read one type-7 quantile off already sorted values. */
 function type7(sorted: Float64Array, p: number): number {
   const position = 1 + (sorted.length - 1) * p;
