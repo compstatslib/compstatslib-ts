@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   extent,
   mean,
+  meanAbsoluteDeviation,
   quantile,
   quantiles,
   requireCount,
@@ -62,6 +63,38 @@ describe("sd", () => {
   test("returns NaN below two values, where R returns NA", () => {
     expect(sd([7])).toBeNaN();
     expect(sd([])).toBeNaN();
+  });
+});
+
+describe("meanAbsoluteDeviation", () => {
+  // R base has no function for this. R's `mad()` is the *median* absolute
+  // deviation, scaled by 1.4826, and gives a different number. The expected
+  // values below come from the definition, on the fixtures `sd` uses.
+  test("returns the mean distance from the mean", () => {
+    // mean 6.63; the ten distances add up to 23.76.
+    expectCloseToR(
+      meanAbsoluteDeviation([2.1, 4.5, 4.7, 5, 5.5, 6.1, 7.3, 8.8, 9.9, 12.4]),
+      2.376,
+    );
+    // mean 2.5; the four distances are 1.5, 0.5, 0.5 and 1.5.
+    expectCloseToR(meanAbsoluteDeviation([1, 2, 3, 4]), 1);
+  });
+
+  test("stays below the standard deviation of the same values", () => {
+    const values = [2.1, 4.5, 4.7, 5, 5.5, 6.1, 7.3, 8.8, 9.9, 12.4];
+    expect(meanAbsoluteDeviation(values)).toBeLessThan(sd(values));
+  });
+
+  test("returns 0 for constant values", () => {
+    expect(meanAbsoluteDeviation([5, 5, 5, 5])).toBe(0);
+  });
+
+  test("returns 0 for one value, which sits at its own mean", () => {
+    expect(meanAbsoluteDeviation([7])).toBe(0);
+  });
+
+  test("returns NaN for no values, as the mean of nothing does", () => {
+    expect(meanAbsoluteDeviation([])).toBeNaN();
   });
 });
 

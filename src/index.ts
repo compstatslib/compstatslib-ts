@@ -1,5 +1,11 @@
 export { machinePrecision } from "./core/precision";
-export { quantile, quantiles, sd } from "./core/arith";
+export {
+  mean,
+  meanAbsoluteDeviation,
+  quantile,
+  quantiles,
+  sd,
+} from "./core/arith";
 export { bwNrd0, kernelDensity } from "./core/kde";
 export type {
   KernelDensityEstimate,
