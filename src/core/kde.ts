@@ -3,9 +3,11 @@
  *
  * `plot_sampling()` in the R package draws two of these panels: one over the
  * population and one over the pooled samples. Both calls are `density(x)` with
- * no other argument, so this module ports that default path only: the Gaussian
+ * no other argument, so this module ports that default path: the Gaussian
  * kernel, the `nrd0` bandwidth, a 512-point output grid, `cut = 3`, and
- * `ext = 4`. Verified against R 4.5.3 in `kde.test.ts`.
+ * `ext = 4`. It also ports R's `from` and `to` arguments, which freeze the
+ * ends of the reported window — the sampling plot uses them to keep one axis
+ * across redraws. Verified against R 4.5.3 in `kde.test.ts`.
  *
  * The estimate is a convolution, and R computes it with an FFT rather than by
  * summing a kernel over every point. This port copies that: the cost is
@@ -52,11 +54,26 @@ export interface KernelDensityOptions {
    * values — R does the same.
    */
   readonly bw?: number;
+  /**
+   * The low end of the reported window, R's `from`.
+   *
+   * The default is `min(x) - 3 * bw`, R's `cut = 3`. The working window still
+   * reaches 4 bandwidths further out, and `binDist` drops the mass beyond it,
+   * as R's `BinDist` does. So a window narrower than the data cuts the tails
+   * off, and a wider one pads the curve with near-zero density — the frozen
+   * axis the sampling plot needs across redraws.
+   */
+  readonly from?: number;
+  /** The high end of the reported window, R's `to`. Same rules as `from`. */
+  readonly to?: number;
 }
 
 /** The curve, in the shape of R's `density` object. */
 export interface KernelDensityEstimate {
-  /** The 512 grid points, from `min(x) - 3 * bw` to `max(x) + 3 * bw`. */
+  /**
+   * The 512 grid points. They run from `min(x) - 3 * bw` to
+   * `max(x) + 3 * bw`, unless the caller froze an end with `from` or `to`.
+   */
   readonly x: readonly number[];
   /** The density at each grid point. Never negative. */
   readonly y: readonly number[];
@@ -126,12 +143,12 @@ function fallbackScale(
  * as a missing value and stops.
  *
  * @param values The observations.
- * @param options The bandwidth, if the caller sets it.
+ * @param options The bandwidth and the window ends, if the caller sets them.
  * @returns The grid, the density on it, the bandwidth, and the count of
  *   values given.
  * @throws RangeError If the bandwidth has to be selected from fewer than two
- *   values, if a given bandwidth is not positive and finite, if a value is
- *   NaN, or if no value is finite.
+ *   values, if a given bandwidth is not positive and finite, if a given
+ *   window end is not finite, if a value is NaN, or if no value is finite.
  */
 export function kernelDensity(
   values: readonly number[],
@@ -147,9 +164,16 @@ export function kernelDensity(
     throw new RangeError("need at least 1 finite value, got none");
   }
 
+  if (options.from !== undefined && !Number.isFinite(options.from)) {
+    throw new RangeError(`non-finite 'from': ${options.from}`);
+  }
+  if (options.to !== undefined && !Number.isFinite(options.to)) {
+    throw new RangeError(`non-finite 'to': ${options.to}`);
+  }
+
   const [lowest, highest] = extent(finite);
-  const from = lowest - CUT * bw;
-  const to = highest + CUT * bw;
+  const from = options.from ?? lowest - CUT * bw;
+  const to = options.to ?? highest + CUT * bw;
   const lo = from - EXT * bw;
   const up = to + EXT * bw;
 

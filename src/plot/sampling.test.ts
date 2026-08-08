@@ -402,6 +402,73 @@ describe("plotSampling histogram window", () => {
   });
 });
 
+describe("plotSampling densityWindow", () => {
+  // PLAN-006 Slice 2. Every density here takes its grid from the range of the
+  // values it is given, so a population that reaches far outside the drawn
+  // window gets a grid step wider than the window itself and draws as one
+  // straight line. "frozen" sets the grid to the window instead.
+  const window = { min: 0, max: 49.75 };
+  const leftEdge = samplingScale(
+    WIDTH,
+    HEIGHT,
+    "population",
+    window,
+    1,
+  ).toPixelX(window.min);
+
+  /** The x pixel of every point drawn in the top band, curve and axis alike. */
+  function topBandXs(ctx: RecordingContext): number[] {
+    const band = HEIGHT / 3;
+    return ctx.calls
+      .filter((call) => call.method === "moveTo" || call.method === "lineTo")
+      .filter((call) => (call.args[1] as number) <= band)
+      .map((call) => call.args[0] as number);
+  }
+
+  test("draws past the window by default, as R's density() does", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, { rng: seededRng(31), reps: 0 });
+
+    // R's default grid runs three bandwidths past the data on each side, and
+    // the window here is the range of the data, so the curve overhangs it.
+    expect(Math.min(...topBandXs(ctx))).toBeLessThan(leftEdge);
+  });
+
+  test("keeps the curve inside the window when it is frozen", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, {
+      rng: seededRng(31),
+      reps: 0,
+      densityWindow: "frozen",
+    });
+
+    expect(Math.min(...topBandXs(ctx))).toBeCloseTo(leftEdge, 6);
+  });
+
+  test("freezes the sample curves too, not only the population", () => {
+    // A sample of a long-tailed population spans far more than the window, and
+    // its own grid step would then be wider than the window is.
+    const { ctx, target } = makeTarget();
+    plotSampling(target, [...population, 4000], {
+      rng: seededRng(32),
+      reps: 3,
+      sampleSize: 5,
+      densityWindow: "frozen",
+      state: { xMin: window.min, xMax: window.max, sampleTheta: [] },
+    });
+
+    const middleBand = ctx.calls
+      .filter((call) => call.method === "moveTo" || call.method === "lineTo")
+      .filter((call) => {
+        const y = call.args[1] as number;
+        return y > HEIGHT / 3 && y <= (2 * HEIGHT) / 3;
+      })
+      .map((call) => call.args[0] as number);
+
+    expect(Math.min(...middleBand)).toBeCloseTo(leftEdge, 6);
+  });
+});
+
 describe("plotSampling guards", () => {
   test("draws empty panels for a population too small to have a density", () => {
     const { ctx, target } = makeTarget();

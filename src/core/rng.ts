@@ -56,6 +56,17 @@ export interface RlnormOptions {
 }
 
 /**
+ * The parameters of `rcauchy`. The defaults are the defaults of R's
+ * `rcauchy`.
+ */
+export interface RcauchyOptions {
+  /** The center of the distribution. It is the median, not a mean. */
+  readonly location?: number;
+  /** The half-width at half-maximum. A negative value gives NaN, as in R. */
+  readonly scale?: number;
+}
+
+/**
  * Make a generator from a seed.
  *
  * Two generators of one seed give the same sequence. The seed keeps only its
@@ -226,6 +237,47 @@ export function rlnorm(
 ): number[] {
   const { meanlog = 0, sdlog = 1 } = options;
   return rnorm(rng, n, { mean: meanlog, sd: sdlog }).map(Math.exp);
+}
+
+/**
+ * Draw Cauchy values.
+ *
+ * This is R's `rcauchy(n, location, scale)`, by the inverse rule: the Cauchy
+ * quantile function is `location + scale * tan(pi * (u - 0.5))`, so applying
+ * it to uniform draws gives Cauchy draws. The draws come in one `runif` call
+ * of length `n`, so the function takes exactly `n` values from the generator.
+ *
+ * The Cauchy has no mean and no variance. Its center is the `location`, which
+ * is the median, and its spread is the `scale`, the half-width at half of the
+ * peak density. The tails are heavy enough that averages of draws do not
+ * settle, which is what the sampling demonstrations use it for.
+ *
+ * A `location` that is not finite, or a `scale` that is negative or not
+ * finite, gives NaN for every result and takes nothing from the generator,
+ * as in R.
+ *
+ * @param rng The source of randomness.
+ * @param n How many values to draw. It must be a non-negative integer.
+ * @param options The center and the spread. The default is the standard
+ *   Cauchy distribution.
+ * @returns The drawn values.
+ * @throws RangeError If n is negative or is not an integer.
+ */
+export function rcauchy(
+  rng: Rng,
+  n: number,
+  options: RcauchyOptions = {},
+): number[] {
+  requireCount(n, "n");
+  const { location = 0, scale = 1 } = options;
+
+  if (!Number.isFinite(location) || !Number.isFinite(scale) || scale < 0) {
+    return new Array<number>(n).fill(Number.NaN);
+  }
+
+  return runif(rng, n).map(
+    (u) => location + scale * Math.tan(Math.PI * (u - 0.5)),
+  );
 }
 
 /** Make two standard normal values from two uniform values. */

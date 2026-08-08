@@ -59,6 +59,7 @@ export type { LogitFit, LogitOptions } from "./core/logit";
 export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols";
 export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols";
 export {
+  rcauchy,
   rlnorm,
   rnorm,
   rt,
@@ -68,6 +69,7 @@ export {
 } from "./core/rng";
 export type {
   Rng,
+  RcauchyOptions,
   RlnormOptions,
   RnormOptions,
   RunifOptions,

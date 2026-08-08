@@ -23,6 +23,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  rcauchy,
   rlnorm,
   rnorm,
   rt,
@@ -530,6 +531,133 @@ describe("rlnorm", () => {
   test("rejects a negative or fractional count", () => {
     expect(() => rlnorm(stubRng([0.5]), -2)).toThrow(RangeError);
     expect(() => rlnorm(stubRng([0.5]), 1.5)).toThrow(RangeError);
+  });
+});
+
+describe("rcauchy", () => {
+  /**
+   * The probabilities of the qcauchy fixtures below. The Cauchy has no mean
+   * and no variance, so the statistical tests below check robust quantiles
+   * only: median, quartiles, and deciles. The 1% and 99% points sit near
+   * ±32, where the density is so thin that a sample quantile is too noisy
+   * to pin.
+   */
+  const QCAUCHY_PROBS = [0.1, 0.25, 0.5, 0.75, 0.9];
+
+  /** R 4.5.3: `qcauchy(p)` at the probabilities above. */
+  const QCAUCHY_STANDARD = [
+    -3.07768353717525, -1, 0, 1, 3.07768353717525,
+  ];
+
+  /** R 4.5.3: `qcauchy(p, location = 5, scale = 2)` at the probabilities above. */
+  const QCAUCHY_SHIFTED = [
+    -1.15536707435051, 3, 5, 7, 11.15536707435051,
+  ];
+
+  /**
+   * The tolerance of each empirical quantile at unit scale. The standard
+   * error of a sample quantile is `sqrt(p(1 - p) / N) / density(q)`. At
+   * N = 200000 the Cauchy density gives about 0.0035 at the median, 0.0061
+   * at the quartiles, and 0.022 at the deciles, where the density has
+   * thinned to 0.030. Each bound below is about 7 of those. A caller with
+   * another `scale` multiplies the whole array by it, because `scale`
+   * multiplies the quantiles.
+   */
+  const QCAUCHY_TOLERANCE = [0.16, 0.045, 0.025, 0.045, 0.16];
+
+  /** Assert each empirical quantile within its own scaled tolerance. */
+  function expectQuantilesNear(
+    values: readonly number[],
+    expected: readonly number[],
+    scale: number,
+  ): void {
+    const observed = quantiles(values, QCAUCHY_PROBS);
+    observed.forEach((value, index) => {
+      const gap = Math.abs(value - (expected[index] as number));
+      expect(gap).toBeLessThan(scale * (QCAUCHY_TOLERANCE[index] as number));
+    });
+  }
+
+  test("transforms each draw with the inverse rule", () => {
+    const sequence = [0.25, 0.5, 0.75, 0.9];
+    const expected = sequence.map((u) => Math.tan(Math.PI * (u - 0.5)));
+    expect(rcauchy(stubRng(sequence), 4)).toEqual(expected);
+  });
+
+  test("shifts and scales by location and scale", () => {
+    const sequence = [0.25, 0.5, 0.75];
+    const raw = rcauchy(stubRng(sequence), 3);
+    const scaled = rcauchy(stubRng(sequence), 3, { location: 5, scale: 2 });
+    expect(scaled).toEqual(raw.map((value) => 5 + 2 * value));
+  });
+
+  test("defaults to location 0 and scale 1, as R does", () => {
+    const sequence = [0.3, 0.7, 0.15];
+    expect(rcauchy(stubRng(sequence), 3)).toEqual(
+      rcauchy(stubRng(sequence), 3, { location: 0, scale: 1 }),
+    );
+  });
+
+  test("returns the location when scale is 0, as R does", () => {
+    expect(rcauchy(stubRng([0.25, 0.9]), 2, { location: 7, scale: 0 })).toEqual(
+      [7, 7],
+    );
+  });
+
+  test("gives one seed one sequence", () => {
+    expect(rcauchy(seededRng(42), 10)).toEqual(rcauchy(seededRng(42), 10));
+  });
+
+  test("gives different seeds different sequences", () => {
+    expect(rcauchy(seededRng(1), 10)).not.toEqual(rcauchy(seededRng(2), 10));
+  });
+
+  test("draws exactly once per value", () => {
+    const counter = countingRng(stubRng([0.4]));
+    const values = rcauchy(counter.rng, 5);
+    expect(values).toHaveLength(5);
+    expect(counter.count()).toBe(5);
+  });
+
+  test("matches R's qcauchy at the standard parameters over 200000 draws", () => {
+    const values = rcauchy(seededRng(51), 200000);
+    expectQuantilesNear(values, QCAUCHY_STANDARD, 1);
+  });
+
+  test("matches R's qcauchy at location 5 and scale 2 over 200000 draws", () => {
+    const values = rcauchy(seededRng(52), 200000, { location: 5, scale: 2 });
+    expectQuantilesNear(values, QCAUCHY_SHIFTED, 2);
+  });
+
+  test("returns an empty array for n = 0 without drawing", () => {
+    const counter = countingRng(stubRng([0.5]));
+    expect(rcauchy(counter.rng, 0)).toEqual([]);
+    expect(counter.count()).toBe(0);
+  });
+
+  test("returns NaN for a negative scale, like R", () => {
+    const values = rcauchy(stubRng([0.5]), 2, { scale: -1 });
+    expect(values).toHaveLength(2);
+    expect(values.every((value) => Number.isNaN(value))).toBe(true);
+  });
+
+  test("returns NaN for a non-finite parameter, like R", () => {
+    expect(rcauchy(stubRng([0.5]), 1, { location: Number.NaN })[0]).toBeNaN();
+    expect(
+      rcauchy(stubRng([0.5]), 1, { scale: Number.POSITIVE_INFINITY })[0],
+    ).toBeNaN();
+  });
+
+  test("does not draw when the parameters are invalid", () => {
+    const counter = countingRng(stubRng([0.5]));
+    rcauchy(counter.rng, 4, { scale: -1 });
+    rcauchy(counter.rng, 4, { location: Number.NaN });
+    expect(counter.count()).toBe(0);
+  });
+
+  test("rejects a negative or fractional count", () => {
+    expect(() => rcauchy(stubRng([0.5]), -2)).toThrow(RangeError);
+    expect(() => rcauchy(stubRng([0.5]), 1.5)).toThrow(RangeError);
   });
 });
 

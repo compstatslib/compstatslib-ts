@@ -32,7 +32,10 @@ import { extent, mean } from "../core/arith";
 import { histogram } from "../core/histogram";
 import type { Histogram } from "../core/histogram";
 import { kernelDensity } from "../core/kde";
-import type { KernelDensityEstimate } from "../core/kde";
+import type {
+  KernelDensityEstimate,
+  KernelDensityOptions,
+} from "../core/kde";
 import { seededRng } from "../core/rng";
 import type { Rng } from "../core/rng";
 import { drawSamples } from "../core/sampling";
@@ -98,6 +101,21 @@ export interface PlotSamplingOptions {
    * window and accumulates the statistics.
    */
   readonly state?: SamplingState | null;
+  /**
+   * Where every density curve puts its grid.
+   *
+   * `"data"`, the default, is R: each `density()` call spreads its 512 grid
+   * points over the range of the values it was given. That is right while the
+   * values and the window are of one size.
+   *
+   * `"frozen"` spreads them over the drawn window instead, through R's own
+   * `from` and `to` arguments. A population that reaches far outside the
+   * window needs this: at 512 points over a range a thousand times the window,
+   * one grid step is wider than the whole panel, and the curve draws as a
+   * straight line. The samples take the frozen grid as well, for the same
+   * reason and so that every curve in the picture is comparable.
+   */
+  readonly densityWindow?: "data" | "frozen";
 }
 
 /** Everything this draw produced, for the caller to hold and to read. */
@@ -231,9 +249,12 @@ export function plotSampling(
     theta = mean,
     rng = seededRng(Math.floor(Math.random() * 0x100000000)),
     state = null,
+    densityWindow = "data",
   } = options;
 
   const window = frozenWindow(population, state);
+  const grid: KernelDensityOptions =
+    densityWindow === "frozen" ? { from: window.min, to: window.max } : {};
   const drawable = population.length >= 2;
   const draw = drawable
     ? drawSamples(rng, population, { sampleSize, reps, theta })
@@ -248,7 +269,7 @@ export function plotSampling(
     height,
     "population",
     window,
-    drawable ? kernelDensity(population) : null,
+    drawable ? kernelDensity(population, grid) : null,
     [],
     "Population Distribution",
   );
@@ -260,10 +281,10 @@ export function plotSampling(
     height,
     "samples",
     window,
-    pooled.length >= 2 ? kernelDensity(pooled) : null,
+    pooled.length >= 2 ? kernelDensity(pooled, grid) : null,
     draw.samples
       .filter((sample) => sample.length >= 2)
-      .map((sample) => kernelDensity(sample)),
+      .map((sample) => kernelDensity(sample, grid)),
     "Sample Distribution",
   );
 
