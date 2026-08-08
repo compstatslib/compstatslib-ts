@@ -27,6 +27,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { mean } from "../core/arith";
+import { histogram } from "../core/histogram";
 import { seededRng, type Rng } from "../core/rng";
 import { RecordingContext } from "../../test/recording-context";
 import { plotSampling, samplingScale } from "./sampling";
@@ -341,6 +342,63 @@ describe("plotSampling drawing", () => {
 
     expect(first?.style.fillStyle).toBe(BACKGROUND);
     expect(first?.args).toEqual([0, 0, WIDTH, HEIGHT]);
+  });
+});
+
+describe("plotSampling histogram window", () => {
+  // PLAN-006 Slice 1. The three panels share one window and the bars are
+  // clipped to it, so a statistic outside the window cannot be drawn. It must
+  // not set the width of the cells either: one Cauchy sample mean out at 800
+  // would otherwise make every cell 100 units wide and leave a 124-wide panel
+  // with one flat bar on it. Each test hands the pile in through the state and
+  // asks for no new samples, so the pile is exact.
+  const window = { xMin: 0, xMax: 10 };
+  const inside = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  test("bins a pile that lies inside the window as histogram() does", () => {
+    const { target } = makeTarget();
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: inside },
+    });
+
+    expect(result.histogram?.breaks).toEqual(histogram(inside).breaks);
+    expect(result.histogram?.counts).toEqual(histogram(inside).counts);
+  });
+
+  test("a statistic outside the window does not widen the cells", () => {
+    const { target } = makeTarget();
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: [...inside, 500] },
+    });
+
+    expect(result.histogram?.breaks).toEqual(histogram(inside).breaks);
+  });
+
+  test("counts every statistic in the label, drawn or not", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: [...inside, 500] },
+    });
+
+    // R: paste("Sampling Statistic", "\n(", length(sample_theta), ")"). The
+    // pile is what the reader collected, not what fits on the picture.
+    expect(ctx.texts()).toContain("( 10 )");
+  });
+
+  test("draws no bars when every statistic is outside the window", () => {
+    const { ctx, target } = makeTarget();
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: [500, 600] },
+    });
+
+    // histogram() refuses an empty set, so there is no histogram to hand back.
+    expect(result.histogram).toBeNull();
+    expect(barsIn(ctx, BAR_COLOR)).toHaveLength(0);
+    expect(ctx.texts()).toContain("( 2 )");
   });
 });
 

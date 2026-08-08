@@ -111,6 +111,10 @@ export interface PlotSamplingResult {
   /**
    * The histogram the third panel drew, or null when there was nothing to
    * count. Handed back so a caller need not bin the statistics again.
+   *
+   * It counts the statistics inside the window, not the whole pile. The panel
+   * clips a bar outside the window anyway, and a statistic it cannot draw must
+   * not set the width of the cells either — see `plotSampling`.
    */
   readonly histogram: Histogram | null;
 }
@@ -263,7 +267,16 @@ export function plotSampling(
     "Sample Distribution",
   );
 
-  const counted = sampleTheta.length > 0 ? histogram(sampleTheta) : null;
+  // Only the statistics inside the window are binned. R bins the whole pile,
+  // and its cell edges therefore follow the widest statistic drawn so far,
+  // even though its device clips the bar that holds it. That is unreadable
+  // under a population whose statistic does not settle: one sample mean out at
+  // 800 makes every cell 100 units wide, and a 124-wide panel then shows one
+  // flat bar. The count in the label still reports the whole pile.
+  const countable = sampleTheta.filter(
+    (theta) => theta >= window.min && theta <= window.max,
+  );
+  const counted = countable.length > 0 ? histogram(countable) : null;
   drawStatisticPanel(ctx, width, height, window, counted, sampleTheta.length);
 
   return {
