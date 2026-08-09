@@ -3,9 +3,9 @@
  * `interactive_regression()` in `../compstatslib/R/regression_interactive.R`.
  *
  * These tests exercise state and input handling only. The drawing belongs to
- * `plotRegr`, which `src/plot/regr.test.ts` covers. Each test reads the
+ * `plotRegression`, which `src/plot/regression.test.ts` covers. Each test reads the
  * recorded calls to answer two questions: did the component redraw, and did it
- * hand `plotRegr` the points and the options it was given.
+ * hand `plotRegression` the points and the options it was given.
  *
  * The test dispatches real `MouseEvent`s at a real happy-dom canvas, so the
  * listener wiring and the pixel arithmetic run as they do in a browser.
@@ -24,10 +24,10 @@ import { interactiveRegression } from "./regression";
 const WIDTH = 600;
 const HEIGHT = 600;
 
-/** The world window of `plot_regr()`: x and y both run from -5 to 50. */
+/** The world window of `plot_regression()`: x and y both run from -5 to 50. */
 const WORLD = { min: -5, max: 50 };
 
-/** The same scale that `plotRegr` draws through. */
+/** The same scale that `plotRegression` draws through. */
 const scale = createScale({ width: WIDTH, height: HEIGHT, x: WORLD, y: WORLD });
 
 interface Harness {
@@ -80,7 +80,7 @@ function clickWorld(canvas: HTMLCanvasElement, x: number, y: number): void {
 /**
  * Split the recorded calls into one group per draw.
  *
- * Every `plotRegr` call starts by filling the background, so a `fillRect`
+ * Every `plotRegression` call starts by filling the background, so a `fillRect`
  * marks the start of a frame.
  */
 function draws(ctx: RecordingContext): DrawCall[][] {

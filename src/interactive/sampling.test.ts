@@ -15,7 +15,7 @@
  * actionButton("run", "Sample")
  * ```
  *
- * Two behaviours separate this gadget from the t test's. R redraws only when
+ * Two behaviors separate this gadget from the t test's. R redraws only when
  * the button is pressed — `observeEvent(input$run, ...)` bumps a trigger and
  * the plot reads that trigger, isolating the two selects — so changing a
  * select alone must draw nothing. And R's `renderPlot` runs once when the

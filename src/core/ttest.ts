@@ -7,8 +7,8 @@
  * `plot_error_matrix()`; here they are one pure result that the plot layer
  * reads. Verified against R in `ttest.test.ts`.
  *
- * What the picture shows: a null distribution centred at 0 and an alternative
- * distribution centred at the t statistic the given difference produces. The
+ * What the picture shows: a null distribution centerd at 0 and an alternative
+ * distribution centerd at the t statistic the given difference produces. The
  * area of the null above the critical value is the significance level; the
  * area of the alternative above that same point is the power, and what falls
  * below it is beta.
@@ -33,7 +33,7 @@ export interface TTestOptions {
  *
  * These live here rather than in the plot layer so that the plot and
  * interactive layers read one set of numbers, and so that `tTestStats()` on
- * its own yields the classroom demo, matching R's no-argument behaviour.
+ * its own yields the classroom demo, matching R's no-argument behavior.
  */
 export const DEFAULT_T_TEST_OPTIONS = {
   diff: 0.5,

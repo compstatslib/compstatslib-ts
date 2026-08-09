@@ -25,7 +25,7 @@
  * }
  * ```
  *
- * Two behaviours below need their evidence stated, because neither is obvious.
+ * Two behaviors below need their evidence stated, because neither is obvious.
  *
  * **The message on a singular matrix.** `plotMatrixInverse` draws nothing at
  * all when the matrix has no inverse, because R's `solve()` stops the R
@@ -110,7 +110,7 @@ function setMatrix(controls: HTMLElement, matrix: Matrix2): void {
   }
 }
 
-/** The fill colour of every filled shape, in order. */
+/** The fill color of every filled shape, in order. */
 function fills(ctx: RecordingContext): string[] {
   return ctx.callsTo("fill").map((call) => String(call.style.fillStyle));
 }
@@ -185,7 +185,7 @@ describe("interactiveMatrixInverse", () => {
     });
 
     test("draws through the plot, not with drawing of its own", () => {
-      // The two parallelograms in R's two colours can only have come from
+      // The two parallelograms in R's two colors can only have come from
       // `plotMatrixInverse`.
       const { ctx } = setup();
 

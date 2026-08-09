@@ -89,11 +89,14 @@ export function logitScale(
   points: readonly Point[],
   options: PlotLogitOptions = {},
 ): Scale {
-  const min = points.reduce(
+  // A non-finite x is a missing value the core drops (na.omit); it must not
+  // reach Math.min, where one NaN would poison the whole window.
+  const finite = points.filter((point) => Number.isFinite(point.x));
+  const min = finite.reduce(
     (low, point) => Math.min(low, point.x),
     options.minX ?? DEFAULT_MIN_X,
   );
-  const max = points.reduce(
+  const max = finite.reduce(
     (high, point) => Math.max(high, point.x),
     options.maxX ?? DEFAULT_MAX_X,
   );

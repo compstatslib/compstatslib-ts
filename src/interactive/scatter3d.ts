@@ -39,7 +39,7 @@
  * reproduces the picture, and `onDone` receives it. Feeding it back to
  * `plotScatter3d` — or to this function — is R's `do.call` equivalent.
  *
- * One R behaviour is absent for R's own reason: the gadget shows no message
+ * One R behavior is absent for R's own reason: the gadget shows no message
  * about the column choice. `plot_scatter3d()` writes one when it picks the
  * columns itself, and neither gadget lets it: R passes `input$x`, `input$y`
  * and `input$z` on every render, as this component passes its own state. The
@@ -131,7 +131,7 @@ export interface InteractiveScatter3dHandle {
   destroy(): void;
 }
 
-/** R's `choices = c("(none)", names(data))` sentinel for no colour. */
+/** R's `choices = c("(none)", names(data))` sentinel for no color. */
 const NONE = "(none)";
 
 /** R: `sliderInput("aspect_x", "Aspect X", min = 0.1, max = 10, step = .1)`. */
@@ -326,7 +326,7 @@ export function interactiveScatter3d(
    * camera lives only in the WebGL scene until it is written back; without
    * the push below, every modebar click snapped the view to the default. The
    * push itself echoes through this handler with the same camera as a fresh
-   * object, which is what the value comparison recognises and drops.
+   * object, which is what the value comparison recognizes and drops.
    */
   function handleRelayout(event: PlotlyRelayoutEvent): void {
     const moved = event["scene.camera"];

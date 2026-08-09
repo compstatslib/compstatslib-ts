@@ -26,7 +26,7 @@
 import { principalComponents } from "../core/pca";
 import type { PcaResult } from "../core/pca";
 import type { Point } from "../core/regression";
-import { DEFAULT_MARGINS, createScale, drawAxes } from "./axes";
+import { DEFAULT_MARGINS, createScale, drawAxes, extentOf } from "./axes";
 import type { Extent, Scale } from "./axes";
 import { DOTTED, clearSurface, clipToArea, drawArrow, drawDots } from "./draw";
 import { resolveTarget } from "./target";
@@ -159,11 +159,6 @@ export function plotPca(
 }
 
 const ORIGIN: Point = { x: 0, y: 0 };
-
-/** Read a pair of limits as a range, whichever way round it was written. */
-function extentOf(limits: readonly [number, number]): Extent {
-  return { min: Math.min(...limits), max: Math.max(...limits) };
-}
 
 /** Grow an extent to a span, keeping its middle where it is. */
 function widenedTo(extent: Extent, span: number): Extent {

@@ -1,5 +1,12 @@
 export { machinePrecision } from "./core/precision";
-export { quantile, quantiles, sd } from "./core/arith";
+export {
+  mean,
+  meanAbsoluteDeviation,
+  median,
+  quantile,
+  quantiles,
+  sd,
+} from "./core/arith";
 export { bwNrd0, kernelDensity } from "./core/kde";
 export type {
   KernelDensityEstimate,
@@ -52,12 +59,21 @@ export type { LogitFit, LogitOptions } from "./core/logit";
 export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols";
 export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols";
 export {
+  rcauchy,
+  rlnorm,
   rnorm,
+  rt,
   runif,
   sampleWithoutReplacement,
   seededRng,
 } from "./core/rng";
-export type { Rng, RnormOptions, RunifOptions } from "./core/rng";
+export type {
+  Rng,
+  RcauchyOptions,
+  RlnormOptions,
+  RnormOptions,
+  RunifOptions,
+} from "./core/rng";
 export { dt, pt, qt } from "./core/tdist";
 export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest";
 export type {
@@ -110,8 +126,8 @@ export type {
 } from "./plot/sampling";
 export { pcaScale, plotPca } from "./plot/pca";
 export type { PlotPcaOptions } from "./plot/pca";
-export { plotRegr, regrScale } from "./plot/regr";
-export type { PlotRegrOptions } from "./plot/regr";
+export { plotRegression, regressionScale } from "./plot/regression";
+export type { PlotRegressionOptions } from "./plot/regression";
 export { formatNumber, formatStat } from "./plot/format";
 export { plotTTest, tTestScale } from "./plot/tTest";
 export type { PlotTTestOptions } from "./plot/tTest";

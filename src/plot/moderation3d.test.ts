@@ -72,7 +72,7 @@ function surfaceTrace(spec: { readonly traces: readonly unknown[] }): SurfaceTra
 const SURFACE = moderationSurface(moderationData, MODEL);
 
 describe("moderation3dSpec grid", () => {
-  test("builds one surface trace with no colour bar", () => {
+  test("builds one surface trace with no color bar", () => {
     const spec = moderation3dSpec(SURFACE, MODEL);
 
     expect(spec.traces.length).toBe(1);
@@ -116,9 +116,11 @@ describe("moderation3dSpec layout", () => {
   test("titles the axes with the column names, the outcome standing up", () => {
     const { layout } = moderation3dSpec(SURFACE, MODEL);
 
-    expect(layout.scene.xaxis.title).toBe("x");
-    expect(layout.scene.yaxis.title).toBe("z");
-    expect(layout.scene.zaxis.title).toBe("y");
+    // Plotly v2 silently drops a bare-string title; only the object form
+    // shows the column names on screen.
+    expect(layout.scene.xaxis.title).toEqual({ text: "x" });
+    expect(layout.scene.yaxis.title).toEqual({ text: "z" });
+    expect(layout.scene.zaxis.title).toEqual({ text: "y" });
   });
 
   test("takes the vertical range from the surface", () => {
@@ -325,5 +327,19 @@ describe("plotModeration3d", () => {
     expect(() =>
       moderation3dSpec(SURFACE, MODEL, { zlim: [0, Number.NaN] }),
     ).toThrow("`zlim` must be two finite numbers.");
+  });
+
+  test("refuses a surface with non-finite heights before the engine sees it", () => {
+    // A NaN height field does not fail politely: it crashes WebGL inside
+    // plotly.js and every surface drawn on the page after it fails too. The
+    // spec must refuse the surface so no caller can reach that state.
+    const doctored = {
+      ...SURFACE,
+      predictions: SURFACE.predictions.map(() => Number.NaN),
+    };
+
+    expect(() => moderation3dSpec(doctored, MODEL, {})).toThrow(
+      /finite height/,
+    );
   });
 });

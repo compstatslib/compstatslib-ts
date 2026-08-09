@@ -91,6 +91,28 @@ export function sd(values: readonly number[]): number {
 }
 
 /**
+ * Return the mean absolute deviation, `mean(|x - mean(x)|)`.
+ *
+ * R base has no function for this. R's `mad()` is the *median* absolute
+ * deviation from the median, scaled by 1.4826, which is a different
+ * statistic. A caller that shows either one to a reader must write the name
+ * in full, because the abbreviation covers both.
+ *
+ * The sampling demonstration offers this as one of its choices of statistic.
+ * It measures spread in the units of the data, as the standard deviation
+ * does, but a value far from the mean moves it less, because the distance is
+ * not squared.
+ *
+ * @param values The observations.
+ * @returns The mean distance from the mean. One value gives 0, because it
+ *   sits at its own mean. No values gives NaN, as `mean` does.
+ */
+export function meanAbsoluteDeviation(values: readonly number[]): number {
+  const center = mean(values);
+  return mean(values.map((value) => Math.abs(value - center)));
+}
+
+/**
  * Return `a * b + c`, rounded once.
  *
  * Written as `a * b + c`, JavaScript rounds twice — once for the product,
@@ -186,6 +208,25 @@ export function quantiles(
   const sorted = Float64Array.from(values).sort();
 
   return probs.map((p) => type7(sorted, p));
+}
+
+/**
+ * Return the median, the value with half the observations on each side.
+ *
+ * R's `median()` sorts the values and, on an even count, averages the two in
+ * the middle. That is the type-7 quantile at 0.5, which weights those same two
+ * values by a half each, so this delegates rather than repeat the rule. The
+ * two forms land on the same double, the halves included.
+ *
+ * The sampling demonstration offers this as one of its choices of statistic.
+ * It marks the center in the units of the data, as the mean does, but a value
+ * far from the center moves it very little, because only the ordering counts.
+ *
+ * @param values The observations. The function does not modify them.
+ * @returns The median, or NaN for no values. R returns NA there.
+ */
+export function median(values: readonly number[]): number {
+  return quantile(values, 0.5);
 }
 
 /** Read one type-7 quantile off already sorted values. */

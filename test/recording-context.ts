@@ -7,7 +7,7 @@
  * real context with no DOM.
  *
  * Each recorded call carries a snapshot of the drawing style, because a call
- * such as `stroke()` only means something together with the colour and width
+ * such as `stroke()` only means something together with the color and width
  * in force at that moment. `save()` and `restore()` push and pop that style,
  * as a real context does.
  */

@@ -106,7 +106,7 @@ const SLIDER_RANGE: SliderRange = {
 };
 
 const NOTICE_BACKGROUND = "#ffffff";
-/** A colour of this port's own choosing, so a message does not read as a
+/** A color of this port's own choosing, so a message does not read as a
  * picture. R leaves the styling of its error text to shiny. */
 const NOTICE_COLOR = "#b22222";
 const NOTICE_FONT = "12px monospace";

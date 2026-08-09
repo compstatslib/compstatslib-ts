@@ -3,11 +3,11 @@
  * `../compstatslib/R/sample_ci_plot.R`.
  *
  * Structural checks, as in the other plot tests: the test counts the shapes
- * that reach the context and reads their colours and order. The arithmetic
+ * that reach the context and reads their colors and order. The arithmetic
  * behind the picture is already pinned against R in `src/core/sampling.test.ts`.
  *
  * The order matters more here than in any other plot in the port, because it
- * is what makes a bad row read as red. R draws every row in the good colours
+ * is what makes a bad row read as red. R draws every row in the good colors
  * first and then draws the bad ones again over the top:
  *
  * ```r
@@ -52,7 +52,7 @@ function makeTarget(
   return { ctx, target: { ctx, width, height } };
 }
 
-/** Return the index of every stroke drawn in one colour. */
+/** Return the index of every stroke drawn in one color. */
 function strokeIndices(ctx: RecordingContext, color: string): number[] {
   return ctx.calls
     .map((call, index) => ({ call, index }))
@@ -62,7 +62,7 @@ function strokeIndices(ctx: RecordingContext, color: string): number[] {
     .map(({ index }) => index);
 }
 
-/** Return the index of every fill drawn in one colour. */
+/** Return the index of every fill drawn in one color. */
 function fillIndices(ctx: RecordingContext, color: string): number[] {
   return ctx.calls
     .map((call, index) => ({ call, index }))

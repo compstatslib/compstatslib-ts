@@ -19,6 +19,34 @@ against that goal.
 The R source lives at `../compstatslib/` — read it directly when porting a
 function rather than guessing at behavior.
 
+## Downstream Consumers
+
+This package is a library. Its primary consumer is the browser app at
+`../compstats-webapp/` (`compstats`), which builds a client-side statistics
+workbench on top of it and currently consumes it as a Bun link to this
+checkout, not from npm. Apps of that shape — static, client-side, Bun +
+bundler — are the expected audience for this package, so weigh API decisions
+from a consuming app's point of view, not only the demo site's.
+
+What this means when working here:
+
+- **Changes can arrive from the webapp side.** A Claude Code session running
+  in `../compstats-webapp/` may commit or propose changes in this repo to add
+  functionality that app needs. Treat such commits as normal contributions:
+  they still have to obey this file's architecture, TDD, and conformance
+  rules. If a commit lands here with no matching test or with drawing code in
+  `interactive/`, fix it rather than following the precedent.
+- **Read the app before guessing at a requirement.** When a request mentions
+  what the webapp needs, read `../compstats-webapp/src/` directly, the same
+  way we read `../compstatslib/` for R behavior.
+- **The library must stay app-agnostic.** No app-specific state, storage, or
+  UI belongs here. If the webapp needs something the library cannot express,
+  the fix is a general option or a returned value the app composes — never a
+  special case named after the app.
+- **The link setup makes breakage immediate.** A rename or signature change
+  here breaks the app's next `bun run typecheck`. Check the app for callers
+  before renaming an exported symbol, and note the change in `CHANGELOG.md`.
+
 ## Status
 
 The port is complete. All 9 function families from the R package are
@@ -46,8 +74,8 @@ src/
 ### The plot/interactive coupling is deliberate
 
 In the R package these are *not* independent — `interactive_regression()` holds
-the clicked points and calls `plot_regr()` on every update, forwarding its
-`...` arguments untouched. Preserve that relationship:
+the clicked points and calls `plot_regression()` on every update, forwarding
+its `...` arguments untouched. Preserve that relationship:
 
 - Each `interactive*` function wraps exactly one `plot*` function.
 - The interactive layer owns **state and input handling only**. It must not
@@ -67,7 +95,7 @@ and a single options object.
 
 | R | TypeScript |
 | --- | --- |
-| `plot_regr(points, regression, stats)` | `plotRegr(target, points, opts?)` |
+| `plot_regression(points, regression, stats)` | `plotRegression(target, points, opts?)` |
 | `interactive_regression(points, ...)` | `interactiveRegression(target, opts?)` |
 | `plot_logit(points, formula, ...)` | `plotLogit(target, points, opts?)` |
 | `interactive_logit(...)` | `interactiveLogit(target, opts?)` |
@@ -97,10 +125,11 @@ and a single options object.
   records read better for click-collected point sets, columns for bundled
   datasets.
 - **Return-and-plot.** Several R functions both draw and return values
-  (`plot_regr` returns points; `plot_sampling` returns a `vars` cache used to
-  accumulate across draws). In TS, prefer returning the computed result from
-  the `core/` function and letting the caller hold accumulated state
-  explicitly — do not hide accumulation in a mutable module-level variable.
+  (`plot_regression` returns points; `plot_sampling` returns a `vars` cache
+  used to accumulate across draws). In TS, prefer returning the computed
+  result from the `core/` function and letting the caller hold accumulated
+  state explicitly — do not hide accumulation in a mutable module-level
+  variable.
 - **Gadget return values.** R's `runGadget()` blocks and returns the collected
   points on "Done". In a browser nothing blocks: expose collected state via a
   callback or a returned handle with an accessor, and document it.
@@ -121,6 +150,11 @@ real numerical work. These are the R primitives the port depends on:
 | `hist()` | sampling statistic panel — needs a binning rule (R defaults to Sturges) |
 | `sample()`, `rnorm()`, `runif()` | sampling, sample CI |
 | `sd()`, `cor()`, `mean()` | throughout |
+
+This layer is **public API**, not an implementation detail. The R package
+never exports these — base R already provides them — but a consuming app has
+no statistics standard library either, so `src/index.ts` exports them and they
+stay exported. Treat a rename here the same as a rename of a plot function.
 
 Two rules for this layer:
 
@@ -224,6 +258,11 @@ Bun specifics that matter here:
 - **Prefer Bun and Web APIs over dependencies.** `Bun.file`, `fetch`, and the
   standard library cover most needs. Every added dependency has to survive
   bundling for the browser, which is the whole point of this port.
+- **en-US spelling everywhere** — identifiers, comments, docs and any string a
+  user reads. The R package declares `Language: en-US`; the port follows, so
+  `color` not `colour`, `center` not `centre`, `behavior` not `behaviour`.
+  Names that quote R or a Web API keep their own spelling (`col = "gray"`,
+  plotly's `color`), which en-US makes easy.
 - **Markdown linting** — after editing or creating any `.md` file, run
   `/ray-md-lint` to ensure it is lint-free.
 - **TDD** — use the `ray-tdd` skill for new functionality; the porting workflow

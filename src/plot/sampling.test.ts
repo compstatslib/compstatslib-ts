@@ -3,7 +3,7 @@
  * `../compstatslib/R/sampling_plot.R`.
  *
  * These are structural checks, as in the other plot tests: the test counts the
- * shapes that reach the context and reads their colours, dash patterns and
+ * shapes that reach the context and reads their colors, dash patterns and
  * text. It does not compare pixels with base R.
  *
  * What it does check closely is the state the function hands back, because
@@ -27,6 +27,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { mean } from "../core/arith";
+import { histogram } from "../core/histogram";
 import { seededRng, type Rng } from "../core/rng";
 import { RecordingContext } from "../../test/recording-context";
 import { plotSampling, samplingScale } from "./sampling";
@@ -53,14 +54,14 @@ function makeTarget(
 /** A population wide enough for a density and a few distinct samples. */
 const population = Array.from({ length: 200 }, (_unused, index) => index / 4);
 
-/** Return every stroke drawn in one colour. */
+/** Return every stroke drawn in one color. */
 function strokesIn(ctx: RecordingContext, color: string) {
   return ctx
     .callsTo("stroke")
     .filter((call) => call.style.strokeStyle === color);
 }
 
-/** Return every filled rectangle drawn in one colour. */
+/** Return every filled rectangle drawn in one color. */
 function barsIn(ctx: RecordingContext, color: string) {
   return ctx
     .callsTo("fillRect")
@@ -254,7 +255,7 @@ describe("plotSampling drawing", () => {
     expect(dotted).toHaveLength(1);
   });
 
-  test("draws one translucent grey curve per sample, under the pooled one", () => {
+  test("draws one translucent gray curve per sample, under the pooled one", () => {
     const { ctx, target } = makeTarget();
     plotSampling(target, population, {
       rng: seededRng(17),
@@ -282,7 +283,7 @@ describe("plotSampling drawing", () => {
           call.style.lineWidth === 2 &&
           call.style.strokeStyle !== SAMPLE_CURVE_COLOR,
       );
-    const greyIndices = ctx.calls
+    const grayIndices = ctx.calls
       .map((call, index) => ({ call, index }))
       .filter(
         ({ call }) =>
@@ -302,9 +303,9 @@ describe("plotSampling drawing", () => {
       .map(({ index }) => index);
 
     expect(solidHeavy).toHaveLength(2);
-    expect(pooledIndices[0]).toBeLessThan(greyIndices[0] as number);
+    expect(pooledIndices[0]).toBeLessThan(grayIndices[0] as number);
     expect(pooledIndices[1]).toBeGreaterThan(
-      greyIndices[greyIndices.length - 1] as number,
+      grayIndices[grayIndices.length - 1] as number,
     );
   });
 
@@ -321,7 +322,7 @@ describe("plotSampling drawing", () => {
     // the caller to compute again.
     expect(result.histogram).not.toBeNull();
     expect(result.histogram?.counts).toHaveLength(bars.length);
-    // border = FALSE: nothing is stroked in the bar colour.
+    // border = FALSE: nothing is stroked in the bar color.
     expect(strokesIn(ctx, BAR_COLOR)).toHaveLength(0);
   });
 
@@ -341,6 +342,130 @@ describe("plotSampling drawing", () => {
 
     expect(first?.style.fillStyle).toBe(BACKGROUND);
     expect(first?.args).toEqual([0, 0, WIDTH, HEIGHT]);
+  });
+});
+
+describe("plotSampling histogram window", () => {
+  // PLAN-006 Slice 1. The three panels share one window and the bars are
+  // clipped to it, so a statistic outside the window cannot be drawn. It must
+  // not set the width of the cells either: one Cauchy sample mean out at 800
+  // would otherwise make every cell 100 units wide and leave a 124-wide panel
+  // with one flat bar on it. Each test hands the pile in through the state and
+  // asks for no new samples, so the pile is exact.
+  const window = { xMin: 0, xMax: 10 };
+  const inside = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  test("bins a pile that lies inside the window as histogram() does", () => {
+    const { target } = makeTarget();
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: inside },
+    });
+
+    expect(result.histogram?.breaks).toEqual(histogram(inside).breaks);
+    expect(result.histogram?.counts).toEqual(histogram(inside).counts);
+  });
+
+  test("a statistic outside the window does not widen the cells", () => {
+    const { target } = makeTarget();
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: [...inside, 500] },
+    });
+
+    expect(result.histogram?.breaks).toEqual(histogram(inside).breaks);
+  });
+
+  test("counts every statistic in the label, drawn or not", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: [...inside, 500] },
+    });
+
+    // R: paste("Sampling Statistic", "\n(", length(sample_theta), ")"). The
+    // pile is what the reader collected, not what fits on the picture.
+    expect(ctx.texts()).toContain("( 10 )");
+  });
+
+  test("draws no bars when every statistic is outside the window", () => {
+    const { ctx, target } = makeTarget();
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { ...window, sampleTheta: [500, 600] },
+    });
+
+    // histogram() refuses an empty set, so there is no histogram to hand back.
+    expect(result.histogram).toBeNull();
+    expect(barsIn(ctx, BAR_COLOR)).toHaveLength(0);
+    expect(ctx.texts()).toContain("( 2 )");
+  });
+});
+
+describe("plotSampling densityWindow", () => {
+  // PLAN-006 Slice 2. Every density here takes its grid from the range of the
+  // values it is given, so a population that reaches far outside the drawn
+  // window gets a grid step wider than the window itself and draws as one
+  // straight line. "frozen" sets the grid to the window instead.
+  const window = { min: 0, max: 49.75 };
+  const leftEdge = samplingScale(
+    WIDTH,
+    HEIGHT,
+    "population",
+    window,
+    1,
+  ).toPixelX(window.min);
+
+  /** The x pixel of every point drawn in the top band, curve and axis alike. */
+  function topBandXs(ctx: RecordingContext): number[] {
+    const band = HEIGHT / 3;
+    return ctx.calls
+      .filter((call) => call.method === "moveTo" || call.method === "lineTo")
+      .filter((call) => (call.args[1] as number) <= band)
+      .map((call) => call.args[0] as number);
+  }
+
+  test("draws past the window by default, as R's density() does", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, { rng: seededRng(31), reps: 0 });
+
+    // R's default grid runs three bandwidths past the data on each side, and
+    // the window here is the range of the data, so the curve overhangs it.
+    expect(Math.min(...topBandXs(ctx))).toBeLessThan(leftEdge);
+  });
+
+  test("keeps the curve inside the window when it is frozen", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, {
+      rng: seededRng(31),
+      reps: 0,
+      densityWindow: "frozen",
+    });
+
+    expect(Math.min(...topBandXs(ctx))).toBeCloseTo(leftEdge, 6);
+  });
+
+  test("freezes the sample curves too, not only the population", () => {
+    // A sample of a long-tailed population spans far more than the window, and
+    // its own grid step would then be wider than the window is.
+    const { ctx, target } = makeTarget();
+    plotSampling(target, [...population, 4000], {
+      rng: seededRng(32),
+      reps: 3,
+      sampleSize: 5,
+      densityWindow: "frozen",
+      state: { xMin: window.min, xMax: window.max, sampleTheta: [] },
+    });
+
+    const middleBand = ctx.calls
+      .filter((call) => call.method === "moveTo" || call.method === "lineTo")
+      .filter((call) => {
+        const y = call.args[1] as number;
+        return y > HEIGHT / 3 && y <= (2 * HEIGHT) / 3;
+      })
+      .map((call) => call.args[0] as number);
+
+    expect(Math.min(...middleBand)).toBeCloseTo(leftEdge, 6);
   });
 });
 

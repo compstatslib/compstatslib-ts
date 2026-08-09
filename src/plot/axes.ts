@@ -100,6 +100,11 @@ const TITLE_GAP = 26;
 const AXIS_COLOR = "#000000";
 const AXIS_FONT = "12px sans-serif";
 
+/** Read a pair of limits as a range, whichever way round it was written. */
+export function extentOf(limits: readonly [number, number]): Extent {
+  return { min: Math.min(...limits), max: Math.max(...limits) };
+}
+
 /**
  * Build a scale for one surface and one world window.
  *

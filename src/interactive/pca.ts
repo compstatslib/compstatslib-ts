@@ -37,7 +37,7 @@ import type { InteractiveTarget } from "./target";
  * R's `pca` field is `fit` here. Inside a component that is already about
  * PCA, a field called `pca` says nothing, and "the fit" is what this port
  * calls the thing a plot computed from a set of points everywhere else —
- * `plotRegr` and `plotLogit` both return one.
+ * `plotRegression` and `plotLogit` both return one.
  */
 export interface InteractivePcaResult {
   /** The points collected, in click order. */

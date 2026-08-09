@@ -332,6 +332,177 @@ describe("kernelDensity, degenerate and edge inputs", () => {
   });
 });
 
+describe("kernelDensity with a frozen window", () => {
+  test("leaves the default path byte-identical without from and to", () => {
+    // Pinned against this port itself, captured before from/to were added.
+    // Exact equality, not tolerance: the default expressions for the window
+    // must not change at all. The R fixtures above check correctness; this
+    // checks that adding the options moved nothing.
+    const estimate = kernelDensity(xSmall);
+
+    expect(estimate.bw).toBe(1.54678722135629476142);
+    const xPins: ReadonlyArray<readonly [number, number]> = [
+      [0, -2.54036166406888375136],
+      [1, -2.50204322311362403752],
+      [63, -0.126299883887515562719],
+      [127, 2.32608033724911189566],
+      [191, 4.77846055838574024222],
+      [255, 7.2308407795223672565],
+      [319, 9.68322100065899604715],
+      [383, 12.1356012217956230614],
+      [447, 14.5879814429322518521],
+      [510, 17.0020432231136204848],
+      [511, 17.0403616640688824191],
+    ];
+    const yPins: ReadonlyArray<readonly [number, number]> = [
+      [0, 0.000288343331679483615669],
+      [1, 0.000310939061088647201222],
+      [63, 0.00980143153113149402655],
+      [127, 0.0534730599687748414661],
+      [191, 0.131260981185727848564],
+      [255, 0.102050317001657897542],
+      [319, 0.0637675619666973336752],
+      [383, 0.0372251856421266791308],
+      [447, 0.00977144665781293046691],
+      [510, 0.000309964798316397338162],
+      [511, 0.000287477663807279718369],
+    ];
+    xPins.forEach(([index, expected]) => {
+      expect(estimate.x[index]).toBe(expected);
+    });
+    yPins.forEach(([index, expected]) => {
+      expect(estimate.y[index]).toBe(expected);
+    });
+    expect(estimate.x.reduce((total, value) => total + value, 0)).toBe(
+      3711.99999999999863576,
+    );
+    expect(estimate.y.reduce((total, value) => total + value, 0)).toBe(
+      26.0902996096754158373,
+    );
+  });
+
+  test("matches R on a window narrower than the data", () => {
+    // Computed in session: density(x_small, from = 4, to = 8). The data run
+    // from 2.1 to 12.4, so mass beyond the working window is dropped and the
+    // curve no longer decays to zero at the ends.
+    const estimate = kernelDensity(xSmall, { from: 4, to: 8 });
+
+    expectCloseToR(estimate.bw, 1.5467872213562948);
+    expect(estimate.x[0]).toBe(4);
+    expect(estimate.x[511]).toBe(8);
+    const pins: ReadonlyArray<readonly [number, number]> = [
+      [1, 0.11007010520063101],
+      [64, 0.12505125988733906],
+      [128, 0.13443772125531486],
+      [200, 0.13588767781608777],
+      [256, 0.13072168244646068],
+      [320, 0.12021472654678093],
+      [384, 0.10773826593662918],
+      [450, 0.095578624047042676],
+      [512, 0.086134645349613959],
+    ];
+    pins.forEach(([index, expected]) => {
+      expectCloseToR(estimate.y[index - 1], expected);
+    });
+    expectCloseToR(
+      estimate.y.reduce((total, value) => total + value, 0),
+      60.814878706578021,
+    );
+    expectCloseToR(Math.max(...estimate.y), 0.13649915276791666);
+    expect(whichMax(estimate.y)).toBe(173);
+  });
+
+  test("matches R on a window wider than the data", () => {
+    // Computed in session: density(x_small, from = -5, to = 20). This is the
+    // case the sampling plot needs: one frozen window shared across redraws.
+    const estimate = kernelDensity(xSmall, { from: -5, to: 20 });
+
+    expectCloseToR(estimate.bw, 1.5467872213562948);
+    expect(estimate.x[0]).toBe(-5);
+    expect(estimate.x[511]).toBe(20);
+    const pins: ReadonlyArray<readonly [number, number]> = [
+      [1, 6.9337660943216496e-7],
+      [64, 0.00089516824462316938],
+      [128, 0.028651460406487049],
+      [200, 0.13045704937974431],
+      [256, 0.096438770545205874],
+      [320, 0.05261575744646551],
+      [384, 0.019095585130854572],
+      [450, 0.00033180607283861744],
+      [512, 1.4952362132121653e-7],
+    ];
+    pins.forEach(([index, expected]) => {
+      expectCloseToR(estimate.y[index - 1], expected);
+    });
+    expectCloseToR(
+      estimate.y.reduce((total, value) => total + value, 0),
+      20.440019592649513,
+    );
+    expectCloseToR(Math.max(...estimate.y), 0.13646603394822107);
+    expect(whichMax(estimate.y)).toBe(213);
+  });
+
+  test("matches R with only from given", () => {
+    // Computed in session: density(x_small, from = 4). `to` stays at
+    // max(x) + 3 * bw.
+    const estimate = kernelDensity(xSmall, { from: 4 });
+
+    expect(estimate.x[0]).toBe(4);
+    expectCloseToR(estimate.x[511], 17.040361664068882);
+    const pins: ReadonlyArray<readonly [number, number]> = [
+      [1, 0.11006377833015872],
+      [64, 0.13553973011332771],
+      [128, 0.10180816540348496],
+      [256, 0.053773696738718041],
+      [384, 0.018655792247121359],
+      [512, 0.00028768347792372057],
+    ];
+    pins.forEach(([index, expected]) => {
+      expectCloseToR(estimate.y[index - 1], expected);
+    });
+    expectCloseToR(
+      estimate.y.reduce((total, value) => total + value, 0),
+      30.93218357421231,
+    );
+    expectCloseToR(Math.max(...estimate.y), 0.13648441090008043);
+    expect(whichMax(estimate.y)).toBe(54);
+  });
+
+  test("matches R with only to given", () => {
+    // Computed in session: density(x_small, to = 8). `from` stays at
+    // min(x) - 3 * bw.
+    const estimate = kernelDensity(xSmall, { to: 8 });
+
+    expectCloseToR(estimate.x[0], -2.5403616640688838);
+    expect(estimate.x[511]).toBe(8);
+    const pins: ReadonlyArray<readonly [number, number]> = [
+      [1, 0.00028826958075301335],
+      [64, 0.0025565318158472777],
+      [128, 0.011954344994664291],
+      [256, 0.064993411910104978],
+      [384, 0.13649628355903748],
+      [512, 0.086134468732635458],
+    ];
+    pins.forEach(([index, expected]) => {
+      expectCloseToR(estimate.y[index - 1], expected);
+    });
+    expectCloseToR(
+      estimate.y.reduce((total, value) => total + value, 0),
+      33.350590923169229,
+    );
+    expectCloseToR(Math.max(...estimate.y), 0.13649628355903748);
+    expect(whichMax(estimate.y)).toBe(384);
+  });
+
+  test("rejects a window end that is not finite, as R does", () => {
+    // R: "non-finite 'from'" and "non-finite 'to'".
+    expect(() =>
+      kernelDensity(xSmall, { from: Number.POSITIVE_INFINITY }),
+    ).toThrow(RangeError);
+    expect(() => kernelDensity(xSmall, { to: Number.NaN })).toThrow(RangeError);
+  });
+});
+
 describe("kernelDensity with an explicit bandwidth", () => {
   test("skips bw.nrd0 and accepts a single value, as R does", () => {
     // Computed in session: density(c(7), bw = 2). R checks the count only

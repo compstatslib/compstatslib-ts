@@ -3,6 +3,8 @@ import { describe, expect, test } from "bun:test";
 import {
   extent,
   mean,
+  meanAbsoluteDeviation,
+  median,
   quantile,
   quantiles,
   requireCount,
@@ -62,6 +64,38 @@ describe("sd", () => {
   test("returns NaN below two values, where R returns NA", () => {
     expect(sd([7])).toBeNaN();
     expect(sd([])).toBeNaN();
+  });
+});
+
+describe("meanAbsoluteDeviation", () => {
+  // R base has no function for this. R's `mad()` is the *median* absolute
+  // deviation, scaled by 1.4826, and gives a different number. The expected
+  // values below come from the definition, on the fixtures `sd` uses.
+  test("returns the mean distance from the mean", () => {
+    // mean 6.63; the ten distances add up to 23.76.
+    expectCloseToR(
+      meanAbsoluteDeviation([2.1, 4.5, 4.7, 5, 5.5, 6.1, 7.3, 8.8, 9.9, 12.4]),
+      2.376,
+    );
+    // mean 2.5; the four distances are 1.5, 0.5, 0.5 and 1.5.
+    expectCloseToR(meanAbsoluteDeviation([1, 2, 3, 4]), 1);
+  });
+
+  test("stays below the standard deviation of the same values", () => {
+    const values = [2.1, 4.5, 4.7, 5, 5.5, 6.1, 7.3, 8.8, 9.9, 12.4];
+    expect(meanAbsoluteDeviation(values)).toBeLessThan(sd(values));
+  });
+
+  test("returns 0 for constant values", () => {
+    expect(meanAbsoluteDeviation([5, 5, 5, 5])).toBe(0);
+  });
+
+  test("returns 0 for one value, which sits at its own mean", () => {
+    expect(meanAbsoluteDeviation([7])).toBe(0);
+  });
+
+  test("returns NaN for no values, as the mean of nothing does", () => {
+    expect(meanAbsoluteDeviation([])).toBeNaN();
   });
 });
 
@@ -139,6 +173,52 @@ describe("quantiles", () => {
 
   test("rejects a probability outside [0, 1]", () => {
     expect(() => quantiles(xSmall, [0.5, 2])).toThrow(RangeError);
+  });
+});
+
+describe("median", () => {
+  // Every expected value below comes from R 4.5.3's own `median()`.
+  test("returns the middle value of an odd count", () => {
+    expectCloseToR(median([1, 3, 2, 7, 5]), 3);
+  });
+
+  test("does not need the values sorted", () => {
+    expectCloseToR(median([9, 1, 5, 3, 7]), 5);
+  });
+
+  test("averages the two middle values of an even count, as R does", () => {
+    expectCloseToR(median([1, 3, 2, 7, 5, 9]), 4);
+    expectCloseToR(median([1, 2, 3, 4]), 2.5);
+  });
+
+  test("keeps R's last bits on an even count that does not divide", () => {
+    // R's median averages the two middle values, and the type-7 quantile
+    // weights each by a half. Both land on the same double.
+    expect(median([0.1, 0.2])).toBe(0.15000000000000002);
+  });
+
+  test("handles negative values", () => {
+    expectCloseToR(median([-5, -1, -3, -2]), -2.5);
+  });
+
+  test("returns the value itself for one value", () => {
+    expect(median([4])).toBe(4);
+  });
+
+  test("returns NaN for no values, where R returns NA", () => {
+    expect(median([])).toBeNaN();
+  });
+
+  test("agrees with the type-7 quantile at 0.5", () => {
+    const xSmall = [2.1, 4.5, 4.7, 5, 5.5, 6.1, 7.3, 8.8, 9.9, 12.4];
+    expect(median(xSmall)).toBe(quantile(xSmall, 0.5));
+    expectCloseToR(median(xSmall), 5.7999999999999998);
+  });
+
+  test("does not modify the values", () => {
+    const values = [3, 1, 2];
+    median(values);
+    expect(values).toEqual([3, 1, 2]);
   });
 });
 
