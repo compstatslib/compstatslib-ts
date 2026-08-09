@@ -30,11 +30,12 @@
  * exercises. The other rules are recorded in
  * `.claude/plans/moderation-fixtures.md` section 4 if they are ever wanted.
  *
- * **Missing values are not handled anywhere.** R's `lm()` drops incomplete
- * rows through `na.omit` and R's `hold_value()` averages with `na.rm = TRUE`.
- * This port does neither: a `NaN` in a column travels through the fit and the
- * surface. One rule everywhere is easier to reason about than a fit on 198
- * rows whose controls were held at the mean of 199.
+ * **Missing values leave the fit, as R's do.** `lm()` drops incomplete rows
+ * through `na.omit` and `hold_value()` averages with `na.rm = TRUE`; this
+ * port does the same, with NaN standing in for `NA` and any non-finite value
+ * counting as missing. The details — the `na.exclude`-style NaN padding of
+ * `fitted` and `residuals`, the one departure on `zlim` — are on
+ * `moderationSurface` itself.
  */
 
 import { extent, mean, sum, zipWith } from "./arith";
@@ -86,9 +87,15 @@ export interface ModerationTerm {
 export interface ModerationSurface {
   /** The fitted terms, in R's model-matrix order. */
   readonly coefficients: readonly ModerationTerm[];
-  /** The fitted outcome of each data row, in input order. */
+  /**
+   * The fitted outcome of each data row, in input order. NaN where the row
+   * was dropped for a missing value, as R's `na.exclude` pads.
+   */
   readonly fitted: readonly number[];
-  /** The outcome minus the fit, of each data row, in input order. */
+  /**
+   * The outcome minus the fit, of each data row, in input order. NaN where
+   * the row was dropped for a missing value.
+   */
   readonly residuals: readonly number[];
   /** The 15 IV values of the grid, from the column's minimum to its maximum. */
   readonly ivValues: readonly number[];
@@ -114,12 +121,20 @@ export interface ModerationSurface {
 /**
  * Fit the model and predict its surface.
  *
+ * Rows with a missing (non-finite) value in any model column are dropped
+ * before fitting, R's `na.action = na.omit`; their fitted values and
+ * residuals report NaN, keeping input order. The grid and zlim span the
+ * finite values of their columns, and a control is held at its finite mean —
+ * R's `hold_value()` with `na.rm = TRUE`. (R itself computes zlim with no
+ * `na.rm` and fails on a missing outcome; the port draws what it can fit, a
+ * stated departure.)
+ *
  * @param data The frame holding every column the options name.
  * @param options Which column plays which part in the model.
  * @returns The fit, the grid, the surface, and the vertical range.
  * @throws RangeError If a named column is absent, empty, or not numeric, if
  *   the IV and the moderator are the same column, if a control repeats
- *   another named column, or if the frame is ragged.
+ *   another named column, if the frame is ragged, or if no row is complete.
  */
 export function moderationSurface(
   data: DataFrame,
@@ -153,6 +168,22 @@ export function moderationSurface(
     requireNumericColumn(data, control, "controls"),
   );
 
+  // R's na.omit: a row with a missing value in any model column leaves the
+  // fit. NaN is this library's missing value, and an infinity would poison
+  // the fit the same way, so "complete" means finite everywhere.
+  const modelColumns = [y, ivColumn, modColumn, ...controlColumns];
+  const completeRows = y
+    .map((_, row) => row)
+    .filter((row) =>
+      modelColumns.every((column) => Number.isFinite(column[row])),
+    );
+  if (completeRows.length === 0) {
+    throw new RangeError(
+      "the model has no complete rows: every row is missing a value in " +
+        "the outcome, the IV, the moderator, or a control",
+    );
+  }
+
   // R's model.matrix order: the intercept, the main effects in the order the
   // model names them, then the interaction.
   const designColumns: readonly {
@@ -176,21 +207,38 @@ export function moderationSurface(
       : []),
   ];
 
-  const design = y.map((_, row) =>
+  const design = completeRows.map((row) =>
     designColumns.map((column) => column.values[row] as number),
   );
-  const fit = leastSquares(design, y);
+  const fit = leastSquares(
+    design,
+    completeRows.map((row) => y[row] as number),
+  );
   const coefficients = designColumns.map((column, index) => ({
     name: column.name,
     value: fit.coefficients[index] ?? null,
   }));
 
+  // R's na.exclude padding: report the fit in input order, NaN where a row
+  // was dropped.
+  const fitted = new Array<number>(rows).fill(Number.NaN);
+  const residuals = new Array<number>(rows).fill(Number.NaN);
+  completeRows.forEach((row, survivor) => {
+    fitted[row] = fit.fitted[survivor] as number;
+    residuals[row] = fit.residuals[survivor] as number;
+  });
+
+  // extent() ignores non-finite values, so each axis spans its column's
+  // finite range — R's seq over min and max, which R only reaches when the
+  // column has no NA. The hold is R's hold_value(): mean with na.rm = TRUE.
   const ivValues = rSeq(...extent(ivColumn), GRID_STEPS);
   const modValues = rSeq(...extent(modColumn), GRID_STEPS);
   const holds = Object.fromEntries(
     controls.map((control, index) => [
       control,
-      mean(controlColumns[index] as readonly number[]),
+      mean(
+        (controlColumns[index] as readonly number[]).filter(Number.isFinite),
+      ),
     ]),
   );
 
@@ -215,8 +263,8 @@ export function moderationSurface(
 
   return {
     coefficients,
-    fitted: fit.fitted,
-    residuals: fit.residuals,
+    fitted,
+    residuals,
     ivValues,
     modValues,
     predictions,

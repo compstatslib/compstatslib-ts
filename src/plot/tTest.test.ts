@@ -2,11 +2,11 @@
  * Tests for the t-test plot.
  *
  * These are structural, not pixel comparisons: they check that the right
- * shapes are drawn in the right colours at the right world coordinates. The
+ * shapes are drawn in the right colors at the right world coordinates. The
  * numbers behind the picture are already pinned against R in
  * `src/core/ttest.test.ts`, so nothing here re-tests the statistics.
  *
- * Drawing behaviour comes from `../compstatslib/R/t_statistic_plot.R`.
+ * Drawing behavior comes from `../compstatslib/R/t_statistic_plot.R`.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -37,12 +37,12 @@ function draw(options: PlotTTestOptions = {}): RecordingContext {
   return ctx;
 }
 
-/** Every `stroke` whose colour was this one when it ran. */
+/** Every `stroke` whose color was this one when it ran. */
 function strokesIn(ctx: RecordingContext, color: string): DrawCall[] {
   return ctx.callsTo("stroke").filter((call) => call.style.strokeStyle === color);
 }
 
-/** Every `fill` whose colour was this one when it ran. */
+/** Every `fill` whose color was this one when it ran. */
 function fillsIn(ctx: RecordingContext, color: string): DrawCall[] {
   return ctx.callsTo("fill").filter((call) => call.style.fillStyle === color);
 }
@@ -209,7 +209,7 @@ describe("plotTTest", () => {
       expect(drawn).toContainEqual(cell(-4, 0.125, -2.5, 0.25));
     });
 
-    test("colours the cells as R does", () => {
+    test("colors the cells as R does", () => {
       const fills = draw({ errorMatrix: true }).callsTo("fill");
       const colors = fills.map((call) => call.style.fillStyle);
       // Two error cells in red, two correct cells in the translucent blue.

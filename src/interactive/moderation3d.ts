@@ -175,7 +175,7 @@ export function interactiveModeration3d(
   /**
    * The camera this component last put into Plotly's stored layout — by a
    * slider's push or by persisting a drag — or undefined before either. What
-   * the capture handler compares against to recognise its own echo.
+   * the capture handler compares against to recognize its own echo.
    */
   let seenCamera: PlotlyCamera | undefined;
   let listening = false;
@@ -241,7 +241,7 @@ export function interactiveModeration3d(
    * is written back; without this, every modebar click snapped the view to
    * the sliders' angles. The push itself echoes through this handler with the
    * same camera as a fresh object, which is what the value comparison
-   * recognises and drops. The sliders stay in charge: their own pushes set
+   * recognizes and drops. The sliders stay in charge: their own pushes set
    * `seenCamera` first, so a slider still overrides any drag before it.
    */
   function handleRelayout(event: PlotlyRelayoutEvent): void {

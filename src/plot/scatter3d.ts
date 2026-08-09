@@ -1,6 +1,6 @@
 /**
  * The 3D scatterplot: three numeric columns as a cloud of points, with an
- * optional fourth column driving the colour.
+ * optional fourth column driving the color.
  *
  * This is `plot_scatter3d()` of `../compstatslib/R/scatter3d_plot.R`, drawn
  * through Plotly as the R original is. The trace and the layout follow the
@@ -28,13 +28,13 @@
  * `message()` does; a library cannot write to a console, so the note is
  * returned and the caller decides whether to show it.
  *
- * **Colour is the one place the port must invent.** R hands the colour column
+ * **Color is the one place the port must invent.** R hands the color column
  * to plotly-R, which decides by itself what a numeric or a categorical column
  * means. Plotly.js decides nothing: the caller must build the traces. So a
- * numeric column becomes one trace carrying a value per point with a colour
+ * numeric column becomes one trace carrying a value per point with a color
  * bar beside it, and a categorical column becomes one trace per level, named,
- * listed in the legend, and coloured from Plotly's own sequence. The rule
- * follows what plotly-R does; the exact colours are Plotly's choice, in both
+ * listed in the legend, and colored from Plotly's own sequence. The rule
+ * follows what plotly-R does; the exact colors are Plotly's choice, in both
  * languages.
  */
 
@@ -61,7 +61,7 @@ import type {
  */
 const UIREVISION = "scatter3d";
 /**
- * The scale a numeric colour column is read through. plotly-R colours a
+ * The scale a numeric color column is read through. plotly-R colors a
  * numeric column with Viridis by default, so the port names it here.
  */
 const NUMERIC_COLORSCALE = "Viridis";
@@ -107,8 +107,8 @@ export interface Scatter3dSpecOptions {
   /** The column on the vertical axis. */
   readonly z?: string;
   /**
-   * Any column to map to colour. A numeric column gives a continuous scale
-   * with a colour bar; a text or true-or-false column gives one trace per
+   * Any column to map to color. A numeric column gives a continuous scale
+   * with a color bar; a text or true-or-false column gives one trace per
    * level, with a legend.
    */
   readonly color?: string;
@@ -142,7 +142,7 @@ export interface PlotScatter3dOptions extends Scatter3dSpecOptions {
 
 /** What a set of options draws. */
 export interface Scatter3dSpec {
-  /** One trace, or one for each level of a categorical colour column. */
+  /** One trace, or one for each level of a categorical color column. */
   readonly traces: readonly Scatter3dTrace[];
   readonly layout: PlotlyLayout;
   /**
@@ -218,9 +218,9 @@ export function scatter3dSpec(
         y: aspect[1] as number,
         z: aspect[2] as number,
       },
-      xaxis: { title: shown.x },
-      yaxis: { title: shown.y },
-      zaxis: { title: shown.z },
+      xaxis: { title: { text: shown.x } },
+      yaxis: { title: { text: shown.y } },
+      zaxis: { title: { text: shown.z } },
       uirevision: UIREVISION,
       ...(camera === undefined ? {} : { camera }),
     },
@@ -259,7 +259,7 @@ export async function plotScatter3d(
  * the gadget runs it before it builds anything. Note what it does **not** do:
  * it refuses a style no plot could be drawn with, and says nothing about the
  * bounds of the gadget's sliders. An aspect of 12 passes here and is then
- * clamped by the slider, which is R's behaviour exactly.
+ * clamped by the slider, which is R's behavior exactly.
  *
  * @param aspect The three axis proportions.
  * @param opacity How solid a marker is.

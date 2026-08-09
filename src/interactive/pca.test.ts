@@ -137,7 +137,7 @@ function arrowCount(ctx: RecordingContext): number {
 }
 
 /** Where the dots of the most recent draw were drawn. */
-function dotCentres(ctx: RecordingContext): (readonly [number, number])[] {
+function dotCenters(ctx: RecordingContext): (readonly [number, number])[] {
   return lastDraw(ctx)
     .filter((call) => call.method === "arc")
     .map((call) => [call.args[0] as number, call.args[1] as number] as const);
@@ -285,9 +285,9 @@ describe("interactivePca", () => {
 
       clickAt(canvas, 5, 5);
 
-      const centre = dotCentres(ctx)[0] as readonly [number, number];
-      expect(centre[0]).toBeLessThan(scale.area.left);
-      expect(centre[1]).toBeLessThan(scale.area.top);
+      const center = dotCenters(ctx)[0] as readonly [number, number];
+      expect(center[0]).toBeLessThan(scale.area.left);
+      expect(center[1]).toBeLessThan(scale.area.top);
       expect(lastDraw(ctx).some((call) => call.method === "clip")).toBe(true);
     });
   });
@@ -363,8 +363,8 @@ describe("interactivePca", () => {
         ylim: [-5, 5],
       });
 
-      expect(dotCentres(narrow.ctx)[0]).not.toEqual(
-        dotCentres(plain.ctx)[0] as readonly [number, number],
+      expect(dotCenters(narrow.ctx)[0]).not.toEqual(
+        dotCenters(plain.ctx)[0] as readonly [number, number],
       );
     });
   });

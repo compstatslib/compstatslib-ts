@@ -178,14 +178,14 @@ export function sampleConfidenceIntervals(
   populationMean: number,
 ): SampleInterval[] {
   return samples.map((sample) => {
-    const centre = mean(sample);
+    const center = mean(sample);
     const spread = sd(sample);
     const standardError = spread / Math.sqrt(sample.length);
-    const ci95 = spreadAround(centre, standardError, CI95_MULTIPLIER);
-    const ci99 = spreadAround(centre, standardError, CI99_MULTIPLIER);
+    const ci95 = spreadAround(center, standardError, CI95_MULTIPLIER);
+    const ci99 = spreadAround(center, standardError, CI99_MULTIPLIER);
 
     return {
-      mean: centre,
+      mean: center,
       sd: spread,
       standardError,
       ci95,
@@ -203,15 +203,15 @@ export function sampleConfidenceIntervals(
   });
 }
 
-/** Build an interval of so many standard errors around a centre. */
+/** Build an interval of so many standard errors around a center. */
 function spreadAround(
-  centre: number,
+  center: number,
   standardError: number,
   multiplier: number,
 ): Interval {
   return {
-    low: centre - standardError * multiplier,
-    high: centre + standardError * multiplier,
+    low: center - standardError * multiplier,
+    high: center + standardError * multiplier,
   };
 }
 

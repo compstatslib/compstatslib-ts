@@ -129,9 +129,11 @@ describe("scatter3dSpec trace and layout", () => {
     expect(layout.scene.uirevision).toBe("scatter3d");
     expect(layout.scene.aspectmode).toBe("manual");
     expect(layout.scene.aspectratio).toEqual({ x: 1, y: 1, z: 1 });
-    expect(layout.scene.xaxis.title).toBe("y");
-    expect(layout.scene.yaxis.title).toBe("x");
-    expect(layout.scene.zaxis.title).toBe("z");
+    // Plotly v2 silently drops a bare-string title; only the object form
+    // shows the column names on screen.
+    expect(layout.scene.xaxis.title).toEqual({ text: "y" });
+    expect(layout.scene.yaxis.title).toEqual({ text: "x" });
+    expect(layout.scene.zaxis.title).toEqual({ text: "z" });
   });
 
   test("carries aspect, opacity and size through", () => {
@@ -154,9 +156,9 @@ describe("scatter3dSpec trace and layout", () => {
       titles: { x: "IV", z: "Outcome" },
     });
 
-    expect(layout.scene.xaxis.title).toBe("IV");
-    expect(layout.scene.yaxis.title).toBe("z");
-    expect(layout.scene.zaxis.title).toBe("Outcome");
+    expect(layout.scene.xaxis.title).toEqual({ text: "IV" });
+    expect(layout.scene.yaxis.title).toEqual({ text: "z" });
+    expect(layout.scene.zaxis.title).toEqual({ text: "Outcome" });
   });
 
   test("sets a camera only when the caller gives one", () => {
@@ -170,8 +172,8 @@ describe("scatter3dSpec trace and layout", () => {
   });
 });
 
-describe("scatter3dSpec colour", () => {
-  test("maps a numeric column onto one trace with a colour bar", () => {
+describe("scatter3dSpec color", () => {
+  test("maps a numeric column onto one trace with a color bar", () => {
     const spec = scatter3dSpec(COLORED, {
       x: "a",
       y: "b",
@@ -242,7 +244,7 @@ describe("scatter3dSpec colour", () => {
     ).toBe(true);
   });
 
-  test("draws one plain trace when no colour column is named", () => {
+  test("draws one plain trace when no color column is named", () => {
     const spec = scatter3dSpec(THREE);
     const [trace] = traces(spec);
 
@@ -303,7 +305,7 @@ describe("scatter3dSpec refusals", () => {
     ).toThrow('Column "nope" (passed as `x`) is not in the data.');
   });
 
-  test("refuses an axis column that is not numeric, pointing at colour", () => {
+  test("refuses an axis column that is not numeric, pointing at color", () => {
     expect(() =>
       scatter3dSpec(COLORED, { x: "grp", y: "a", z: "b" }),
     ).toThrow(
@@ -315,7 +317,7 @@ describe("scatter3dSpec refusals", () => {
     ).toThrow('Column "flag" (passed as `y`) is true or false;');
   });
 
-  test("refuses a colour column that is not there", () => {
+  test("refuses a color column that is not there", () => {
     expect(() => scatter3dSpec(THREE, { color: "nope" })).toThrow(
       'Column "nope" (passed as `color`) is not in the data.',
     );

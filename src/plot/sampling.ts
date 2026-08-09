@@ -6,7 +6,7 @@
  * `../compstatslib/R/sampling_plot.R`. The panels, top to bottom:
  *
  * 1. the population's density, dotted;
- * 2. this draw's samples — each sample's own density in translucent grey,
+ * 2. this draw's samples — each sample's own density in translucent gray,
  *    with the density of all of them pooled drawn over the top;
  * 3. a histogram of every statistic drawn so far, this call and all before it.
  *
@@ -32,7 +32,10 @@ import { extent, mean } from "../core/arith";
 import { histogram } from "../core/histogram";
 import type { Histogram } from "../core/histogram";
 import { kernelDensity } from "../core/kde";
-import type { KernelDensityEstimate } from "../core/kde";
+import type {
+  KernelDensityEstimate,
+  KernelDensityOptions,
+} from "../core/kde";
 import { seededRng } from "../core/rng";
 import type { Rng } from "../core/rng";
 import { drawSamples } from "../core/sampling";
@@ -98,6 +101,21 @@ export interface PlotSamplingOptions {
    * window and accumulates the statistics.
    */
   readonly state?: SamplingState | null;
+  /**
+   * Where every density curve puts its grid.
+   *
+   * `"data"`, the default, is R: each `density()` call spreads its 512 grid
+   * points over the range of the values it was given. That is right while the
+   * values and the window are of one size.
+   *
+   * `"frozen"` spreads them over the drawn window instead, through R's own
+   * `from` and `to` arguments. A population that reaches far outside the
+   * window needs this: at 512 points over a range a thousand times the window,
+   * one grid step is wider than the whole panel, and the curve draws as a
+   * straight line. The samples take the frozen grid as well, for the same
+   * reason and so that every curve in the picture is comparable.
+   */
+  readonly densityWindow?: "data" | "frozen";
 }
 
 /** Everything this draw produced, for the caller to hold and to read. */
@@ -111,6 +129,10 @@ export interface PlotSamplingResult {
   /**
    * The histogram the third panel drew, or null when there was nothing to
    * count. Handed back so a caller need not bin the statistics again.
+   *
+   * It counts the statistics inside the window, not the whole pile. The panel
+   * clips a bar outside the window anyway, and a statistic it cannot draw must
+   * not set the width of the cells either — see `plotSampling`.
    */
   readonly histogram: Histogram | null;
 }
@@ -227,9 +249,12 @@ export function plotSampling(
     theta = mean,
     rng = seededRng(Math.floor(Math.random() * 0x100000000)),
     state = null,
+    densityWindow = "data",
   } = options;
 
   const window = frozenWindow(population, state);
+  const grid: KernelDensityOptions =
+    densityWindow === "frozen" ? { from: window.min, to: window.max } : {};
   const drawable = population.length >= 2;
   const draw = drawable
     ? drawSamples(rng, population, { sampleSize, reps, theta })
@@ -244,7 +269,7 @@ export function plotSampling(
     height,
     "population",
     window,
-    drawable ? kernelDensity(population) : null,
+    drawable ? kernelDensity(population, grid) : null,
     [],
     "Population Distribution",
   );
@@ -256,14 +281,23 @@ export function plotSampling(
     height,
     "samples",
     window,
-    pooled.length >= 2 ? kernelDensity(pooled) : null,
+    pooled.length >= 2 ? kernelDensity(pooled, grid) : null,
     draw.samples
       .filter((sample) => sample.length >= 2)
-      .map((sample) => kernelDensity(sample)),
+      .map((sample) => kernelDensity(sample, grid)),
     "Sample Distribution",
   );
 
-  const counted = sampleTheta.length > 0 ? histogram(sampleTheta) : null;
+  // Only the statistics inside the window are binned. R bins the whole pile,
+  // and its cell edges therefore follow the widest statistic drawn so far,
+  // even though its device clips the bar that holds it. That is unreadable
+  // under a population whose statistic does not settle: one sample mean out at
+  // 800 makes every cell 100 units wide, and a 124-wide panel then shows one
+  // flat bar. The count in the label still reports the whole pile.
+  const countable = sampleTheta.filter(
+    (theta) => theta >= window.min && theta <= window.max,
+  );
+  const counted = countable.length > 0 ? histogram(countable) : null;
   drawStatisticPanel(ctx, width, height, window, counted, sampleTheta.length);
 
   return {
@@ -430,7 +464,7 @@ function drawBars(ctx: Context2D, scale: Scale, counted: Histogram): void {
  * Write a panel's label at the left of the window, halfway up its content.
  *
  * R: `text(xmin, max(y)/2, label, adj = 0)` — left-justified at the window's
- * left edge and centred on that height.
+ * left edge and centerd on that height.
  */
 function drawLabel(
   ctx: Context2D,

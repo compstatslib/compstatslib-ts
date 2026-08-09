@@ -51,9 +51,9 @@ describe("PlotlyLike", () => {
     const layout: PlotlyLayout = {
       uirevision: "test",
       scene: {
-        xaxis: { title: "a" },
-        yaxis: { title: "b" },
-        zaxis: { title: "c" },
+        xaxis: { title: { text: "a" } },
+        yaxis: { title: { text: "b" } },
+        zaxis: { title: { text: "c" } },
       },
     };
 

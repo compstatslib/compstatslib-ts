@@ -11,9 +11,9 @@
  * Three decisions are worth stating.
  *
  * **The engine is Plotly, not lattice.** R draws this surface with
- * `lattice::wireframe(drape = TRUE, colorkey = FALSE)`, which colours the mesh
- * by height and hides the key. A Plotly surface is coloured by height already,
- * so the port sets `showscale: false` and keeps the rest. The colours
+ * `lattice::wireframe(drape = TRUE, colorkey = FALSE)`, which colors the mesh
+ * by height and hides the key. A Plotly surface is colored by height already,
+ * so the port sets `showscale: false` and keeps the rest. The colors
  * themselves are Plotly's, not lattice's: a browser has no lattice palette,
  * and the teaching point of the picture is the twist of the surface, not its
  * hue.
@@ -161,8 +161,9 @@ export function cameraFromRotations(zRot: number, xRot: number): EyeCamera {
  *   axes, and the controls decide whether there is a note.
  * @param view How to look at the surface.
  * @returns The trace, the layout, and the note about held predictors.
- * @throws RangeError If a rotation is not finite, or a given vertical range is
- *   not two finite numbers.
+ * @throws RangeError If a rotation is not finite, if a given vertical range is
+ *   not two finite numbers, or if any height of the surface is not finite —
+ *   a non-finite height would crash the WebGL engine for the whole page.
  */
 export function moderation3dSpec(
   surface: ModerationSurface,
@@ -190,6 +191,16 @@ export function moderation3dSpec(
     surface.ivValues.map((__, i) => surface.predictions[j * steps + i] as number),
   );
 
+  // A NaN in the height field does not fail politely: it crashes WebGL inside
+  // plotly.js, and every surface drawn on the page afterwards fails too.
+  // Refuse here so that no caller can poison the engine.
+  if (!surface.predictions.every(Number.isFinite)) {
+    throw new RangeError(
+      "the surface must have finite heights everywhere; " +
+        "a prediction is NaN or infinite",
+    );
+  }
+
   const trace: SurfaceTrace = {
     type: "surface",
     x: surface.ivValues,
@@ -202,9 +213,9 @@ export function moderation3dSpec(
   const layout: PlotlyLayout = {
     uirevision: UIREVISION,
     scene: {
-      xaxis: { title: model.iv },
-      yaxis: { title: model.mod },
-      zaxis: { title: model.outcome, range },
+      xaxis: { title: { text: model.iv } },
+      yaxis: { title: { text: model.mod } },
+      zaxis: { title: { text: model.outcome }, range },
       uirevision: UIREVISION,
       camera,
     },

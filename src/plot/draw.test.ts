@@ -93,7 +93,7 @@ describe("drawDots", () => {
       scale.toPixelY(4),
       6,
     ]);
-    // R's `col = "gray"` is #BEBEBE, not the darker CSS colour of that name.
+    // R's `col = "gray"` is #BEBEBE, not the darker CSS color of that name.
     expect(dots[0]?.style.fillStyle).toBe("#bebebe");
     expect(dots[0]?.style.lineDash).toEqual([]);
   });
@@ -170,7 +170,7 @@ describe("drawArrow", () => {
     expect(ctx.callsTo("stroke")[0]?.style.lineDash).toEqual(DOTTED);
   });
 
-  test("takes a colour and a line width", () => {
+  test("takes a color and a line width", () => {
     const ctx = new RecordingContext();
 
     drawArrow(ctx, [10, 50], [90, 50], {

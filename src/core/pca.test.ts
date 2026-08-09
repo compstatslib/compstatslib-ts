@@ -566,3 +566,94 @@ describe("pcaDegenerate dataset", () => {
     expect(pcaDegenerate[2]?.x).toBe(pcaDegenerate[0]?.x as number);
   });
 });
+
+describe("principalComponents: missing values, R's na.omit", () => {
+  // Every expected value comes from R 4.5.3, printed with sprintf("%.17g").
+  // R's prcomp() errors on NA, so the R usage this mirrors is
+  // prcomp(na.omit(d)) — the port folds the na.omit in.
+  //
+  // ```r
+  // d <- data.frame(
+  //   x = c(2, 5, NA, 8, 9),
+  //   y = c(1, 4, 5, NA, 3)
+  // )
+  // pr <- prcomp(na.omit(d), scale. = FALSE)       # rows 1, 2, 5 survive
+  // pr$sdev; pr$rotation; colMeans(na.omit(d)); pr$x
+  // ```
+  const withMissing = pointsFrom(
+    [2, 5, Number.NaN, 8, 9],
+    [1, 4, 5, Number.NaN, 3],
+  );
+
+  test("computes the components of the complete rows alone", () => {
+    const result = principalComponents(withMissing);
+    expectCloseToR(result?.sdev[0] as number, 3.6402967326196869);
+    expectCloseToR(result?.sdev[1] as number, 1.1894983670207784);
+    expectCloseToR(result?.center.x as number, 5.333333333333333);
+    expectCloseToR(result?.center.y as number, 2.6666666666666665);
+    expectColumnCloseToRUpToSign(
+      result?.rotation[0] as Loadings,
+      [0.96042154170817839, 0.27855064570538285],
+    );
+    expectColumnCloseToRUpToSign(
+      result?.rotation[1] as Loadings,
+      [0.27855064570538285, -0.96042154170817839],
+    );
+  });
+
+  test("pads the scores with NaN at the dropped rows, keeping input order", () => {
+    const result = principalComponents(withMissing) as PcaResult;
+    const sign1 = expectColumnCloseToRUpToSign(result.rotation[0], [
+      0.96042154170817839, 0.27855064570538285,
+    ]);
+    const sign2 = expectColumnCloseToRUpToSign(result.rotation[1], [
+      0.27855064570538285, -0.96042154170817839,
+    ]);
+    const expectedPc1 = [
+      -3.6656562152028993, 0.051260347037784655, Number.NaN, Number.NaN,
+      3.6143958681651154,
+    ];
+    const expectedPc2 = [
+      0.67220041716235446, -1.3734122708460321, Number.NaN, Number.NaN,
+      0.70121185368367756,
+    ];
+    expect(result.scores.length).toBe(expectedPc1.length);
+    for (const [index, score] of result.scores.entries()) {
+      const pc1 = expectedPc1[index] as number;
+      const pc2 = expectedPc2[index] as number;
+      if (Number.isNaN(pc1)) {
+        expect(score.x).toBeNaN();
+        expect(score.y).toBeNaN();
+      } else {
+        expectCloseToR(sign1 * score.x, pc1);
+        expectCloseToR(sign2 * score.y, pc2);
+      }
+    }
+  });
+
+  test("answers exactly as it would on the filtered input", () => {
+    const filtered = principalComponents(pointsFrom([2, 5, 9], [1, 4, 3]));
+    const result = principalComponents(withMissing);
+    expect(result?.sdev).toEqual(filtered?.sdev as PcaResult["sdev"]);
+    expect(result?.rotation).toEqual(
+      filtered?.rotation as PcaResult["rotation"],
+    );
+    expect(result?.center).toEqual(filtered?.center as PcaResult["center"]);
+  });
+
+  test("an infinity is missing the same way NaN is", () => {
+    const result = principalComponents(
+      pointsFrom([2, 5, Number.POSITIVE_INFINITY, 8, 9],
+        [1, 4, 5, Number.NEGATIVE_INFINITY, 3]),
+    );
+    expectCloseToR(result?.sdev[0] as number, 3.6402967326196869);
+  });
+
+  test("returns null when no row is complete, as with no rows at all", () => {
+    // R's prcomp() errors on NA input; this port already answers null for
+    // "nothing to compute" and an all-missing input is that same answer.
+    expect(
+      principalComponents(pointsFrom([Number.NaN, 2], [1, Number.NaN])),
+    ).toBeNull();
+  });
+});

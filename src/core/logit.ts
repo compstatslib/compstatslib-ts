@@ -17,6 +17,7 @@
 
 import { mean, sum, zipWith } from "./arith";
 import { leastSquares } from "./ols";
+import { completePointRows } from "./regression";
 import type { Point } from "./regression";
 
 /** The convergence threshold and iteration cap of R's `glm.control()`. */
@@ -45,9 +46,15 @@ export interface LogitFit {
   readonly intercept: number;
   /** The change in the log odds for each unit of x. Null if x is constant. */
   readonly slope: number | null;
-  /** The fitted probability of each point, in input order. */
+  /**
+   * The fitted probability of each point, in input order. NaN where the
+   * point was dropped for a missing value.
+   */
   readonly fitted: readonly number[];
-  /** The log odds of each point, in input order. */
+  /**
+   * The log odds of each point, in input order. NaN where the point was
+   * dropped for a missing value.
+   */
   readonly linearPredictors: readonly number[];
   /** Residual deviance of the fitted model. */
   readonly deviance: number;
@@ -89,13 +96,19 @@ const BOUND = 10 * Number.EPSILON;
  * belongs to the plot layer and this function reports the honest degenerate
  * fit.
  *
- * @param points The observations. Each y must be 0 or 1. The function does not
- *   modify them.
+ * A point with a non-finite coordinate is dropped before fitting, R's
+ * `na.action = na.omit`; its fitted probability and linear predictor report
+ * NaN, keeping input order (R's `na.exclude` padding, as `moderationSurface`
+ * does). The 0-or-1 rule below applies to the rows that remain: R's
+ * `na.omit` removes an incomplete row before `glm()` ever sees its outcome.
+ *
+ * @param points The observations. Each complete y must be 0 or 1. The
+ *   function does not modify them.
  * @param options The convergence controls.
- * @returns The fit, or null if there are no points.
- * @throws RangeError if a y is not 0 or 1, or if an x is not finite. R accepts
- *   any y in [0, 1] for the binomial family; this port does not, because the
- *   points come from clicks and because the AIC below assumes a 0/1 outcome.
+ * @returns The fit, or null if no point is complete.
+ * @throws RangeError if a complete row's y is not 0 or 1. R accepts any y in
+ *   [0, 1] for the binomial family; this port does not, because the points
+ *   come from clicks and because the AIC below assumes a 0/1 outcome.
  */
 export function logisticRegression(
   points: readonly Point[],
@@ -106,18 +119,17 @@ export function logisticRegression(
     maxIterations = DEFAULT_LOGIT_MAX_ITERATIONS,
   } = options;
 
-  if (points.length === 0) {
+  const rows = completePointRows(points);
+  if (rows.length === 0) {
     return null;
   }
-  if (points.some((point) => point.y !== 0 && point.y !== 1)) {
+  const complete = rows.map((row) => points[row] as Point);
+  if (complete.some((point) => point.y !== 0 && point.y !== 1)) {
     throw new RangeError("every outcome must be 0 or 1");
   }
-  if (points.some((point) => !Number.isFinite(point.x))) {
-    throw new RangeError("every predictor must be finite");
-  }
 
-  const outcomes = points.map((point) => point.y);
-  const design = points.map((point) => [1, point.x]);
+  const outcomes = complete.map((point) => point.y);
+  const design = complete.map((point) => [1, point.x]);
 
   // R's binomial starting values: (weights * y + 0.5) / (weights + 1), which
   // at unit weights puts a 0 at 0.25 and a 1 at 0.75, then takes the link.
@@ -194,13 +206,22 @@ export function logisticRegression(
     outcomes.map(() => wholeMean),
   );
 
+  // R's na.exclude padding: report the fit in input order, NaN where a
+  // point was dropped.
+  const paddedFitted = new Array<number>(points.length).fill(Number.NaN);
+  const paddedPredictors = new Array<number>(points.length).fill(Number.NaN);
+  rows.forEach((row, survivor) => {
+    paddedFitted[row] = fitted[survivor] as number;
+    paddedPredictors[row] = predictors[survivor] as number;
+  });
+
   return {
     // The leading column of ones always carries norm, so the QR cannot alias
     // the intercept.
     intercept: coefficients[0] ?? Number.NaN,
     slope: coefficients[1] ?? null,
-    fitted,
-    linearPredictors: predictors,
+    fitted: paddedFitted,
+    linearPredictors: paddedPredictors,
     deviance,
     nullDeviance,
     // R evaluates the binomial log likelihood and adds 2 * rank. For a 0/1

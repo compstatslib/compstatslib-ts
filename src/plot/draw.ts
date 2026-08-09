@@ -17,7 +17,7 @@ import type { Point } from "../core/regression";
 /** R: `lty = "dotted"`. */
 export const DOTTED = [1, 3];
 
-/** R's `col = "gray"` is #BEBEBE. The CSS colour of that name is darker. */
+/** R's `col = "gray"` is #BEBEBE. The CSS color of that name is darker. */
 const POINT_COLOR = "#bebebe";
 /** R: `pch = 19, cex = 2`. */
 const POINT_RADIUS = 6;
@@ -44,7 +44,7 @@ const HEAD_ANGLE = Math.PI / 6;
  */
 const MIN_ARROW_PIXELS = 96 / 1000;
 
-/** Paint the whole surface white, the colour of a fresh R device. */
+/** Paint the whole surface white, the color of a fresh R device. */
 export function clearSurface(
   ctx: Context2D,
   width: number,

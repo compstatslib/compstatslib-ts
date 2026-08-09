@@ -68,7 +68,7 @@ const MATRIX = {
   middle: -4,
   right: -2.5,
   bottom: 0.125,
-  centre: 0.25,
+  center: 0.25,
   top: 0.375,
 } as const;
 
@@ -269,7 +269,7 @@ function drawFill(
  * Mark the alternative's midpoint.
  *
  * R passes `quants = c(0.5)` to `plott()`, which draws a segment from the axis
- * up to the curve, in the same translucent colour as the fill.
+ * up to the curve, in the same translucent color as the fill.
  */
 function drawMedianSegment(
   ctx: Context2D,
@@ -314,7 +314,7 @@ function drawErrorMatrix(
 
   drawCell(ctx, scale, {
     left: MATRIX.left,
-    bottom: MATRIX.centre,
+    bottom: MATRIX.center,
     right: MATRIX.middle,
     top: MATRIX.top,
     fill: NULL_FILL,
@@ -326,7 +326,7 @@ function drawErrorMatrix(
 
   drawCell(ctx, scale, {
     left: MATRIX.middle,
-    bottom: MATRIX.centre,
+    bottom: MATRIX.center,
     right: MATRIX.right,
     top: MATRIX.top,
     fill: CORRECT_FILL,
@@ -339,7 +339,7 @@ function drawErrorMatrix(
     left: MATRIX.left,
     bottom: MATRIX.bottom,
     right: MATRIX.middle,
-    top: MATRIX.centre,
+    top: MATRIX.center,
     fill: CORRECT_FILL,
     title: "Correct!",
     value: formatNumber(cells.correctFailToReject),
@@ -350,14 +350,14 @@ function drawErrorMatrix(
     left: MATRIX.middle,
     bottom: MATRIX.bottom,
     right: MATRIX.right,
-    top: MATRIX.centre,
+    top: MATRIX.center,
     fill: NULL_FILL,
     title: "Type II error",
     value: formatStat(cells.typeTwo),
   });
 
-  const ringBottom = cells.highlightTopRow ? MATRIX.centre : MATRIX.bottom;
-  const ringTop = cells.highlightTopRow ? MATRIX.top : MATRIX.centre;
+  const ringBottom = cells.highlightTopRow ? MATRIX.center : MATRIX.bottom;
+  const ringTop = cells.highlightTopRow ? MATRIX.top : MATRIX.center;
   ctx.strokeStyle = ALT_COLOR;
   ctx.lineWidth = HIGHLIGHT_WIDTH;
   ctx.beginPath();
@@ -384,8 +384,8 @@ interface Cell {
 
 /** R's `recttext()`: a filled box, its captions, its title, and its value. */
 function drawCell(ctx: Context2D, scale: Scale, cell: Cell): void {
-  const centreX = (cell.left + cell.right) / 2;
-  const centreY = (cell.bottom + cell.top) / 2;
+  const centerX = (cell.left + cell.right) / 2;
+  const centerY = (cell.bottom + cell.top) / 2;
 
   ctx.fillStyle = cell.fill;
   ctx.beginPath();
@@ -400,13 +400,13 @@ function drawCell(ctx: Context2D, scale: Scale, cell: Cell): void {
   // R: the title sits just inside the top edge, at `yt - 0.015`.
   ctx.fillText(
     cell.title,
-    scale.toPixelX(centreX),
+    scale.toPixelX(centerX),
     scale.toPixelY(cell.top - 0.015),
   );
 
   ctx.font = `${VALUE_FONT_SIZE}px sans-serif`;
   ctx.textBaseline = "middle";
-  ctx.fillText(cell.value, scale.toPixelX(centreX), scale.toPixelY(centreY));
+  ctx.fillText(cell.value, scale.toPixelX(centerX), scale.toPixelY(centerY));
 
   ctx.font = `${CAPTION_FONT_SIZE}px sans-serif`;
   if (cell.columnCaption !== undefined) {
@@ -424,7 +424,7 @@ function drawCell(ctx: Context2D, scale: Scale, cell: Cell): void {
     drawLines(
       ctx,
       cell.columnCaption,
-      scale.toPixelX(centreX),
+      scale.toPixelX(centerX),
       anchor - blockHeight,
       CAPTION_LINE_HEIGHT,
     );
@@ -441,7 +441,7 @@ function drawCell(ctx: Context2D, scale: Scale, cell: Cell): void {
     ctx.font = `${layout.fontSize}px sans-serif`;
     // Turned a quarter turn, the stack runs left to right across the gap, so
     // the offset between lines becomes a horizontal step on the surface.
-    ctx.translate(gapLeft + layout.start, scale.toPixelY(centreY));
+    ctx.translate(gapLeft + layout.start, scale.toPixelY(centerY));
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -467,7 +467,7 @@ interface CaptionLayout {
  * graphics, which clips whatever crosses the edge of the plot region. Canvas
  * clips no text, so the same anchor puts two of each block's three lines out
  * over the axis numbers. This is the deliberate deviation: the block is
- * centred in the gap between the edge of the plot and the edge of the cells,
+ * centerd in the gap between the edge of the plot and the edge of the cells,
  * which is where R's clipped version ends up looking like it sits anyway.
  *
  * The gap is a fixed share of the width, half a unit of the twelve the picture
