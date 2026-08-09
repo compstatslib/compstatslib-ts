@@ -155,8 +155,9 @@ ratio, and camera. They come from `@compstats/core/3d`.
 
 These plot x / y points you supply, together with a fitted model. They are
 sized for small data — points clicked in by hand, or a modest table — and not
-for arbitrary data. `plotRegression` draws in a fixed window of -5 to 50, and
-the PCA functions expect points with an `x` and a `y`.
+for arbitrary data. `plotRegression` draws in a window of -5 to 50 unless you
+give it `xlim` and `ylim`, and the PCA functions expect points with an `x` and
+a `y`.
 
 | Function | What it does |
 | --- | --- |
@@ -183,6 +184,38 @@ object, so that a concept can be watched instead of described.
 | `interactiveMatrixInverse(container, opts?)` | Four sliders for the entries of a 2x2 matrix. The matrix and its inverse are drawn as parallelograms. |
 | `plotMatrixInverse(target, matrix)` | The same picture from one matrix. Returns the determinant and the inverse. |
 | `machinePrecision()` | The smallest number the runtime can add to 1. |
+
+### Statistics without a picture
+
+The R package never had to ship these. `mean()`, `sd()`, `quantile()`, `dt()`,
+`rnorm()`, `density()`, `hist()`, `pretty()`, `solve()` and `lm.fit()` are all
+in base R, and its functions call them. JavaScript has no statistics standard
+library, so the port wrote them — and exports them, because an application
+built on this package needs them for the same reason the package did.
+
+| Group | Functions |
+| --- | --- |
+| Descriptives | `mean`, `median`, `sd`, `quantile`, `quantiles`, `meanAbsoluteDeviation` |
+| Student t distribution | `dt`, `pt`, `qt`, with the `normalCdf`, `incompleteBeta` and `inverseIncompleteBeta` they stand on |
+| Seeded random draws | `seededRng`, `runif`, `rnorm`, `rt`, `rlnorm`, `rcauchy`, `sampleWithoutReplacement` |
+| Binning and density | `histogram`, `nclassSturges`, `kernelDensity`, `bwNrd0` |
+| Axis ticks | `rPretty`, `prettyTicks` |
+| Linear algebra | `leastSquares`, `determinant`, `invertMatrix` |
+
+Each one follows its R counterpart, down to the rule and the argument names:
+`quantile` is type 7, `nclassSturges` is Sturges' rule, `bwNrd0` is R's
+`nrd0` bandwidth, `rPretty` is `pretty()`, and the samplers take R's own
+parameters. The test suite pins them to values computed in R.
+
+The draws take a generator you pass in, so a demonstration repeats exactly:
+
+```js
+import { seededRng, rnorm, quantile } from "@compstats/core";
+
+const rng = seededRng(42);
+const draws = rnorm(rng, 1000, { mean: 100, sd: 15 });
+quantile(draws, 0.975);
+```
 
 ### Bundled data
 
@@ -237,6 +270,13 @@ R idioms that a browser has no answer for are handled like this:
   not meant to.
 - **Devices.** Every plot function takes an explicit target. There is no
   current device.
+
+One thing the port adds. It exports the statistical primitives that base R
+hands the R package for free — descriptives, the t distribution, seeded
+samplers, binning, density, axis ticks and small linear algebra, listed under
+[Statistics without a picture](#statistics-without-a-picture). This is an
+addition, not a divergence: each one follows its R counterpart's rule and is
+tested against R's output.
 
 The core statistics are asserted against values computed in R. The fixtures
 live in the R package under `conformance-fixtures/`.

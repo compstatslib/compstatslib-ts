@@ -18,7 +18,40 @@ renames rather than breaking changes with a deprecation cycle.
   did not. `PlotRegrOptions` and `regrScale()` are renamed with it, to
   `PlotRegressionOptions` and `regressionScale()`. There is no shim.
 
+### Added
+
+* `rt()`, `rlnorm()` and `rcauchy()` draw from the Student t, lognormal and
+  Cauchy distributions, with R's parameter names — `df`, `meanlog`/`sdlog`,
+  `location`/`scale`. One departure: `rt()` takes a positive integer `df`
+  only, where R's gamma sampler accepts any positive real. Empirical
+  quantiles are checked against R's `qt` and `qlnorm` over 200000 draws.
+* `mean()`, `median()` and `meanAbsoluteDeviation()`. `median()` is R's own
+  rule, the type-7 quantile at 0.5. `meanAbsoluteDeviation()` is *not* R's
+  `mad()`, which is the median absolute deviation from the median and scaled
+  by 1.4826; the name is written in full because the abbreviation covers both
+  statistics. The sampling demonstration offers the last two as choices of
+  statistic.
+* `kernelDensity()` takes `from` and `to`, R's own arguments, to fix the
+  reported window instead of taking it from the data.
+* `plotSampling()` takes `densityWindow`. The default, `"data"`, is
+  unchanged. `"frozen"` puts the grid of every curve on the drawn window,
+  which a population reaching far outside that window needs: at 512 grid
+  points over a range a thousand times the window, one step is wider than the
+  panel and the curve draws as a straight line.
+* `plotRegression()` takes `xlim` and `ylim`, R's own arguments. Both still
+  default to R's `c(-5, 50)`, and the mean crosshair clamps into a window
+  that does not contain 0.
+* The two options above reach `interactiveRegression()` and
+  `interactiveSampling()` with no work, because each interactive options type
+  extends the plot options type it forwards.
+
 ### Bug fixes
+
+* The sampling histogram is bounded by the window it draws in. A statistic
+  outside the shared window is clipped from the picture, so it must not set
+  the width of the histogram's cells either: one sample mean out at 800 made
+  every cell 100 units wide and left a single flat bar in a 124-wide panel.
+  The count in the panel label still reports the whole pile.
 
 * `moderationSurface()` drops rows with missing values before fitting, as
   R's `lm()` does with `na.action = na.omit`; it fit straight through NaN,

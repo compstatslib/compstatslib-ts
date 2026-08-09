@@ -151,6 +151,11 @@ real numerical work. These are the R primitives the port depends on:
 | `sample()`, `rnorm()`, `runif()` | sampling, sample CI |
 | `sd()`, `cor()`, `mean()` | throughout |
 
+This layer is **public API**, not an implementation detail. The R package
+never exports these — base R already provides them — but a consuming app has
+no statistics standard library either, so `src/index.ts` exports them and they
+stay exported. Treat a rename here the same as a rename of a plot function.
+
 Two rules for this layer:
 
 - **Verify against R.** For each ported statistic, compute the expected value
