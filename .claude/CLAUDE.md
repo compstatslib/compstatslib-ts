@@ -19,6 +19,34 @@ against that goal.
 The R source lives at `../compstatslib/` — read it directly when porting a
 function rather than guessing at behavior.
 
+## Downstream Consumers
+
+This package is a library. Its primary consumer is the browser app at
+`../compstats-webapp/` (`compstats`), which builds a client-side statistics
+workbench on top of it and currently consumes it as a Bun link to this
+checkout, not from npm. Apps of that shape — static, client-side, Bun +
+bundler — are the expected audience for this package, so weigh API decisions
+from a consuming app's point of view, not only the demo site's.
+
+What this means when working here:
+
+- **Changes can arrive from the webapp side.** A Claude Code session running
+  in `../compstats-webapp/` may commit or propose changes in this repo to add
+  functionality that app needs. Treat such commits as normal contributions:
+  they still have to obey this file's architecture, TDD, and conformance
+  rules. If a commit lands here with no matching test or with drawing code in
+  `interactive/`, fix it rather than following the precedent.
+- **Read the app before guessing at a requirement.** When a request mentions
+  what the webapp needs, read `../compstats-webapp/src/` directly, the same
+  way we read `../compstatslib/` for R behavior.
+- **The library must stay app-agnostic.** No app-specific state, storage, or
+  UI belongs here. If the webapp needs something the library cannot express,
+  the fix is a general option or a returned value the app composes — never a
+  special case named after the app.
+- **The link setup makes breakage immediate.** A rename or signature change
+  here breaks the app's next `bun run typecheck`. Check the app for callers
+  before renaming an exported symbol, and note the change in `CHANGELOG.md`.
+
 ## Status
 
 The port is complete. All 9 function families from the R package are
