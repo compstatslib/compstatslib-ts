@@ -10,7 +10,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Pinned rather than latest: CLAUDE.md records bundler behavior that is
       # specific to this version, and the build below is what publishes.
