@@ -44,6 +44,26 @@ function expectCloseToR(actual: number, expected: number): void {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(bound);
 }
 
+/**
+ * Assert that a value has not moved by more than a few units in the last
+ * place.
+ *
+ * For a pin against this port itself, rather than against R. Exact equality
+ * is the obvious rule for "nothing moved", and it is wrong here: the density
+ * values come off `Math.exp` and an FFT, neither of which any standard
+ * specifies to the last bit. macOS arm64 and Linux x64 disagree in the last
+ * three ulps, so an exact pin passes on the machine that wrote it and fails
+ * on CI. A few ulps still pins what the pin is for — change a window
+ * expression and the value moves in its leading digits, not its last bit.
+ */
+function expectUnmoved(actual: number | undefined, expected: number): void {
+  if (actual === undefined) {
+    throw new Error(`no value to compare with ${expected}`);
+  }
+  const bound = 64 * Number.EPSILON * Math.abs(expected);
+  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(bound);
+}
+
 /** The 1-based index of the largest value, R's `which.max`. */
 function whichMax(values: readonly number[]): number {
   return values.reduce(
@@ -335,9 +355,11 @@ describe("kernelDensity, degenerate and edge inputs", () => {
 describe("kernelDensity with a frozen window", () => {
   test("leaves the default path byte-identical without from and to", () => {
     // Pinned against this port itself, captured before from/to were added.
-    // Exact equality, not tolerance: the default expressions for the window
-    // must not change at all. The R fixtures above check correctness; this
-    // checks that adding the options moved nothing.
+    // The R fixtures above check correctness; this checks that adding the
+    // options moved nothing. The bandwidth and the grid are exact — they are
+    // arithmetic, and the same everywhere. The densities are held to a few
+    // ulps instead, because `Math.exp` and the FFT are not bit-identical
+    // across platforms; see `expectUnmoved`.
     const estimate = kernelDensity(xSmall);
 
     expect(estimate.bw).toBe(1.54678722135629476142);
@@ -371,12 +393,13 @@ describe("kernelDensity with a frozen window", () => {
       expect(estimate.x[index]).toBe(expected);
     });
     yPins.forEach(([index, expected]) => {
-      expect(estimate.y[index]).toBe(expected);
+      expectUnmoved(estimate.y[index], expected);
     });
     expect(estimate.x.reduce((total, value) => total + value, 0)).toBe(
       3711.99999999999863576,
     );
-    expect(estimate.y.reduce((total, value) => total + value, 0)).toBe(
+    expectUnmoved(
+      estimate.y.reduce((total, value) => total + value, 0),
       26.0902996096754158373,
     );
   });
