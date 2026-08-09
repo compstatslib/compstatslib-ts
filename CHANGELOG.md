@@ -3,12 +3,15 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
-## Unreleased
+## 0.2.0
 
 The first npm release. It follows the R package's own 0.8.0 release, which
 settled the R public API before that package had users to break. The same
 changes land here, for the same reason: nothing is published yet, so these are
 renames rather than breaking changes with a deprecation cycle.
+
+The number is 0.2.0, not 0.1.0, because 0.1.0 is a git tag that was never
+published. It stays where it is, and the rename below is what moves the minor.
 
 ### Breaking changes
 
