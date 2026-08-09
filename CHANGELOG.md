@@ -3,6 +3,21 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Changed
+
+* `plotly.js-dist-min` moves from a runtime dependency to an **optional peer
+  dependency**. Installing `@compstats/core` brought in 5.9 MB of 3D engine
+  even for a page that draws only 2D. It now installs 1.3 MB, and a consumer
+  who uses the `/3d` entry adds `plotly.js-dist-min` to its own dependencies —
+  which the two known consumers already did, because a bundler needs the
+  package named where it is imported. No source and no bundle changed:
+  `dist/3d.js` still reaches Plotly through the same lazy `import()`, and
+  passing your own engine in the `plotly` option still keeps that import
+  unreached. If Plotly is absent, that load now fails with
+  `Cannot find package 'plotly.js-dist-min'` instead of succeeding.
+
 ## 0.2.0
 
 The first npm release. It follows the R package's own 0.8.0 release, which

@@ -17,6 +17,32 @@ const SOURCE = await Bun.file(
   new URL("./plotly.ts", import.meta.url).pathname,
 ).text();
 
+const MANIFEST = (await Bun.file(
+  new URL("../../package.json", import.meta.url).pathname,
+).json()) as {
+  readonly dependencies?: Record<string, string>;
+  readonly devDependencies?: Record<string, string>;
+  readonly peerDependencies?: Record<string, string>;
+  readonly peerDependenciesMeta?: Record<string, { readonly optional?: boolean }>;
+};
+
+const PLOTLY = "plotly.js-dist-min";
+
+describe("the Plotly dependency", () => {
+  test("is not a runtime dependency", () => {
+    expect(MANIFEST.dependencies ?? {}).not.toHaveProperty(PLOTLY);
+  });
+
+  test("is a peer dependency the consumer may skip", () => {
+    expect(MANIFEST.peerDependencies?.[PLOTLY]).toBeString();
+    expect(MANIFEST.peerDependenciesMeta?.[PLOTLY]?.optional).toBe(true);
+  });
+
+  test("is still installed here, because the demo server serves the file", () => {
+    expect(MANIFEST.devDependencies?.[PLOTLY]).toBeString();
+  });
+});
+
 describe("loadPlotly", () => {
   test("is a function that the caller must invoke", () => {
     expect(typeof loadPlotly).toBe("function");
