@@ -44,6 +44,36 @@ function expectCloseToR(actual: number, expected: number): void {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(bound);
 }
 
+/**
+ * How far a density pinned against this port itself may drift and still count
+ * as unmoved. The same 1e-12 as the comparisons against R, but absolute.
+ */
+const UNMOVED_TOLERANCE = 1e-12;
+
+/**
+ * Assert that a density has not moved.
+ *
+ * For a pin against this port itself, rather than against R. Exact equality
+ * is the obvious rule for "nothing moved", and it is wrong here: the values
+ * come off `Math.exp` and an FFT, and no standard fixes either to the last
+ * bit. macOS arm64 and Linux x64 disagree about the smallest pin below by
+ * 5e-18, so an exact pin passes on the machine that writes it and fails on
+ * CI.
+ *
+ * The bound is absolute rather than relative because the error of an FFT
+ * output scales with the largest value in the transform, not with the value
+ * being read: the tail values here are small differences of much larger
+ * numbers, so their *relative* error is thousands of times their neighbors'.
+ * At 1e-12 the pin still does its job — change one of the default window
+ * expressions and these values move by 1e-4 or more.
+ */
+function expectUnmoved(actual: number | undefined, expected: number): void {
+  if (actual === undefined) {
+    throw new Error(`no value to compare with ${expected}`);
+  }
+  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(UNMOVED_TOLERANCE);
+}
+
 /** The 1-based index of the largest value, R's `which.max`. */
 function whichMax(values: readonly number[]): number {
   return values.reduce(
@@ -335,9 +365,11 @@ describe("kernelDensity, degenerate and edge inputs", () => {
 describe("kernelDensity with a frozen window", () => {
   test("leaves the default path byte-identical without from and to", () => {
     // Pinned against this port itself, captured before from/to were added.
-    // Exact equality, not tolerance: the default expressions for the window
-    // must not change at all. The R fixtures above check correctness; this
-    // checks that adding the options moved nothing.
+    // The R fixtures above check correctness; this checks that adding the
+    // options moved nothing. The bandwidth and the grid are exact — they are
+    // arithmetic, and the same everywhere. The densities are held to 1e-12
+    // instead, because `Math.exp` and the FFT are not bit-identical across
+    // platforms; see `expectUnmoved`.
     const estimate = kernelDensity(xSmall);
 
     expect(estimate.bw).toBe(1.54678722135629476142);
@@ -371,12 +403,13 @@ describe("kernelDensity with a frozen window", () => {
       expect(estimate.x[index]).toBe(expected);
     });
     yPins.forEach(([index, expected]) => {
-      expect(estimate.y[index]).toBe(expected);
+      expectUnmoved(estimate.y[index], expected);
     });
     expect(estimate.x.reduce((total, value) => total + value, 0)).toBe(
       3711.99999999999863576,
     );
-    expect(estimate.y.reduce((total, value) => total + value, 0)).toBe(
+    expectUnmoved(
+      estimate.y.reduce((total, value) => total + value, 0),
       26.0902996096754158373,
     );
   });
