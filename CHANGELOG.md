@@ -5,6 +5,25 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
 
 ## Unreleased
 
+### Added
+
+* `plotSampling()` takes a `mark` option and marks the chosen statistic on all
+  three panels, in one color. The library computes two of the three numbers:
+  the statistic of the pooled sample, and the average of every statistic drawn
+  so far. It takes the third from the caller, because the true value in the
+  population is a fact about the shape and not about the values in the array. A
+  Cauchy population has no mean, and the arithmetic mean of a finite draw from
+  it is still a number. `mark.populationValue: null` says the population has no
+  such value, and the panel writes `no true <label>` in place of the line. A
+  location statistic draws a line, a spread draws a span around a center, and
+  the third panel always draws a line, because its axis holds the value of the
+  statistic. A mark outside the frozen window draws a caret at that edge, so a
+  clipped mark and an absent mark do not look the same. The new `marks` field
+  of the result reports the three numbers, and reports null for each one that
+  does not exist. A call that passes no `mark` draws what it drew before, and
+  gets `marks: null`. `interactiveSampling()` forwards the option, as it
+  forwards every other plot option.
+
 ### Changed
 
 * `plotly.js-dist-min` moves from a runtime dependency to an **optional peer
