@@ -3,7 +3,7 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
-## Unreleased
+## 0.3.0
 
 ### Added
 
