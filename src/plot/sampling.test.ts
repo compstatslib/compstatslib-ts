@@ -26,12 +26,14 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { mean } from "../core/arith";
+import { mean, sd } from "../core/arith";
 import { histogram } from "../core/histogram";
 import { seededRng, type Rng } from "../core/rng";
 import { RecordingContext } from "../../test/recording-context";
+import type { DrawStyle } from "../../test/recording-context";
 import { plotSampling, samplingScale } from "./sampling";
-import type { SamplingState } from "./sampling";
+import type { SamplingPanel, SamplingState } from "./sampling";
+import type { Extent } from "./axes";
 import type { RenderTarget } from "./target";
 
 const WIDTH = 600;
@@ -566,5 +568,363 @@ describe("samplingScale", () => {
 
     expect(panel.toPixelY(0)).toBe(panel.area.bottom);
     expect(panel.toPixelY(8)).toBe(panel.area.top);
+  });
+});
+
+// PLAN-009. The chosen statistic is marked on all three panels, in one color,
+// so a reader sees the population, the last sample and the pile of statistics
+// in one picture. The library draws two of the three numbers from what it has
+// and takes the third — the population's truth — from the caller, because that
+// is a fact about the shape and not about the values in the array.
+
+/** Q5: the color the library already uses for a quantity computed from data. */
+const MARK_COLOR = "cornflowerblue";
+/** The same color at half alpha, as SAMPLE_CURVE_COLOR is for the curves. */
+const SAMPLE_MARK_COLOR = "rgba(100, 149, 237, 0.5)";
+
+/** One path, and the style in force when it was stroked or filled. */
+interface DrawnPath {
+  readonly points: readonly (readonly [number, number])[];
+  readonly style: DrawStyle;
+}
+
+/**
+ * Return every path that was stroked or filled in one color.
+ *
+ * The recording context keeps each call on its own, so this walks the calls
+ * and gathers the points between one `beginPath` and the `stroke` or `fill`
+ * that ends it. A clip path holds a `rect`, which is not gathered.
+ */
+function pathsIn(
+  ctx: RecordingContext,
+  method: "stroke" | "fill",
+  color: string,
+): DrawnPath[] {
+  const found: DrawnPath[] = [];
+  let points: (readonly [number, number])[] = [];
+
+  for (const call of ctx.calls) {
+    if (call.method === "beginPath") {
+      points = [];
+    } else if (call.method === "moveTo" || call.method === "lineTo") {
+      points.push([call.args[0] as number, call.args[1] as number]);
+    } else if (call.method === method) {
+      const color2D =
+        method === "stroke" ? call.style.strokeStyle : call.style.fillStyle;
+      if (color2D === color) {
+        found.push({ points: [...points], style: call.style });
+      }
+    }
+  }
+  return found;
+}
+
+/** Which of the three bands a path was drawn in. */
+function panelOf(path: DrawnPath): SamplingPanel {
+  const y = path.points[0]?.[1] ?? 0;
+  const band = HEIGHT / 3;
+  if (y < band) {
+    return "population";
+  }
+  return y < 2 * band ? "samples" : "statistic";
+}
+
+/** Keep the paths drawn in one panel. */
+function inPanel(paths: readonly DrawnPath[], panel: SamplingPanel) {
+  return paths.filter((path) => panelOf(path) === panel);
+}
+
+/** The pixel column a world value takes in one panel. */
+function columnOf(
+  panel: SamplingPanel,
+  value: number,
+  window: Extent = { min: 0, max: 49.75 },
+): number {
+  return samplingScale(WIDTH, HEIGHT, panel, window, 1).toPixelX(value);
+}
+
+/** The horizontal reach of a path. */
+function spanOf(path: DrawnPath | undefined): [number, number] {
+  const xs = (path?.points ?? []).map(([x]) => x);
+  return [Math.min(...xs), Math.max(...xs)];
+}
+
+describe("plotSampling marks", () => {
+  /** A location statistic whose true value in the population is 20. */
+  const location = {
+    kind: "location",
+    populationValue: 20,
+    label: "mean",
+  } as const;
+
+  test("draws nothing new when the caller asks for no mark", () => {
+    const { ctx, target } = makeTarget();
+    const result = plotSampling(target, population, {
+      rng: seededRng(30),
+      sampleSize: 20,
+      reps: 3,
+    });
+
+    expect(pathsIn(ctx, "stroke", MARK_COLOR)).toHaveLength(0);
+    expect(pathsIn(ctx, "stroke", SAMPLE_MARK_COLOR)).toHaveLength(0);
+    expect(pathsIn(ctx, "fill", MARK_COLOR)).toHaveLength(0);
+    expect(ctx.texts().some((text) => text.startsWith("no true"))).toBe(false);
+    expect(result.marks).toBeNull();
+  });
+
+  test("a location mark draws one line in each of the three panels", () => {
+    const { ctx, target } = makeTarget();
+    const result = plotSampling(target, population, {
+      rng: seededRng(31),
+      sampleSize: 20,
+      mark: location,
+    });
+
+    const lines = pathsIn(ctx, "stroke", MARK_COLOR);
+    expect(lines).toHaveLength(3);
+    lines.forEach((line) => {
+      // A vertical line: two points in one column.
+      expect(line.points).toHaveLength(2);
+      expect(line.points[0]?.[0]).toBe(line.points[1]?.[0] as number);
+      expect(line.style.lineWidth).toBe(2);
+      expect(line.style.lineDash).toHaveLength(0);
+    });
+
+    expect(inPanel(lines, "population")[0]?.points[0]?.[0]).toBeCloseTo(
+      columnOf("population", 20),
+    );
+    expect(inPanel(lines, "samples")[0]?.points[0]?.[0]).toBeCloseTo(
+      columnOf("samples", result.marks?.sample as number),
+    );
+    expect(inPanel(lines, "statistic")[0]?.points[0]?.[0]).toBeCloseTo(
+      columnOf("statistic", result.marks?.pile as number),
+    );
+  });
+
+  test("a statistic with no true value draws no line, and writes the note", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, {
+      rng: seededRng(32),
+      sampleSize: 20,
+      mark: { ...location, populationValue: null },
+    });
+
+    expect(inPanel(pathsIn(ctx, "stroke", MARK_COLOR), "population")).toHaveLength(
+      0,
+    );
+    // Q6: the caller supplies the singular word, and the panel writes the note
+    // under its own label, in the mark color.
+    const note = ctx
+      .callsTo("fillText")
+      .find((call) => call.args[0] === "no true mean");
+    expect(note).toBeDefined();
+    expect(note?.style.fillStyle).toBe(MARK_COLOR);
+  });
+
+  test("a spread mark spans the first two panels and lines the third", () => {
+    const { ctx, target } = makeTarget();
+    const result = plotSampling(target, population, {
+      rng: seededRng(33),
+      sampleSize: 30,
+      theta: sd,
+      mark: {
+        kind: "spread",
+        populationValue: 5,
+        populationCenter: 25,
+        label: "standard deviation",
+      },
+    });
+
+    const drawn = pathsIn(ctx, "stroke", MARK_COLOR);
+    // Q4: the span hangs from the center the caller declared.
+    const [popLeft, popRight] = spanOf(inPanel(drawn, "population")[0]);
+    expect(popLeft).toBeCloseTo(columnOf("population", 20));
+    expect(popRight).toBeCloseTo(columnOf("population", 30));
+
+    // The sample span hangs from the mean of the pooled sample.
+    const center = mean(result.samples.flat());
+    const value = result.marks?.sample as number;
+    const [sampleLeft, sampleRight] = spanOf(inPanel(drawn, "samples")[0]);
+    expect(sampleLeft).toBeCloseTo(columnOf("samples", center - value));
+    expect(sampleRight).toBeCloseTo(columnOf("samples", center + value));
+
+    // The third panel keeps a line: its axis holds the statistic itself.
+    const line = inPanel(drawn, "statistic")[0];
+    expect(line?.points).toHaveLength(2);
+    expect(line?.points[0]?.[0]).toBe(line?.points[1]?.[0] as number);
+    expect(line?.points[0]?.[0]).toBeCloseTo(
+      columnOf("statistic", result.marks?.pile as number),
+    );
+  });
+
+  test("draws one faint mark per sample and one solid mark for the pooled one", () => {
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, {
+      rng: seededRng(34),
+      sampleSize: 20,
+      reps: 5,
+      mark: location,
+    });
+
+    const faint = pathsIn(ctx, "stroke", SAMPLE_MARK_COLOR);
+    expect(faint).toHaveLength(5);
+    faint.forEach((path) => {
+      expect(panelOf(path)).toBe("samples");
+      expect(path.style.lineWidth).toBe(1);
+    });
+    expect(inPanel(pathsIn(ctx, "stroke", MARK_COLOR), "samples")).toHaveLength(1);
+  });
+
+  test("reps 0 marks no sample, and the pile line still draws", () => {
+    const { ctx, target } = makeTarget();
+    const window = { min: 0, max: 10 };
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { xMin: window.min, xMax: window.max, sampleTheta: [2, 4, 6] },
+      mark: { ...location, populationValue: 5 },
+    });
+
+    expect(pathsIn(ctx, "stroke", SAMPLE_MARK_COLOR)).toHaveLength(0);
+    const drawn = pathsIn(ctx, "stroke", MARK_COLOR);
+    expect(inPanel(drawn, "samples")).toHaveLength(0);
+    expect(result.marks?.sample).toBeNull();
+
+    expect(inPanel(drawn, "statistic")[0]?.points[0]?.[0]).toBeCloseTo(
+      columnOf("statistic", 4, window),
+    );
+    expect(result.marks?.pile).toBe(4);
+  });
+
+  test("an empty pile draws no line on the third panel", () => {
+    const { ctx, target } = makeTarget();
+    const result = plotSampling(target, population, {
+      reps: 0,
+      mark: location,
+    });
+
+    expect(inPanel(pathsIn(ctx, "stroke", MARK_COLOR), "statistic")).toHaveLength(
+      0,
+    );
+    expect(result.marks?.pile).toBeNull();
+  });
+
+  test("the pile average counts the statistics the histogram drops", () => {
+    // Q2: the line marks every statistic drawn so far. The third panel bins
+    // only the ones inside the window, and the average must not follow it.
+    const { target } = makeTarget();
+    const inside = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const result = plotSampling(target, population, {
+      reps: 0,
+      state: { xMin: 0, xMax: 10, sampleTheta: [...inside, 500] },
+      mark: location,
+    });
+
+    expect(result.marks?.pile).toBeCloseTo(54.5);
+    expect(result.histogram?.breaks).toEqual(histogram(inside).breaks);
+  });
+
+  test("a mark above the window draws a caret at the right edge", () => {
+    const { ctx, target } = makeTarget();
+    const window = { min: 0, max: 10 };
+    plotSampling(target, population, {
+      reps: 0,
+      state: { xMin: window.min, xMax: window.max, sampleTheta: [] },
+      mark: { ...location, populationValue: 500 },
+    });
+
+    // Q7: a clipped line and an absent line look the same, so the panel says
+    // which of the two it is.
+    const carets = pathsIn(ctx, "fill", MARK_COLOR);
+    expect(carets).toHaveLength(1);
+    expect(panelOf(carets[0] as DrawnPath)).toBe("population");
+
+    const { area } = samplingScale(WIDTH, HEIGHT, "population", window, 1);
+    const [left, right] = spanOf(carets[0]);
+    expect(right).toBeCloseTo(area.right);
+    expect(left).toBeGreaterThanOrEqual(area.left);
+    expect(inPanel(pathsIn(ctx, "stroke", MARK_COLOR), "population")).toHaveLength(
+      0,
+    );
+  });
+
+  test("a mark below the window draws a caret at the left edge", () => {
+    const { ctx, target } = makeTarget();
+    const window = { min: 0, max: 10 };
+    plotSampling(target, population, {
+      reps: 0,
+      state: { xMin: window.min, xMax: window.max, sampleTheta: [] },
+      mark: { ...location, populationValue: -500 },
+    });
+
+    const carets = pathsIn(ctx, "fill", MARK_COLOR);
+    expect(carets).toHaveLength(1);
+    const { area } = samplingScale(WIDTH, HEIGHT, "population", window, 1);
+    const [left, right] = spanOf(carets[0]);
+    expect(left).toBeCloseTo(area.left);
+    expect(right).toBeLessThanOrEqual(area.right);
+  });
+
+  test("a spread carets each end that leaves the window", () => {
+    const { ctx, target } = makeTarget();
+    const window = { min: 0, max: 10 };
+    plotSampling(target, population, {
+      reps: 0,
+      state: { xMin: window.min, xMax: window.max, sampleTheta: [] },
+      mark: {
+        kind: "spread",
+        populationValue: 40,
+        populationCenter: 5,
+        label: "standard deviation",
+      },
+    });
+
+    // The span reaches from -35 to 45, so both ends are outside.
+    expect(pathsIn(ctx, "fill", MARK_COLOR)).toHaveLength(2);
+  });
+
+  test("reports the three numbers, and null where a number does not exist", () => {
+    const { target } = makeTarget();
+    const drawn = plotSampling(target, population, {
+      rng: seededRng(35),
+      sampleSize: 12,
+      reps: 2,
+      mark: location,
+    });
+
+    expect(drawn.marks?.population).toBe(20);
+    expect(drawn.marks?.sample).toBeCloseTo(mean(drawn.samples.flat()));
+    expect(drawn.marks?.pile).toBeCloseTo(mean(drawn.thetas));
+
+    const empty = plotSampling(target, population, {
+      reps: 0,
+      mark: { ...location, populationValue: null },
+    });
+    expect(empty.marks).toEqual({
+      population: null,
+      sample: null,
+      pile: null,
+    });
+  });
+
+  test("a spread with no center draws no span and writes no note", () => {
+    // The caller failed to say where the span hangs from. A span at an
+    // invented center would be a lie, and the note would name the wrong gap.
+    const { ctx, target } = makeTarget();
+    plotSampling(target, population, {
+      rng: seededRng(36),
+      sampleSize: 20,
+      theta: sd,
+      mark: {
+        kind: "spread",
+        populationValue: 5,
+        populationCenter: null,
+        label: "standard deviation",
+      },
+    });
+
+    expect(inPanel(pathsIn(ctx, "stroke", MARK_COLOR), "population")).toHaveLength(
+      0,
+    );
+    expect(ctx.texts().some((text) => text.startsWith("no true"))).toBe(false);
   });
 });
