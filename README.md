@@ -26,8 +26,19 @@ npm install @compstats/core
 bun add @compstats/core
 ```
 
-Plotly is only needed for the 3D functions. See
-[3D and Plotly](#3d-and-plotly) below.
+That install is small, because it brings nothing with it. Plotly is an
+**optional peer dependency**: the package declares it, but no package manager
+installs it for you. A page that draws only 2D never downloads it.
+
+Add it yourself when you use the 3D functions:
+
+```bash
+npm install plotly.js-dist-min
+# or
+bun add plotly.js-dist-min
+```
+
+See [3D and Plotly](#3d-and-plotly) below.
 
 ## Quick start
 
@@ -125,6 +136,11 @@ the `plotly` option never triggers that import:
 Pass `plotly` when you load the 3D entry from a raw file CDN such as jsDelivr,
 because nothing there resolves the bare `plotly.js-dist-min` specifier. esm.sh
 rewrites bare specifiers, so on esm.sh both ways work.
+
+Under a bundler, the dynamic import needs Plotly in your own dependencies. If
+it is absent, the load fails with `Cannot find package 'plotly.js-dist-min'`.
+The two cures are the same two paths: install the optional peer, or pass your
+own engine in the `plotly` option and let the dynamic import stay unreached.
 
 ## How the functions are organized
 

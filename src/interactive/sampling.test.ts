@@ -248,6 +248,26 @@ describe("drawing", () => {
 
     expect(handle.getState().sampleTheta).toEqual([42, 42]);
   });
+
+  test("forwards the mark it was given", () => {
+    // PLAN-009. The component extends the plot's options, so the mark reaches
+    // `plotSampling` with no code of its own. This pins that.
+    const { ctx, controls } = setup({
+      mark: { kind: "location", populationValue: 25, label: "mean" },
+    });
+    const marksIn = () =>
+      ctx
+        .callsTo("stroke")
+        .filter((call) => call.style.strokeStyle === "cornflowerblue").length;
+
+    // One line per panel, at the opening draw.
+    expect(marksIn()).toBe(3);
+
+    press(controls);
+
+    // The next press marks the new picture as well.
+    expect(marksIn()).toBe(6);
+  });
 });
 
 describe("the handle", () => {

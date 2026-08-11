@@ -121,6 +121,8 @@ export { plotSampling, samplingScale } from "./plot/sampling";
 export type {
   PlotSamplingOptions,
   PlotSamplingResult,
+  SamplingMarkOptions,
+  SamplingMarks,
   SamplingPanel,
   SamplingState,
 } from "./plot/sampling";

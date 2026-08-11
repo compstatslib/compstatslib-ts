@@ -116,6 +116,51 @@ export interface PlotSamplingOptions {
    * reason and so that every curve in the picture is comparable.
    */
   readonly densityWindow?: "data" | "frozen";
+  /**
+   * Mark the chosen statistic on all three panels. Nothing is marked by
+   * default, and the picture is then what it was before this option existed.
+   */
+  readonly mark?: SamplingMarkOptions;
+}
+
+/**
+ * What the caller knows about the statistic that the panels cannot compute.
+ *
+ * The library sees the samples and the pile, so it takes those two numbers
+ * itself. It cannot see the population's truth: that is a fact about the shape
+ * the values came from, not about the values. A Cauchy population has no mean,
+ * and the arithmetic mean of any finite draw from it is still a number, so the
+ * caller must say which of the two the panel shows.
+ */
+export interface SamplingMarkOptions {
+  /** A place on the axis, or a distance from a center. */
+  readonly kind: "location" | "spread";
+  /** The true value in the population, or null when the population has none. */
+  readonly populationValue: number | null;
+  /**
+   * Where the population's span hangs from. Read only when `kind` is
+   * `"spread"`. A spread with a value but no center draws nothing: a span at
+   * an invented center would say something the caller did not say.
+   */
+  readonly populationCenter?: number | null;
+  /** What the panel calls the statistic, in the singular: `"mean"`. */
+  readonly label: string;
+}
+
+/** The three numbers the marks drew. Null where a number does not exist. */
+export interface SamplingMarks {
+  /** What the caller declared, copied back. */
+  readonly population: number | null;
+  /** The statistic of this call's pooled sample. Null when reps is 0. */
+  readonly sample: number | null;
+  /**
+   * The average of every statistic drawn so far. Null on an empty pile.
+   *
+   * It counts the whole pile, including the statistics outside the window that
+   * the histogram drops. Under a population whose statistic does not settle,
+   * the average therefore walks, and it can walk out of the window.
+   */
+  readonly pile: number | null;
 }
 
 /** Everything this draw produced, for the caller to hold and to read. */
@@ -135,6 +180,8 @@ export interface PlotSamplingResult {
    * not set the width of the cells either — see `plotSampling`.
    */
   readonly histogram: Histogram | null;
+  /** The three numbers the marks drew, or null when no mark was asked for. */
+  readonly marks: SamplingMarks | null;
 }
 
 /** R: `sample_size = 10` in `interactive_sampling()`. */
@@ -164,6 +211,23 @@ const BAR_COLOR = "lightgray";
 const CURVE_WIDTH = 2;
 /** R: `lwd = 1` on each sample's own curve. */
 const SAMPLE_CURVE_WIDTH = 1;
+
+/**
+ * The mark of the chosen statistic.
+ *
+ * The color is the one the library already gives to a quantity computed from
+ * data, as on the regression line and the logit curve. Each sample's own mark
+ * takes the same color at half alpha and the thinner line, which is what the
+ * per-sample curves do.
+ */
+const MARK_COLOR = "cornflowerblue";
+const SAMPLE_MARK_COLOR = "rgba(100, 149, 237, 0.5)";
+const MARK_WIDTH = 2;
+const SAMPLE_MARK_WIDTH = 1;
+/** Half the height of the tick at each end of a span, in pixels. */
+const MARK_TICK = 4;
+/** The height and the depth of the caret that stands for a mark off the window. */
+const CARET_SIZE = 6;
 
 /**
  * Panel labels.
@@ -250,6 +314,7 @@ export function plotSampling(
     rng = seededRng(Math.floor(Math.random() * 0x100000000)),
     state = null,
     densityWindow = "data",
+    mark,
   } = options;
 
   const window = frozenWindow(population, state);
@@ -260,6 +325,9 @@ export function plotSampling(
     ? drawSamples(rng, population, { sampleSize, reps, theta })
     : { samples: [] as readonly (readonly number[])[], thetas: [] as readonly number[] };
   const sampleTheta = [...(state?.sampleTheta ?? []), ...draw.thetas];
+
+  const pooled = draw.samples.flat();
+  const marks = markNumbers(mark, theta, pooled, sampleTheta);
 
   clearSurface(ctx, width, height);
 
@@ -272,9 +340,12 @@ export function plotSampling(
     drawable ? kernelDensity(population, grid) : null,
     [],
     "Population Distribution",
+    populationMarks(mark),
+    mark !== undefined && mark.populationValue === null
+      ? `no true ${mark.label}`
+      : null,
   );
 
-  const pooled = draw.samples.flat();
   drawDensityPanel(
     ctx,
     width,
@@ -286,6 +357,8 @@ export function plotSampling(
       .filter((sample) => sample.length >= 2)
       .map((sample) => kernelDensity(sample, grid)),
     "Sample Distribution",
+    sampleMarks(mark, draw.samples, draw.thetas, pooled, marks),
+    null,
   );
 
   // Only the statistics inside the window are binned. R bins the whole pile,
@@ -298,14 +371,113 @@ export function plotSampling(
     (theta) => theta >= window.min && theta <= window.max,
   );
   const counted = countable.length > 0 ? histogram(countable) : null;
-  drawStatisticPanel(ctx, width, height, window, counted, sampleTheta.length);
+  drawStatisticPanel(
+    ctx,
+    width,
+    height,
+    window,
+    counted,
+    sampleTheta.length,
+    // The third panel's axis holds the value of the statistic itself, so the
+    // pile average marks a place there even when the statistic is a spread.
+    marks === null || marks.pile === null
+      ? []
+      : [{ kind: "location", value: marks.pile, center: 0, faint: false }],
+  );
 
   return {
     state: { xMin: window.min, xMax: window.max, sampleTheta },
     samples: draw.samples,
     thetas: draw.thetas,
     histogram: counted,
+    marks,
   };
+}
+
+/** One mark to draw in one panel. */
+interface PanelMark {
+  /** A place on the axis, or a distance from a center. */
+  readonly kind: "location" | "spread";
+  /** The value of the statistic. */
+  readonly value: number;
+  /** Where a span hangs from. A location mark ignores it. */
+  readonly center: number;
+  /** A per-sample mark, which draws thinner and paler. */
+  readonly faint: boolean;
+}
+
+/**
+ * Work out the three numbers the marks report.
+ *
+ * The population's value is the caller's. The sample's value is the statistic
+ * of this call's pooled sample, which is the curve the middle panel draws
+ * solid. The pile's value averages every statistic drawn so far.
+ */
+function markNumbers(
+  mark: SamplingMarkOptions | undefined,
+  theta: (sample: readonly number[]) => number,
+  pooled: readonly number[],
+  sampleTheta: readonly number[],
+): SamplingMarks | null {
+  if (mark === undefined) {
+    return null;
+  }
+  return {
+    population: mark.populationValue,
+    sample: pooled.length > 0 ? theta(pooled) : null,
+    pile: sampleTheta.length > 0 ? mean(sampleTheta) : null,
+  };
+}
+
+/** The mark the population panel draws, if the population has one. */
+function populationMarks(
+  mark: SamplingMarkOptions | undefined,
+): readonly PanelMark[] {
+  if (mark === undefined || mark.populationValue === null) {
+    return [];
+  }
+  if (mark.kind === "location") {
+    return [
+      { kind: "location", value: mark.populationValue, center: 0, faint: false },
+    ];
+  }
+  const center = mark.populationCenter;
+  if (center === null || center === undefined) {
+    return [];
+  }
+  return [{ kind: "spread", value: mark.populationValue, center, faint: false }];
+}
+
+/**
+ * The marks the middle panel draws: one faint mark per sample of this call,
+ * and one solid mark for the pooled sample. The solid one is last, so it lands
+ * on top of the faint ones. With one repetition the two coincide.
+ */
+function sampleMarks(
+  mark: SamplingMarkOptions | undefined,
+  samples: readonly (readonly number[])[],
+  thetas: readonly number[],
+  pooled: readonly number[],
+  marks: SamplingMarks | null,
+): readonly PanelMark[] {
+  if (mark === undefined || marks === null || marks.sample === null) {
+    return [];
+  }
+  const perSample = samples.map((sample, index) => ({
+    kind: mark.kind,
+    value: thetas[index] as number,
+    center: sample.length > 0 ? mean(sample) : 0,
+    faint: true,
+  }));
+  return [
+    ...perSample,
+    {
+      kind: mark.kind,
+      value: marks.sample,
+      center: pooled.length > 0 ? mean(pooled) : 0,
+      faint: false,
+    },
+  ];
 }
 
 /**
@@ -346,6 +518,8 @@ function drawDensityPanel(
   main: KernelDensityEstimate | null,
   perSample: readonly KernelDensityEstimate[],
   label: string,
+  marks: readonly PanelMark[],
+  note: string | null,
 ): void {
   const peak = main === null ? 1 : highestOf(main.y);
   const scale = samplingScale(width, height, panel, window, peak);
@@ -353,29 +527,42 @@ function drawDensityPanel(
   // The label goes on even when there is no curve under it, so an empty
   // picture still says which panel is which.
   drawLabel(ctx, scale, [label], peak / 2, LABEL_FONT);
-
-  if (main === null) {
-    return;
+  if (note !== null) {
+    drawMarkNote(ctx, scale, note, peak / 2);
   }
 
-  // R plots the pooled curve, draws the per-sample curves over it, then
-  // strokes the pooled curve again to bring it back to the front.
-  drawCurve(ctx, scale, main, CURVE_COLOR, CURVE_WIDTH, panel === "population");
-  for (const estimate of perSample) {
+  if (main !== null) {
+    // R plots the pooled curve, draws the per-sample curves over it, then
+    // strokes the pooled curve again to bring it back to the front.
     drawCurve(
       ctx,
       scale,
-      estimate,
-      SAMPLE_CURVE_COLOR,
-      SAMPLE_CURVE_WIDTH,
-      false,
+      main,
+      CURVE_COLOR,
+      CURVE_WIDTH,
+      panel === "population",
     );
+    for (const estimate of perSample) {
+      drawCurve(
+        ctx,
+        scale,
+        estimate,
+        SAMPLE_CURVE_COLOR,
+        SAMPLE_CURVE_WIDTH,
+        false,
+      );
+    }
+    if (panel === "samples") {
+      // R's second `lines(samd, ...)`. It belongs to this panel alone: the
+      // population panel is drawn once, and re-stroking it would put a solid
+      // curve over the dotted one.
+      drawCurve(ctx, scale, main, CURVE_COLOR, CURVE_WIDTH, false);
+    }
   }
-  if (panel === "samples") {
-    // R's second `lines(samd, ...)`. It belongs to this panel alone: the
-    // population panel is drawn once, and re-stroking it would put a solid
-    // curve over the dotted one.
-    drawCurve(ctx, scale, main, CURVE_COLOR, CURVE_WIDTH, false);
+
+  // The marks go last, so they sit on top of every curve.
+  for (const mark of marks) {
+    drawMark(ctx, scale, window, mark);
   }
 }
 
@@ -387,6 +574,7 @@ function drawStatisticPanel(
   window: Extent,
   counted: Histogram | null,
   drawnSoFar: number,
+  marks: readonly PanelMark[],
 ): void {
   const tallest = counted === null ? 1 : highestOf(counted.counts);
   const scale = samplingScale(width, height, "statistic", window, tallest);
@@ -394,6 +582,10 @@ function drawStatisticPanel(
 
   if (counted !== null) {
     drawBars(ctx, scale, counted);
+  }
+
+  for (const mark of marks) {
+    drawMark(ctx, scale, window, mark);
   }
 
   // R: paste("Sampling Statistic", "\n(", length(sample_theta), ")"), whose
@@ -457,6 +649,152 @@ function drawBars(ctx: Context2D, scale: Scale, counted: Histogram): void {
     const top = scale.toPixelY(count);
     ctx.fillRect(left, top, right - left, foot - top);
   });
+  ctx.restore();
+}
+
+/**
+ * Draw one mark on one panel.
+ *
+ * A location mark is a vertical line at its value. A spread is a span from its
+ * center out to that distance on each side, with a tick at each end, because a
+ * distance drawn as a place says nothing.
+ *
+ * A value outside the frozen window gets a caret at that edge instead. The
+ * window belongs to the population and never moves, so a mark can fall off the
+ * picture. A clipped line and an absent line look the same, and a population
+ * whose statistic does not settle produces both.
+ */
+function drawMark(
+  ctx: Context2D,
+  scale: Scale,
+  window: Extent,
+  mark: PanelMark,
+): void {
+  const color = mark.faint ? SAMPLE_MARK_COLOR : MARK_COLOR;
+  const lineWidth = mark.faint ? SAMPLE_MARK_WIDTH : MARK_WIDTH;
+
+  if (mark.kind === "location") {
+    if (isInside(window, mark.value)) {
+      drawMarkLine(ctx, scale, mark.value, color, lineWidth);
+    } else {
+      drawCaret(ctx, scale, mark.value > window.max, color);
+    }
+    return;
+  }
+
+  const low = mark.center - mark.value;
+  const high = mark.center + mark.value;
+  drawMarkSpan(ctx, scale, low, high, color, lineWidth);
+  if (!isInside(window, low)) {
+    drawCaret(ctx, scale, false, color);
+  }
+  if (!isInside(window, high)) {
+    drawCaret(ctx, scale, true, color);
+  }
+}
+
+/** Is a value inside the frozen window? */
+function isInside(window: Extent, value: number): boolean {
+  return value >= window.min && value <= window.max;
+}
+
+/** Draw a vertical line the full height of one panel. */
+function drawMarkLine(
+  ctx: Context2D,
+  scale: Scale,
+  value: number,
+  color: string,
+  lineWidth: number,
+): void {
+  const { area } = scale;
+  const px = scale.toPixelX(value);
+
+  ctx.save();
+  clipToArea(ctx, area);
+  ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(px, area.top);
+  ctx.lineTo(px, area.bottom);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Draw a horizontal span across the middle of one panel, ticked at each end. */
+function drawMarkSpan(
+  ctx: Context2D,
+  scale: Scale,
+  low: number,
+  high: number,
+  color: string,
+  lineWidth: number,
+): void {
+  const { area } = scale;
+  const y = (area.top + area.bottom) / 2;
+  const left = scale.toPixelX(low);
+  const right = scale.toPixelX(high);
+
+  ctx.save();
+  clipToArea(ctx, area);
+  ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(left, y);
+  ctx.lineTo(right, y);
+  ctx.moveTo(left, y - MARK_TICK);
+  ctx.lineTo(left, y + MARK_TICK);
+  ctx.moveTo(right, y - MARK_TICK);
+  ctx.lineTo(right, y + MARK_TICK);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Draw a triangle at one edge of a panel, pointing out of the window. */
+function drawCaret(
+  ctx: Context2D,
+  scale: Scale,
+  atRight: boolean,
+  color: string,
+): void {
+  const { area } = scale;
+  const y = (area.top + area.bottom) / 2;
+  const tip = atRight ? area.right : area.left;
+  const base = atRight ? tip - CARET_SIZE : tip + CARET_SIZE;
+
+  ctx.save();
+  clipToArea(ctx, area);
+  ctx.setLineDash([]);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(tip, y);
+  ctx.lineTo(base, y - CARET_SIZE / 2);
+  ctx.lineTo(base, y + CARET_SIZE / 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * Write the note that says the population has no such statistic.
+ *
+ * It goes under the panel's own label, at the same left edge, so the reader
+ * finds it where the panel is named. It takes the mark color, because it
+ * stands in place of the mark.
+ */
+function drawMarkNote(
+  ctx: Context2D,
+  scale: Scale,
+  note: string,
+  at: number,
+): void {
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.fillStyle = MARK_COLOR;
+  ctx.font = COUNT_FONT;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(note, scale.area.left, scale.toPixelY(at) + LABEL_LINE_HEIGHT);
   ctx.restore();
 }
 
