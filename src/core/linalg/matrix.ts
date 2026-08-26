@@ -25,6 +25,13 @@
  * `cbind(v, v)`.
  */
 
+import {
+  frameRows,
+  numericColumns,
+  requireNumericColumn,
+  type DataFrame,
+} from "../frame";
+
 /** Row names and column names, either of which R may leave `NULL`. */
 export type Dimnames = readonly [
   readonly string[] | null,
@@ -297,4 +304,27 @@ export function toRows(m: Matrix): number[][] {
 /** The matrix as an array of columns. */
 export function toColumns(m: Matrix): number[][] {
   return Array.from({ length: m.ncol }, (_, j) => column(m, j));
+}
+
+/**
+ * R's `as.matrix()` of a data frame: the numeric columns side by side, with
+ * the column names carried. The natural way into `cov`, `prcomp` and
+ * `matmul` from a column-keyed frame.
+ *
+ * @param data The frame.
+ * @param columns The columns to take, in order. By default every numeric
+ *   column, in frame order — R's `Filter(is.numeric, data)`.
+ * @returns The matrix, `frameRows(data)` by `columns.length`, with the
+ *   column names as its column names.
+ * @throws RangeError If a named column is absent or not numeric (through
+ *   `requireNumericColumn`), or if the frame is ragged.
+ */
+export function fromFrame(data: DataFrame, columns?: readonly string[]): Matrix {
+  const nrow = frameRows(data);
+  const names = columns ?? numericColumns(data);
+  const buffer = new Float64Array(nrow * names.length);
+  names.forEach((name, j) => {
+    buffer.set(requireNumericColumn(data, name, "columns"), j * nrow);
+  });
+  return make(nrow, names.length, buffer, names.length === 0 ? null : [null, [...names]]);
 }

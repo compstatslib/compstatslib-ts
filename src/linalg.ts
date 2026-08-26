@@ -17,6 +17,7 @@ export {
   at,
   column,
   fromColumns,
+  fromFrame,
   fromRows,
   matrix,
   row,
@@ -70,6 +71,12 @@ export type { ModelMatrix, ModelSpec, Term } from "./core/linalg/modelMatrix";
 
 export { lm } from "./core/linalg/lm";
 export type { FStatistic, LmFit, LmOptions } from "./core/linalg/lm";
+
+export { cor, cov, variance } from "./core/linalg/cov";
+export { eigenSymmetric, isSymmetric } from "./core/linalg/eigen";
+export type { SymmetricEigen } from "./core/linalg/eigen";
+export { prcomp } from "./core/linalg/prcomp";
+export type { Prcomp, PrcompOptions } from "./core/linalg/prcomp";
 
 export {
   add,

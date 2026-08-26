@@ -14,6 +14,7 @@ const EXPORTED = [
   "matrix",
   "fromRows",
   "fromColumns",
+  "fromFrame",
   "at",
   "row",
   "column",
@@ -52,6 +53,13 @@ const EXPORTED = [
   "lookup",
   "modelMatrix",
   "lm",
+  // statistics
+  "cov",
+  "cor",
+  "variance",
+  "eigenSymmetric",
+  "isSymmetric",
+  "prcomp",
   // vector
   "add",
   "sub",
