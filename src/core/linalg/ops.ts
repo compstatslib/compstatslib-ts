@@ -179,8 +179,10 @@ function asRow(value: readonly number[]): Matrix {
 /**
  * Tell a matrix from a vector by shape, and refuse anything else — a typed
  * array or a stray object — with a TypeError rather than a wrong shape.
+ *
+ * @internal Shared with the other linalg modules; not part of the entry.
  */
-function isMatrix(value: MatrixOrVector): value is Matrix {
+export function isMatrix(value: MatrixOrVector): value is Matrix {
   if (Array.isArray(value)) {
     return false;
   }

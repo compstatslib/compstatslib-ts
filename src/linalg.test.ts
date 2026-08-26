@@ -29,6 +29,24 @@ const EXPORTED = [
   "rbind",
   "diag",
   "identity",
+  // qr
+  "DEFAULT_QR_TOLERANCE",
+  "qr",
+  "qrCoef",
+  "qrFitted",
+  "qrResid",
+  "qrQty",
+  "qrQy",
+  "qrQ",
+  "qrR",
+  // lu
+  "DEFAULT_SOLVE_TOLERANCE",
+  "lu",
+  "solve",
+  "det",
+  "determinant",
+  "rcond",
+  "matrixNorm",
   // vector
   "add",
   "sub",
@@ -43,7 +61,8 @@ const EXPORTED = [
 describe("@compstats/core/linalg", () => {
   test("exports every documented function", () => {
     EXPORTED.forEach((name) => {
-      expect(typeof linalg[name]).toBe("function");
+      const value = linalg[name];
+      expect(typeof value === "function" || typeof value === "number").toBe(true);
     });
   });
 

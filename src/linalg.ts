@@ -39,6 +39,30 @@ export {
 export type { MatrixOrVector } from "./core/linalg/ops";
 
 export {
+  DEFAULT_QR_TOLERANCE,
+  qr,
+  qrCoef,
+  qrFitted,
+  qrQ,
+  qrQty,
+  qrQy,
+  qrR,
+  qrResid,
+} from "./core/linalg/qr";
+export type { QrDecomposition, QrOptions } from "./core/linalg/qr";
+
+export {
+  DEFAULT_SOLVE_TOLERANCE,
+  det,
+  determinant,
+  lu,
+  matrixNorm,
+  rcond,
+  solve,
+} from "./core/linalg/lu";
+export type { LuDecomposition, MatrixNormType, SolveOptions } from "./core/linalg/lu";
+
+export {
   add,
   cosine,
   div,
