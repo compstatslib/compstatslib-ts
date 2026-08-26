@@ -62,6 +62,15 @@ export {
 } from "./core/linalg/lu";
 export type { LuDecomposition, MatrixNormType, SolveOptions } from "./core/linalg/lu";
 
+export { lookup, namedVector } from "./core/linalg/namedVector";
+export type { NamedVector } from "./core/linalg/namedVector";
+
+export { modelMatrix } from "./core/linalg/modelMatrix";
+export type { ModelMatrix, ModelSpec, Term } from "./core/linalg/modelMatrix";
+
+export { lm } from "./core/linalg/lm";
+export type { FStatistic, LmFit, LmOptions } from "./core/linalg/lm";
+
 export {
   add,
   cosine,

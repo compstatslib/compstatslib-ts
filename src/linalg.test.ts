@@ -47,6 +47,11 @@ const EXPORTED = [
   "determinant",
   "rcond",
   "matrixNorm",
+  // model
+  "namedVector",
+  "lookup",
+  "modelMatrix",
+  "lm",
   // vector
   "add",
   "sub",
