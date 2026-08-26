@@ -20,8 +20,8 @@
  * regenerated** — the draw used `set.seed(42)` under R's own generator, so a
  * JavaScript regeneration would produce different numbers and silently change
  * every default demo. Source of the printed values:
- * `.claude/plans/moderation-data.tsv`, checked against the column checksums of
- * `.claude/plans/moderation-fixtures.md` in `moderationData.test.ts`.
+ * `.claude/plans/001-PLAN-port/moderation-data.tsv`, checked against the column checksums of
+ * `.claude/plans/001-PLAN-port/moderation-fixtures.md` in `moderationData.test.ts`.
  *
  * The columns are in the order of the R data frame — `y, x, z, w`, not
  * alphabetical and not `x, y, z`. That order is load-bearing: `plot_scatter3d()`

@@ -271,15 +271,36 @@ Bun specifics that matter here:
 ## Plans
 
 Planning and working docs live in `.claude/plans/` (gitignored; synced across
-machines via Sideways when configured). Name each plan `PLAN-NNN-name.ext`
-where `NNN` is a zero-padded sequence number starting at `001` and `name` is a
-short kebab-case slug — e.g. `PLAN-001-onboard.html`,
-`PLAN-002-refactor-gateway.md`. The number strictly increments and is never
-reused; the extension may be `.md` or `.html`. Before creating a new plan, list
-`.claude/plans/` and use the next unused number.
+machines via Sideways when configured). Plans never merge into the repo.
 
-Branch-scoped working plans from the `ray-branch-plan` skill are named
-`PLAN.<branch>.md` and coexist with the enumerated durable plans above.
+**One folder per work stream**, named `NNN-PURPOSE-slug`:
+
+- `NNN` — a zero-padded sequence number starting at `001`. It strictly
+  increments and is never reused. Before creating a new plan, list
+  `.claude/plans/` and take the next unused number.
+- `PURPOSE` — an uppercase tag for the kind of document that started the
+  stream: `PLAN`, `BUGFIX`, `REFACTOR`, `HOTFIX`. It does not change when a
+  second kind of document joins the folder.
+- `slug` — a short kebab-case name, normally the branch name with `/` replaced
+  by `-` and an owner prefix such as `ray/` dropped.
+
+Inside the folder, the main document takes the name of its kind (`PLAN.md`,
+`BUGFIX.md`). When a folder holds two or more of these, prefix each with a
+letter giving the reading order (`a-PLAN.md`, `b-BUGFIX.md`). Supporting files
+keep a kind tag and take no letter (`SKETCHES.html`, `regression-fixtures.md`).
+A reference inside one folder uses the bare filename; a reference to another
+folder uses the full path from the repository root.
+
+```text
+001-PLAN-port/              the port (closed); also holds the fixture docs
+002-PLAN-initial-release/   the first npm publish (closed)
+003-PLAN-linalg/            active
+```
+
+Source comments cite fixture documents by full path, e.g.
+`.claude/plans/001-PLAN-port/regression-fixtures.md`. The canonical
+generators are the R scripts in `../compstatslib/conformance-fixtures/`; the
+documents are the captured output.
 
 ## Git Workflow
 

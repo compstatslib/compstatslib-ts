@@ -28,7 +28,7 @@
  * column and no doc example uses one, so this port supports the numeric
  * branch alone and refuses the rest, rather than shipping three rules nothing
  * exercises. The other rules are recorded in
- * `.claude/plans/moderation-fixtures.md` section 4 if they are ever wanted.
+ * `.claude/plans/001-PLAN-port/moderation-fixtures.md` section 4 if they are ever wanted.
  *
  * **Missing values leave the fit, as R's do.** `lm()` drops incomplete rows
  * through `na.omit` and `hold_value()` averages with `na.rm = TRUE`; this

@@ -11,9 +11,9 @@
  *
  * Sources:
  *
- * - `.claude/plans/logit-fixtures.md`, section 5 (weighted OLS fixtures) and
+ * - `.claude/plans/001-PLAN-port/logit-fixtures.md`, section 5 (weighted OLS fixtures) and
  *   section 4 (the `glm.fit` iteration-1 weighted solve).
- * - `.claude/plans/regression-fixtures.md` (the slice-1 simple-regression
+ * - `.claude/plans/001-PLAN-port/regression-fixtures.md` (the slice-1 simple-regression
  *   fixtures, reused here for the matrix-versus-scalar agreement test that
  *   question Q6 of the port plan asks for).
  * - The R script below, run for this task, which covers rank deficiency,

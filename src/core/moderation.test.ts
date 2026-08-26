@@ -5,7 +5,7 @@
  *
  * Every expected value below comes from R 4.5.3, printed with
  * `sprintf("%.17g", x)`. Do not edit these numbers by hand.
- * Source: `.claude/plans/moderation-fixtures.md`, sections 2 to 4.
+ * Source: `.claude/plans/001-PLAN-port/moderation-fixtures.md`, sections 2 to 4.
  *
  * R script that produced them, abridged to what these tests assert:
  *

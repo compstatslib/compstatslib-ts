@@ -4,7 +4,7 @@
  *
  * Every expected value below comes from R 4.5.3, printed at full double
  * precision with `sprintf("%.17g", x)`. Do not edit these numbers by hand.
- * Source: `.claude/plans/tdist-fixtures.md`, Section 1 (Central t).
+ * Source: `.claude/plans/001-PLAN-port/tdist-fixtures.md`, Section 1 (Central t).
  *
  * The R script that produced the values (Section 1 part only):
  *
