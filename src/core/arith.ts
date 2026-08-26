@@ -131,6 +131,11 @@ export function meanAbsoluteDeviation(values: readonly number[]): number {
  * overflow.
  */
 export function fusedMultiplyAdd(a: number, b: number, c: number): number {
+  // A zero product adds exactly, and only the plain form keeps the sign of
+  // a zero sum the way the hardware instruction does: fma(-1, 0, -0) is -0.
+  if (a * b === 0) {
+    return c + a * b;
+  }
   const [product, productError] = twoProduct(a, b);
   const [sum, sumError] = twoSum(c, product);
   const rounded = sum + (sumError + productError);

@@ -14,7 +14,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { matrix, type Matrix } from "./matrix";
-import { cbind, crossprod, matmul } from "./ops";
+import { cbind, crossprod, identity, matmul } from "./ops";
 import {
   qr,
   qrCoef,
@@ -304,8 +304,8 @@ describe("qr() — refusals", () => {
     expect(() => qrQty(q, [1, 2, 3])).toThrow(RangeError);
   });
 
-  test("a tolerance that is not a positive number", () => {
-    expect(() => qr(X, { tolerance: 0 })).toThrow(RangeError);
+  test("a tolerance that is negative or NaN", () => {
+    expect(() => qr(X, { tolerance: -1 })).toThrow(RangeError);
     expect(() => qr(X, { tolerance: Number.NaN })).toThrow(RangeError);
   });
 });
@@ -318,5 +318,106 @@ describe("qr() — long inputs", () => {
     expect(q.rank).toBe(1);
     // The column norm is sqrt(n); the first R entry is -sqrt(n).
     expect(q.qr.data[0]).toBe(-Math.sqrt(n));
+  });
+});
+
+describe("qr() — fixture 2i, names, a matrix y, tol = 0", () => {
+  const nm = matrix([1, 2, 3, 4, 5, 6], {
+    nrow: 3,
+    dimnames: [
+      ["r1", "r2", "r3"],
+      ["a", "b"],
+    ],
+  });
+  const q = qr(nm);
+  const Y2 = matrix([1, 2, 3, 2, 3, 5], { nrow: 3, dimnames: [null, ["y1", "y2"]] });
+
+  test("row names travel onto the compact form and qrR, not onto qrQ", () => {
+    expect(q.qr.dimnames).toEqual([
+      ["r1", "r2", "r3"],
+      ["a", "b"],
+    ]);
+    expect(qrR(q).dimnames).toEqual([
+      ["r1", "r2"],
+      ["a", "b"],
+    ]);
+    expect(qrQ(q).dimnames).toBeNull();
+    const wide = matrix([1, 2, 3, 4, 5, 6], {
+      nrow: 2,
+      dimnames: [
+        ["r1", "r2"],
+        ["a", "b", "c"],
+      ],
+    });
+    expect(qrR(qr(wide)).dimnames).toEqual([
+      ["r1", "r2"],
+      ["a", "b", "c"],
+    ]);
+  });
+
+  test("qrCoef with a matrix y gives a matrix named by both", () => {
+    const coef = qrCoef(q, Y2);
+    expect([coef.nrow, coef.ncol]).toEqual([2, 2]);
+    expect(coef.dimnames).toEqual([
+      ["a", "b"],
+      ["y1", "y2"],
+    ]);
+    expect(columnMajor(coef)).toEqual([
+      0.99999999999999944, 2.4620206472929435e-16, 1.3888888888888884,
+      0.11111111111111123,
+    ]);
+  });
+
+  test("qrFitted, qrResid, qrQty, qrQy with a matrix y", () => {
+    expect(columnMajor(qrFitted(q, Y2))).toEqual([
+      0.99999999999999967, 2, 2.9999999999999996, 1.8333333333333326,
+      3.333333333333333, 4.8333333333333321,
+    ]);
+    expect(qrFitted(q, Y2).dimnames).toEqual([null, ["y1", "y2"]]);
+    expect(columnMajor(qrResid(q, Y2))).toEqual([
+      9.2325774273485333e-17, -1.8465154854697077e-16, 9.232577427348542e-17,
+      0.16666666666666663, -0.33333333333333343, 0.16666666666666671,
+    ]);
+    expect(columnMajor(qrQty(q, Y2))).toEqual([
+      -3.7416573867739413, 4.8353125623274688e-16, 2.2615103707741747e-16,
+      -6.1470085639857599, 0.21821789023599272, 0.40824829046386307,
+    ]);
+    expect(columnMajor(qrQy(q, Y2))).toEqual([
+      2.7032267513671044, -2.5475764461360431, -0.44991041528965309,
+      4.1253336513263754, -4.4968742015803516, -0.87163334057118458,
+    ]);
+  });
+
+  test("an aliased column reads NaN in a matrix result, R's NA", () => {
+    const dup = qr(cbind([1, 1, 1, 1], [1, 1, 1, 1], x));
+    const coef = qrCoef(dup, matrix([2, 4, 6, 8, 1, 1, 2, 3], { nrow: 4, dimnames: [null, ["y1", "y2"]] }));
+    expect(coef.dimnames).toEqual([null, ["y1", "y2"]]);
+    expect(columnMajor(coef)).toEqual([
+      1.3457943925233646, Number.NaN, 0.85981308411214952, 0.43925233644859796,
+      Number.NaN, 0.30841121495327106,
+    ]);
+  });
+
+  test("qrQ is qrQy of the identity", () => {
+    expect(columnMajor(qrQ(q))).toEqual(columnMajor(qrQy(q, identity(3))).slice(0, 6));
+  });
+
+  test("tol = 0 aliases nothing, as R's does", () => {
+    expect(qr(cbind([1, 1, 1, 1], [1, 1, 1, 1], x), { tolerance: 0 }).rank).toBe(3);
+    expect(() => qr(X, { tolerance: -1 })).toThrow(RangeError);
+  });
+
+  test("a NaN or Inf entry is refused in R's words", () => {
+    expect(() => qr(matrix([1, Number.NaN, 3, 4], { nrow: 2 }))).toThrow(
+      /NA\/NaN\/Inf in foreign function call \(arg 1\)/,
+    );
+    expect(() => qr(matrix([1, Number.POSITIVE_INFINITY, 3, 4], { nrow: 2 }))).toThrow(RangeError);
+  });
+
+  test("a matrix y of the wrong rows, and a non-matrix, are refused", () => {
+    expect(() => qrCoef(q, matrix([1, 2, 3, 4], { nrow: 2 }))).toThrow(
+      /'qr' and 'y' must have the same number of rows/,
+    );
+    expect(() => qr([[1]] as unknown as Matrix)).toThrow(TypeError);
   });
 });

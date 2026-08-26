@@ -14,17 +14,19 @@
  * The 2 × 2 special case in `../matrix.ts` is the same algorithm and the
  * two agree exactly on every fixture of the interactive demo.
  *
- * Two departures from R, both stated where they apply: `rcond` is the exact
- * one-norm ratio rather than `dgecon`'s estimate, and a vector right-hand
- * side comes back as a plain array rather than R's named vector.
+ * Three departures from R, each stated where it applies: `rcond` is the
+ * exact one-norm ratio rather than `dgecon`'s estimate; a vector right-hand
+ * side comes back as a plain array rather than R's named vector; and a
+ * negative or NaN tolerance is refused where R would skip the check.
  *
  * Index loops throughout: a factorization addresses single entries by
  * position, and this one follows `dgetf2` and `dtrsm` as written.
  */
 
-import { fusedMultiplyAdd, withoutNegativeZero } from "../arith";
+import { fusedMultiplyAdd } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
-import { isMatrix, type MatrixOrVector } from "./ops";
+import { isMatrix, t, type MatrixOrVector } from "./ops";
+import { qr, qrR } from "./qr";
 
 /**
  * The smallest normal double, LAPACK's `dlamch("S")`.
@@ -45,7 +47,9 @@ export interface LuDecomposition {
   /**
    * The row interchanges, LAPACK's `ipiv` **zero-based**: at step `i` row
    * `i` was swapped with row `pivots[i]`. Apply them in order to recover
-   * `P` such that `P A = L U`.
+   * `P` such that `P A = L U`. Plural, and not `pivot` as in
+   * `QrDecomposition`, because this is a list of interchanges rather than
+   * a column order.
    */
   readonly pivots: readonly number[];
   /**
@@ -64,6 +68,7 @@ export interface LuDecomposition {
  *   zero pivot if any. A zero pivot does not stop the factorization, as it
  *   does not in LAPACK.
  * @throws RangeError If the matrix is not square.
+ * @throws TypeError If `a` is not a matrix.
  */
 export function lu(a: Matrix): LuDecomposition {
   requireSquare(a, "a");
@@ -132,7 +137,9 @@ export interface SolveOptions {
   /**
    * The reciprocal condition number below which the system is refused as
    * computationally singular. R's default is `.Machine$double.eps`; zero
-   * skips the check, as it does in R.
+   * skips the check, as it does in R. R also skips it for a negative or
+   * NA `tol`; the port refuses those with a `RangeError` — a deliberate
+   * narrowing, as `matrix()` narrows R's recycling.
    */
   readonly tolerance?: number;
 }
@@ -145,32 +152,40 @@ export const DEFAULT_SOLVE_TOLERANCE = Number.EPSILON;
  * of `a x = b` for a vector, or the solution of `a X = B` for a matrix.
  *
  * @param a The square coefficient matrix.
- * @param b The right-hand side, or undefined for the inverse. A vector gives
- *   a plain array (R names it by the column names of `a`; the port carries
- *   no names on a bare array — plan Q11). A matrix gives a matrix whose row
- *   names are the column names of `a` and whose column names are those of
- *   `b`; the inverse has the column names of `a` as rows and the row names
- *   of `a` as columns, as R's does.
+ * @param b The right-hand side, or the options when only the inverse is
+ *   wanted. A vector gives a plain array (R names it by the column names of
+ *   `a`; the port carries no names on a bare array — plan Q11). A matrix
+ *   gives a matrix whose row names are the column names of `a` and whose
+ *   column names are those of `b`; the inverse has the column names of `a`
+ *   as rows and the row names of `a` as columns, as R's does.
  * @param options The singularity tolerance.
  * @returns The solution.
- * @throws RangeError If `a` is not square, `b` does not conform, the
- *   factorization meets an exactly zero pivot, or the reciprocal condition
- *   number is below the tolerance — each in R's own words.
+ * @throws RangeError If `a` is not square or has no rows, `b` does not
+ *   conform or has no columns, the factorization meets an exactly zero
+ *   pivot, or the reciprocal condition number is below the tolerance —
+ *   each in R's own words. As in R, a non-finite entry in `a` leaves the
+ *   condition unchecked: R's `dgecon` reports a bad norm and `solve()`
+ *   goes on.
+ * @throws TypeError If `a` or `b` is neither a matrix nor an array.
  */
-export function solve(a: Matrix, b?: undefined, options?: SolveOptions): Matrix;
+export function solve(a: Matrix, options?: SolveOptions): Matrix;
 export function solve(a: Matrix, b: readonly number[], options?: SolveOptions): number[];
 export function solve(a: Matrix, b: Matrix, options?: SolveOptions): Matrix;
 export function solve(
   a: Matrix,
-  b?: MatrixOrVector,
-  options: SolveOptions = {},
+  second?: MatrixOrVector | SolveOptions,
+  third: SolveOptions = {},
 ): Matrix | number[] {
+  const [b, options] = splitArguments(second, third);
   const { tolerance = DEFAULT_SOLVE_TOLERANCE } = options;
   if (!(tolerance >= 0)) {
     throw new RangeError(`tolerance must be a non-negative number, got ${tolerance}`);
   }
   requireSquare(a, "a");
   const n = a.nrow;
+  if (n === 0) {
+    throw new RangeError("'a' is 0-diml");
+  }
 
   const rhs: Matrix =
     b === undefined
@@ -178,6 +193,9 @@ export function solve(
       : isMatrix(b)
         ? b
         : make(b.length, 1, Float64Array.from(b), null);
+  if (rhs.ncol === 0) {
+    throw new RangeError("no right-hand side in 'b'");
+  }
   if (rhs.nrow !== n) {
     throw new RangeError(
       `'b' (${rhs.nrow} x ${rhs.ncol}) must be compatible with 'a' (${n} x ${n})`,
@@ -192,8 +210,11 @@ export function solve(
     );
   }
   const solution = substitute(factored, rhs);
-  if (tolerance > 0) {
-    const reciprocal = rcondOf(a, factored);
+  const anorm = oneNorm(a.data, n, n);
+  if (tolerance > 0 && Number.isFinite(anorm)) {
+    // The inverse is the solution itself when that is what was asked for.
+    const inverse = b === undefined ? solution : substitute(factored, identityData(n));
+    const reciprocal = 1 / (anorm * oneNorm(inverse, n, n));
     if (reciprocal < tolerance) {
       throw new RangeError(
         `system is computationally singular: reciprocal condition number = ${formatG(reciprocal)}`,
@@ -216,6 +237,23 @@ export function solve(
   return make(n, rhs.ncol, solution, dimnames);
 }
 
+/** Tell `solve(a, options)` from `solve(a, b, options)`. */
+function splitArguments(
+  second: MatrixOrVector | SolveOptions | undefined,
+  third: SolveOptions,
+): [MatrixOrVector | undefined, SolveOptions] {
+  if (second === undefined) {
+    return [undefined, third];
+  }
+  if (Array.isArray(second) || (typeof second === "object" && "data" in second && "nrow" in second)) {
+    return [second as MatrixOrVector, third];
+  }
+  if (typeof second === "object" && second !== null && !ArrayBuffer.isView(second)) {
+    return [undefined, second as SolveOptions];
+  }
+  throw new TypeError("expected a Matrix, an array of numbers, or the options");
+}
+
 /** The identity as a matrix, the right-hand side of `solve(a)`. */
 function identityData(n: number): Matrix {
   const data = new Float64Array(n * n);
@@ -228,7 +266,9 @@ function identityData(n: number): Matrix {
 /**
  * Solve the factored system against a right-hand side, as `dgetrs` does:
  * the row interchanges applied to `B`, then each column forward through
- * the unit lower triangle and back through the upper one (`dtrsm`).
+ * the unit lower triangle and back through the upper one (`dtrsm`). A zero
+ * entry is skipped as `dtrsm` skips it, which is how a negative zero on
+ * the right-hand side survives, as it does in R.
  */
 function substitute(factored: LuDecomposition, rhs: Matrix): Float64Array {
   const { lu: compact, pivots } = factored;
@@ -266,15 +306,15 @@ function substitute(factored: LuDecomposition, rhs: Matrix): Float64Array {
     }
   }
 
-  // The substitution can leave a zero entry with a sign; R's never carry one.
-  return data.map(withoutNegativeZero);
+  return data;
 }
 
 /**
  * R's `det()`: the determinant, through the factorization and a sum of
- * logarithms, as R computes it.
+ * logarithms, as R computes it. A 0 × 0 matrix has determinant 1, as in R.
  *
  * @throws RangeError If the matrix is not square.
+ * @throws TypeError If `a` is not a matrix.
  */
 export function det(a: Matrix): number {
   const { modulus, sign } = determinant(a);
@@ -287,6 +327,7 @@ export function det(a: Matrix): number {
  * `det()` is a positive zero, as R's is.
  *
  * @throws RangeError If the matrix is not square.
+ * @throws TypeError If `a` is not a matrix.
  */
 export function determinant(a: Matrix): { readonly modulus: number; readonly sign: 1 | -1 } {
   requireSquare(a, "x");
@@ -311,46 +352,69 @@ export function determinant(a: Matrix): { readonly modulus: number; readonly sig
 }
 
 /**
- * The reciprocal condition number in the one-norm, R's `rcond(a)`:
- * `1 / (norm(a) * norm(solve(a)))`, and 0 for an exactly singular matrix.
+ * The reciprocal condition number in the one-norm, R's `rcond(x)`:
+ * `1 / (norm(x) * norm(solve(x)))` for a square matrix, 0 when it is
+ * exactly singular, and Infinity for a 0 × 0 matrix. A matrix that is not
+ * square goes through the triangular factor of its QR, as R's does
+ * (`rcond(qr.R(qr(x)))`, transposed first when wide).
  *
  * R's `rcond()` and `solve()` read an estimate of this number from LAPACK's
- * `dgecon` rather than computing it. Near the singularity bar the two agree
- * to the last bit — every fixture at the edge does — while for a well
- * conditioned matrix R's estimate can sit a bit or two away, because the
- * estimator only bounds the norm of the inverse from below. `solve()`
- * compares this value with its tolerance, so a matrix R refuses is refused
- * here with the same six-digit number in the message.
+ * `dgecon` rather than computing it, and the port computes it exactly. On
+ * the fixtures the two agree to the last bit for most matrices (3a, 3c, 3d,
+ * 3e, 3i) and differ by one unit in the last place on two (3b, 3h);
+ * `solve()`'s error message matches R's to the six digits it prints on
+ * every singular case pinned. The estimate bounds the norm of the inverse
+ * from below, so R's number is never smaller than the port's.
  *
- * @throws RangeError If the matrix is not square.
+ * @throws RangeError If an entry is not finite — R's "error code -5 from
+ *   Lapack routine 'dgecon()'", because `dgecon` refuses a norm it cannot
+ *   read.
+ * @throws TypeError If `a` is not a matrix.
  */
 export function rcond(a: Matrix): number {
-  requireSquare(a, "x");
+  if (!isMatrix(a)) {
+    throw new TypeError("expected a Matrix");
+  }
+  if (a.nrow !== a.ncol) {
+    return rcond(qrR(qr(a.nrow < a.ncol ? t(a) : a)));
+  }
+  const n = a.nrow;
+  if (n === 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const anorm = oneNorm(a.data, n, n);
+  if (!Number.isFinite(anorm)) {
+    throw new RangeError("error code -5 from Lapack routine 'dgecon()'");
+  }
   const factored = lu(a);
   if (factored.zeroPivot !== null) {
     return 0;
   }
-  return rcondOf(a, factored);
+  return 1 / (anorm * oneNorm(substitute(factored, identityData(n)), n, n));
 }
 
-/** The exact one-norm reciprocal condition number of a factored matrix. */
-function rcondOf(a: Matrix, factored: LuDecomposition): number {
-  const inverse = substitute(factored, identityData(a.nrow));
-  return 1 / (oneNorm(a.data, a.nrow, a.nrow) * oneNorm(inverse, a.nrow, a.nrow));
-}
-
-/** R's `norm()` types. `"O"` is R's default. */
-export type MatrixNormType = "O" | "1" | "I" | "F" | "E" | "M";
+/**
+ * R's `norm()` types. `"O"` is R's default; the letters are accepted in
+ * either case, as R's `lsame` accepts them. R's `"2"`, the spectral norm,
+ * needs a singular value decomposition, which this plan leaves out.
+ */
+export type MatrixNormType = "O" | "1" | "I" | "F" | "E" | "M" | "o" | "i" | "f" | "e" | "m";
 
 /**
  * R's `norm(x, type)`: the one-norm (`"O"` or `"1"`, the largest absolute
  * column sum), the infinity norm (`"I"`, the largest absolute row sum), the
  * Frobenius norm (`"F"` or `"E"`), or the largest absolute entry (`"M"`).
  * Named `matrixNorm` because `norm` in this entry is the vector length.
+ *
+ * @throws RangeError If the type is none of those, in R's words.
+ * @throws TypeError If `a` is not a matrix.
  */
 export function matrixNorm(a: Matrix, type: MatrixNormType = "O"): number {
+  if (!isMatrix(a)) {
+    throw new TypeError("expected a Matrix");
+  }
   const { nrow, ncol, data } = a;
-  switch (type) {
+  switch (type.toUpperCase()) {
     case "O":
     case "1":
       return oneNorm(data, nrow, ncol);
@@ -375,6 +439,10 @@ export function matrixNorm(a: Matrix, type: MatrixNormType = "O"): number {
     }
     case "M":
       return data.reduce((largest, value) => Math.max(largest, Math.abs(value)), 0);
+    default:
+      throw new RangeError(
+        `argument type[1]='${type}' must be one of 'M','1','O','I','F' or 'E'`,
+      );
   }
 }
 
@@ -391,8 +459,11 @@ function oneNorm(data: Float64Array, nrow: number, ncol: number): number {
   return largest;
 }
 
-/** Refuse a matrix that is not square, in R's words for the argument. */
+/** Refuse a non-matrix, then a matrix that is not square, in R's words for the argument. */
 function requireSquare(a: Matrix, name: string): void {
+  if (!isMatrix(a)) {
+    throw new TypeError("expected a Matrix");
+  }
   if (a.nrow !== a.ncol) {
     throw new RangeError(
       name === "a"
@@ -404,25 +475,22 @@ function requireSquare(a: Matrix, name: string): void {
 
 /**
  * C's `%g` with six significant digits, the form R prints a reciprocal
- * condition number in: exponent notation below 1e-4 or from 1e6 up, with
- * trailing zeros dropped and at least two exponent digits.
+ * condition number in: the value rounded to six digits, in exponent
+ * notation when that rounded value's exponent is below -4 or 6 or more,
+ * with trailing zeros dropped and at least two exponent digits.
  */
 function formatG(value: number): string {
   if (value === 0 || !Number.isFinite(value)) {
     return String(value);
   }
-  const exponent = Math.floor(Math.log10(Math.abs(value)));
-  const precise = value.toPrecision(6);
+  // Rounding first, as C does: 9.9999999e-5 is 0.0001, not 1e-04.
+  const [mantissa, power] = value.toExponential(5).split("e") as [string, string];
+  const exponent = Number(power);
+  const trim = (digits: string): string =>
+    digits.includes(".") ? digits.replace(/0+$/, "").replace(/\.$/, "") : digits;
   if (exponent < -4 || exponent >= 6) {
-    const [mantissa, power] = precise.includes("e")
-      ? precise.split("e")
-      : [precise, String(exponent)];
-    const trimmed = (mantissa as string).includes(".")
-      ? (mantissa as string).replace(/0+$/, "").replace(/\.$/, "")
-      : (mantissa as string);
-    const digits = Number(power);
-    const sign = digits < 0 ? "-" : "+";
-    return `${trimmed}e${sign}${String(Math.abs(digits)).padStart(2, "0")}`;
+    const sign = exponent < 0 ? "-" : "+";
+    return `${trim(mantissa)}e${sign}${String(Math.abs(exponent)).padStart(2, "0")}`;
   }
-  return precise.includes(".") ? precise.replace(/0+$/, "").replace(/\.$/, "") : precise;
+  return trim(value.toFixed(Math.max(0, 5 - exponent)));
 }

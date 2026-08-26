@@ -16,7 +16,7 @@
 import { describe, expect, test } from "bun:test";
 import { determinant as determinant2, invertMatrix } from "../matrix";
 import { matrix, type Matrix } from "./matrix";
-import { matmul } from "./ops";
+import { identity, matmul } from "./ops";
 import { det, determinant, lu, matrixNorm, rcond, solve } from "./lu";
 
 function columnMajor(m: Matrix): number[] {
@@ -92,7 +92,11 @@ describe("solve(), det(), rcond() — fixture 3a", () => {
     expect(matrixNorm(S, "O")).toBe(6);
     expect(matrixNorm(S, "I")).toBe(7);
     expect(matrixNorm(S, "M")).toBe(4);
-    expect(matrixNorm(S, "F")).toBe(Math.sqrt(38));
+    expect(matrixNorm(S, "F")).toBe(6.164414002968976);
+    expect(matrixNorm(S, "f")).toBe(6.164414002968976);
+    expect(() => matrixNorm(S, "X" as never)).toThrow(
+      /argument type\[1\]='X' must be one of 'M','1','O','I','F' or 'E'/,
+    );
     expect(Math.abs(rcond(S) - 0.22727272727272729)).toBeLessThanOrEqual(1e-15);
   });
 });
@@ -250,8 +254,8 @@ describe("singular matrices", () => {
 
   test("a caller can raise or drop the bar with the tolerance option", () => {
     const N = matrix([1, 1, 1, 1, 1, 1 + 1e-15, 1, 1 + 1e-15, 1], { nrow: 3 });
-    expect(() => solve(N, undefined, { tolerance: 0 })).not.toThrow();
-    expect(() => solve(S, undefined, { tolerance: 0.5 })).toThrow(/computationally singular/);
+    expect(() => solve(N, { tolerance: 0 })).not.toThrow();
+    expect(() => solve(S, { tolerance: 0.5 })).toThrow(/computationally singular/);
   });
 });
 
@@ -328,7 +332,76 @@ describe("refusals — fixture 3k", () => {
   });
 
   test("a tolerance that is not a non-negative number", () => {
-    expect(() => solve(S, undefined, { tolerance: -1 })).toThrow(RangeError);
-    expect(() => solve(S, undefined, { tolerance: Number.NaN })).toThrow(RangeError);
+    expect(() => solve(S, { tolerance: -1 })).toThrow(RangeError);
+    expect(() => solve(S, { tolerance: Number.NaN })).toThrow(RangeError);
+  });
+});
+
+describe("fixture 3l — the review cases", () => {
+  test("rcond of a non-square matrix goes through the QR's R factor, as R's does", () => {
+    const wide = matrix([1, 2, 3, 4, 5, 6], { nrow: 2 });
+    const tall = matrix([1, 2, 3, 4, 5, 6], { nrow: 3 });
+    expect(Math.abs(rcond(wide) - 0.044386078648986978)).toBeLessThanOrEqual(1e-14);
+    expect(Math.abs(rcond(tall) - 0.0568380594867905)).toBeLessThanOrEqual(1e-14);
+  });
+
+  test("a 0 x 0 matrix: det 1 and rcond Inf as R's, solve refused in R's words", () => {
+    const empty = matrix([], { nrow: 0, ncol: 0 });
+    expect(det(empty)).toBe(1);
+    expect(rcond(empty)).toBe(Number.POSITIVE_INFINITY);
+    expect(() => solve(empty)).toThrow(/'a' is 0-diml/);
+    expect(() => solve(identity(2), matrix([], { nrow: 2, ncol: 0 }))).toThrow(
+      /no right-hand side in 'b'/,
+    );
+  });
+
+  test("a negative zero on the right-hand side survives, as it does in R", () => {
+    const solved = solve(identity(2), [-0, 1]);
+    expect(solved.map((value) => 1 / value)).toEqual([Number.NEGATIVE_INFINITY, 1]);
+  });
+
+  test("solve(a, options) needs no placeholder for b", () => {
+    const N = matrix([1, 1, 1, 1, 1, 1 + 1e-15, 1, 1 + 1e-15, 1], { nrow: 3 });
+    expect(() => solve(N, { tolerance: 0 })).not.toThrow();
+    expect(columnMajor(solve(S, { tolerance: 0 }))).toEqual(columnMajor(solve(S)));
+  });
+
+  test("the reciprocal condition number prints as C's %g at every exponent", () => {
+    const at = (values: number[]): string => {
+      try {
+        solve(matrix(values, { nrow: 2 }), { tolerance: 1e-3 });
+        return "no error";
+      } catch (error) {
+        return (error as Error).message;
+      }
+    };
+    expect(at([1, 1, 1, 1 + 2e-5])).toMatch(/= 4\.9999e-06$/);
+    expect(at([1, 0, 0, 1.234e-5])).toMatch(/= 1\.234e-05$/);
+    expect(at([1, 0, 0, 9.9999999e-5])).toMatch(/= 0\.0001$/);
+    expect(at([1, 0, 0, 1e-4])).toMatch(/= 0\.0001$/);
+    expect(at([1, 0, 0, 1e-7])).toMatch(/= 1e-07$/);
+    expect(at([1, 0, 0, 1e-5])).toMatch(/= 1e-05$/);
+  });
+
+  test("F5 (1, 1, 1, 1) is exactly singular on both paths", () => {
+    const F5 = matrix([1, 1, 1, 1], { nrow: 2 });
+    expect(lu(F5).zeroPivot).toBe(1);
+    expect(det(F5)).toBe(0);
+    expect(det(F5)).toBe(determinant2({ x1: 1, y1: 1, x2: 1, y2: 1 }));
+    expect(invertMatrix({ x1: 1, y1: 1, x2: 1, y2: 1 }).singularity).toBe("exact");
+    expect(() => solve(F5)).toThrow(/exactly singular: U\[2,2\] = 0/);
+  });
+
+  test("an Inf entry: solve proceeds as R's does; rcond refuses as R's does", () => {
+    const inf = matrix([Number.POSITIVE_INFINITY, 1, 1, 1], { nrow: 2 });
+    expect(columnMajor(solve(inf))).toEqual([0, 0, -0, 1]);
+    expect(() => rcond(inf)).toThrow(/error code -5 from Lapack routine 'dgecon\(\)'/);
+    expect(() => rcond(matrix([1, 1, Number.NaN, 1], { nrow: 2 }))).toThrow(/dgecon/);
+  });
+
+  test("a non-matrix is refused with a TypeError", () => {
+    expect(() => lu([1, 2, 3, 4] as unknown as Matrix)).toThrow(TypeError);
+    expect(() => det({} as unknown as Matrix)).toThrow(TypeError);
+    expect(() => matrixNorm([1] as unknown as Matrix)).toThrow(TypeError);
   });
 });

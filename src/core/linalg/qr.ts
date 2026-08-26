@@ -20,6 +20,7 @@
 
 import { fusedMultiplyAdd } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
+import { isMatrix, type MatrixOrVector } from "./ops";
 
 /** R's `qr()` result. */
 export interface QrDecomposition {
@@ -29,7 +30,12 @@ export interface QrDecomposition {
    * follow the pivot, as R's do.
    */
   readonly qr: Matrix;
-  /** The leading entry of each Householder reflector, R's `qr$qraux`. */
+  /**
+   * R's `qr$qraux`: for each reflected column, the leading entry of its
+   * Householder reflector; for a column never reflected — the trailing
+   * column of a square or wide design, or an aliased column — its remaining
+   * norm, which is what R reports there (fixtures 2b, 2c, 2g).
+   */
   readonly qraux: readonly number[];
   /**
    * The column order after pivoting, R's `qr$pivot` **zero-based**:
@@ -46,7 +52,9 @@ export interface QrOptions {
    * How far a column's norm may collapse before it is aliased: the column is
    * moved to the end when its remaining norm falls below this fraction of
    * its original norm. The default is R's `qr()` and `lm.fit()` default.
-   * `glm.fit()` passes `min(1e-7, epsilon / 1000)`.
+   * `glm.fit()` passes `min(1e-7, epsilon / 1000)`. Zero aliases nothing,
+   * as R's `tol = 0` does; a negative or NaN value is refused, where R
+   * would pass it through — a deliberate narrowing.
    */
   readonly tolerance?: number;
 }
@@ -57,15 +65,26 @@ export const DEFAULT_QR_TOLERANCE = 1e-7;
 /**
  * Factor a matrix, as R's `qr(x, LAPACK = FALSE)` does.
  *
- * @param x The matrix. The function does not modify it.
+ * @param x The matrix. The function does not modify it. Row names travel
+ *   onto the compact form; column names follow the pivot.
  * @param options The rank tolerance.
  * @returns The compact factorization, `qraux`, the pivot, and the rank.
- * @throws RangeError If the tolerance is not a positive number.
+ * @throws RangeError If the tolerance is negative or NaN, or if an entry is
+ *   not finite — R's "NA/NaN/Inf in foreign function call (arg 1)". NaN is
+ *   this library's missing value; a caller drops incomplete rows first, as
+ *   `modelMatrix` does.
+ * @throws TypeError If `x` is not a matrix.
  */
 export function qr(x: Matrix, options: QrOptions = {}): QrDecomposition {
   const { tolerance = DEFAULT_QR_TOLERANCE } = options;
-  if (!(tolerance > 0)) {
-    throw new RangeError(`tolerance must be a positive number, got ${tolerance}`);
+  if (!(tolerance >= 0)) {
+    throw new RangeError(`tolerance must be a non-negative number, got ${tolerance}`);
+  }
+  if (!isMatrix(x)) {
+    throw new TypeError("expected a Matrix");
+  }
+  if (!x.data.every(Number.isFinite)) {
+    throw new RangeError("NA/NaN/Inf in foreign function call (arg 1)");
   }
   const { nrow, ncol } = x;
 
@@ -80,9 +99,12 @@ export function qr(x: Matrix, options: QrOptions = {}): QrDecomposition {
   columns.forEach((column, j) => {
     data.set(column, j * nrow);
   });
+  const rows = x.dimnames?.[0] ?? null;
   const names = x.dimnames?.[1] ?? null;
   const dimnames: Dimnames | null =
-    names === null ? null : [null, pivot.map((from) => names[from] as string)];
+    rows === null && names === null
+      ? null
+      : [rows, names === null ? null : pivot.map((from) => names[from] as string)];
 
   return { qr: make(nrow, ncol, data, dimnames), qraux: householders, pivot, rank };
 }
@@ -91,18 +113,38 @@ export function qr(x: Matrix, options: QrOptions = {}): QrDecomposition {
  * Solve for the coefficients, R's `qr.coef(qr, y)`.
  *
  * @param q The factorization.
- * @param y The response, one value per row.
+ * @param y The response, one value per row — or a matrix with one response
+ *   per column, as R also takes.
  * @returns One coefficient per column of the factored matrix, **in the
- *   original column order**. An aliased column reports null, R's `NA`.
- * @throws RangeError If `y` has the wrong length.
+ *   original column order**, with null for an aliased column (R's `NA`).
+ *   For a matrix `y`, a matrix with one column per response, the factored
+ *   matrix's column names as row names and `y`'s column names as column
+ *   names; an aliased column reads NaN there, since a matrix holds no null.
+ * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrCoef(
-  q: QrDecomposition,
-  y: readonly number[],
-): (number | null)[] {
-  const qty = qrQty(q, y);
-  const solved = backSubstitute(q.qr, qty, q.rank);
+export function qrCoef(q: QrDecomposition, y: readonly number[]): (number | null)[];
+export function qrCoef(q: QrDecomposition, y: Matrix): Matrix;
+export function qrCoef(q: QrDecomposition, y: MatrixOrVector): (number | null)[] | Matrix {
+  if (isMatrix(y)) {
+    requireRows(q, y.nrow);
+    const width = q.qr.ncol;
+    const data = new Float64Array(width * y.ncol);
+    for (let j = 0; j < y.ncol; j++) {
+      const solved = coefficientsOf(q, Array.from(y.data.subarray(j * y.nrow, (j + 1) * y.nrow)));
+      solved.forEach((value, i) => {
+        data[j * width + i] = value ?? Number.NaN;
+      });
+    }
+    return make(width, y.ncol, data, readerDimnames(originalColumnNames(q), y));
+  }
+  requireRows(q, y.length);
+  return coefficientsOf(q, y);
+}
 
+/** The coefficients of one response, in the original column order. */
+function coefficientsOf(q: QrDecomposition, y: readonly number[]): (number | null)[] {
+  const qty = transformed(q, y, true);
+  const solved = backSubstitute(q.qr, qty, q.rank);
   const coefficients = new Array<number | null>(q.qr.ncol).fill(null);
   q.pivot.slice(0, q.rank).forEach((column, position) => {
     coefficients[column] = solved[position] as number;
@@ -110,61 +152,117 @@ export function qrCoef(
   return coefficients;
 }
 
+/** The factored matrix's column names in their original order, if any. */
+function originalColumnNames(q: QrDecomposition): readonly string[] | null {
+  const pivoted = q.qr.dimnames?.[1] ?? null;
+  if (pivoted === null) {
+    return null;
+  }
+  const names = new Array<string>(pivoted.length);
+  q.pivot.forEach((original, position) => {
+    names[original] = pivoted[position] as string;
+  });
+  return names;
+}
+
 /**
  * The fitted values, R's `qr.fitted(qr, y)`: `Q` applied to the first `rank`
- * entries of `Qᵀy`, the rest set to zero.
+ * entries of `Qᵀy`, the rest set to zero. A matrix `y` gives a matrix with
+ * its column names.
  *
- * @throws RangeError If `y` has the wrong length.
+ * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrFitted(q: QrDecomposition, y: readonly number[]): number[] {
-  const qty = qrQty(q, y);
-  return qrQy(q, qty.map((value, index) => (index < q.rank ? value : 0)));
+export function qrFitted(q: QrDecomposition, y: readonly number[]): number[];
+export function qrFitted(q: QrDecomposition, y: Matrix): Matrix;
+export function qrFitted(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
+  return perColumn(q, y, (column) =>
+    transformed(q, transformed(q, column, true).map((value, index) => (index < q.rank ? value : 0)), false),
+  );
 }
 
 /**
  * The residuals, R's `qr.resid(qr, y)`: `Q` applied to `Qᵀy` with its first
- * `rank` entries set to zero.
+ * `rank` entries set to zero. A matrix `y` gives a matrix with its column
+ * names.
  *
- * @throws RangeError If `y` has the wrong length.
+ * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrResid(q: QrDecomposition, y: readonly number[]): number[] {
-  const qty = qrQty(q, y);
-  return qrQy(q, qty.map((value, index) => (index < q.rank ? 0 : value)));
+export function qrResid(q: QrDecomposition, y: readonly number[]): number[];
+export function qrResid(q: QrDecomposition, y: Matrix): Matrix;
+export function qrResid(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
+  return perColumn(q, y, (column) =>
+    transformed(q, transformed(q, column, true).map((value, index) => (index < q.rank ? 0 : value)), false),
+  );
 }
 
 /**
- * `Qᵀy`, R's `qr.qty(qr, y)`: the reflectors applied first to last.
+ * `Qᵀy`, R's `qr.qty(qr, y)`: the reflectors applied first to last. A
+ * matrix `y` gives a matrix with its column names.
  *
- * @throws RangeError If `y` has the wrong length.
+ * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrQty(q: QrDecomposition, y: readonly number[]): number[] {
-  requireRows(q, y);
+export function qrQty(q: QrDecomposition, y: readonly number[]): number[];
+export function qrQty(q: QrDecomposition, y: Matrix): Matrix;
+export function qrQty(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
+  return perColumn(q, y, (column) => transformed(q, column, true));
+}
+
+/**
+ * `Qy`, R's `qr.qy(qr, y)`: the reflectors applied last to first. A matrix
+ * `y` gives a matrix with its column names.
+ *
+ * @throws RangeError If `y` has the wrong number of rows.
+ */
+export function qrQy(q: QrDecomposition, y: readonly number[]): number[];
+export function qrQy(q: QrDecomposition, y: Matrix): Matrix;
+export function qrQy(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
+  return perColumn(q, y, (column) => transformed(q, column, false));
+}
+
+/** Apply a vector reader to a vector, or to each column of a matrix. */
+function perColumn(
+  q: QrDecomposition,
+  y: MatrixOrVector,
+  read: (column: readonly number[]) => number[],
+): number[] | Matrix {
+  if (isMatrix(y)) {
+    requireRows(q, y.nrow);
+    const data = new Float64Array(y.nrow * y.ncol);
+    for (let j = 0; j < y.ncol; j++) {
+      data.set(read(Array.from(y.data.subarray(j * y.nrow, (j + 1) * y.nrow))), j * y.nrow);
+    }
+    return make(y.nrow, y.ncol, data, readerDimnames(null, y));
+  }
+  requireRows(q, y.length);
+  return read(y);
+}
+
+/** Row names given, column names of `y`; null when there are neither. */
+function readerDimnames(rows: readonly string[] | null, y: Matrix): Dimnames | null {
+  const columns = y.dimnames?.[1] ?? null;
+  return rows === null && columns === null ? null : [rows, columns];
+}
+
+/** Apply the reflectors to a copy of `y`, first to last for `Qᵀy`, last to first for `Qy`. */
+function transformed(q: QrDecomposition, y: readonly number[], transpose: boolean): number[] {
   const result = [...y];
   const count = reflectorCount(q);
-  for (let step = 0; step < count; step++) {
-    applyReflector(q, step, result);
+  if (transpose) {
+    for (let step = 0; step < count; step++) {
+      applyReflector(q, step, result);
+    }
+  } else {
+    for (let step = count - 1; step >= 0; step--) {
+      applyReflector(q, step, result);
+    }
   }
   return result;
 }
 
 /**
- * `Qy`, R's `qr.qy(qr, y)`: the reflectors applied last to first.
- *
- * @throws RangeError If `y` has the wrong length.
- */
-export function qrQy(q: QrDecomposition, y: readonly number[]): number[] {
-  requireRows(q, y);
-  const result = [...y];
-  const count = reflectorCount(q);
-  for (let step = count - 1; step >= 0; step--) {
-    applyReflector(q, step, result);
-  }
-  return result;
-}
-
-/**
- * The orthogonal factor, R's `qr.Q(qr)`: `n` rows by `min(n, p)` columns.
- * It is `Q` applied to the leading columns of the identity.
+ * The orthogonal factor, R's `qr.Q(qr)`: `n` rows by `min(n, p)` columns —
+ * `Q` applied to the leading columns of the identity. It carries no names,
+ * as R's does not.
  */
 export function qrQ(q: QrDecomposition): Matrix {
   const { nrow, ncol } = q.qr;
@@ -173,14 +271,15 @@ export function qrQ(q: QrDecomposition): Matrix {
   for (let j = 0; j < width; j++) {
     const unit = new Array<number>(nrow).fill(0);
     unit[j] = 1;
-    data.set(qrQy(q, unit), j * nrow);
+    data.set(transformed(q, unit, false), j * nrow);
   }
   return make(nrow, width, data, null);
 }
 
 /**
  * The triangular factor, R's `qr.R(qr)`: `min(n, p)` rows by `p` columns,
- * the upper triangle of the compact form with column names in pivot order.
+ * the upper triangle of the compact form, with the leading row names and
+ * the column names in pivot order.
  */
 export function qrR(q: QrDecomposition): Matrix {
   const { nrow, ncol } = q.qr;
@@ -191,12 +290,14 @@ export function qrR(q: QrDecomposition): Matrix {
       data[j * height + i] = q.qr.data[j * nrow + i] as number;
     }
   }
-  return make(height, ncol, data, q.qr.dimnames);
+  const rows = q.qr.dimnames?.[0]?.slice(0, height) ?? null;
+  const columns = q.qr.dimnames?.[1] ?? null;
+  return make(height, ncol, data, rows === null && columns === null ? null : [rows, columns]);
 }
 
 /** Refuse a response that does not match the rows. R's own wording. */
-function requireRows(q: QrDecomposition, y: readonly number[]): void {
-  if (y.length !== q.qr.nrow) {
+function requireRows(q: QrDecomposition, rows: number): void {
+  if (rows !== q.qr.nrow) {
     throw new RangeError("'qr' and 'y' must have the same number of rows");
   }
 }
