@@ -216,7 +216,7 @@ built on this package needs them for the same reason the package did.
 | Seeded random draws | `seededRng`, `runif`, `rnorm`, `rt`, `rlnorm`, `rcauchy`, `sampleWithoutReplacement` |
 | Binning and density | `histogram`, `nclassSturges`, `kernelDensity`, `bwNrd0` |
 | Axis ticks | `rPretty`, `prettyTicks` |
-| Linear algebra | `leastSquares`, `determinant`, `invertMatrix` |
+| Linear algebra | `leastSquares`, `determinant`, `invertMatrix` — and the general routines under [Linear algebra](#linear-algebra) |
 
 Each one follows its R counterpart, down to the rule and the argument names:
 `quantile` is type 7, `nclassSturges` is Sturges' rule, `bwNrd0` is R's
@@ -232,6 +232,56 @@ const rng = seededRng(42);
 const draws = rnorm(rng, 1000, { mean: 100, sd: 15 });
 quantile(draws, 0.975);
 ```
+
+### Linear algebra
+
+Base R gives the R package `matrix()`, `%*%`, `solve()`, `qr()`,
+`model.matrix()`, `lm()`, `eigen()` and `prcomp()` for free. A JavaScript
+application has none of them, so the port writes them, in R's vocabulary,
+behind their own entry point:
+
+```js
+import { matrix, matmul, solve, lm, prcomp } from "@compstats/core/linalg";
+```
+
+A matrix is plain data, laid out as R lays it out — **column-major**, with
+`nrow`, `ncol`, a `Float64Array` of the entries column by column, and optional
+`dimnames`. `matrix(values, { nrow })` fills column by column as R's
+`matrix()` does, and `byrow: true` fills by rows. Operations are functions
+that take matrices and return new ones; nothing modifies its input. Indices
+are zero-based.
+
+| Group | Functions |
+| --- | --- |
+| Building | `matrix`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`, `column`, `toRows`, `toColumns` |
+| Elementary operations | `t` (or `transpose`), `matmul`, `crossprod`, `tcrossprod`, `cbind`, `rbind`, `diag`, `identity` |
+| Vectors | `add`, `sub`, `mul`, `div`, `square`, `dot`, `norm`, `cosine` |
+| QR | `qr`, `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`, `qrR` |
+| LU | `lu`, `solve`, `det`, `determinant`, `rcond`, `matrixNorm` |
+| Models | `modelMatrix`, `lm`, `namedVector`, `lookup` |
+| Multivariate | `cov`, `cor`, `variance`, `eigenSymmetric`, `isSymmetric`, `prcomp` |
+
+A model is a term list rather than a formula — R's `y ~ x * z + w` is
+`{ outcome: "y", terms: ["x", "z", "w", ["x", "z"]] }` — and `lm` returns the
+coefficients as a named vector in R's order, with `null` where R prints `NA`:
+
+```js
+import { lm, solve, matrix } from "@compstats/core/linalg";
+import { moderationData } from "@compstats/core";
+
+const fit = lm(moderationData, { outcome: "y", terms: ["x", "z", "w", ["x", "z"]] });
+fit.coefficients.names;   // ["(Intercept)", "x", "z", "w", "x:z"]
+fit.rSquared;             // 0.9204001958847745
+
+const a = matrix([2, 1, -1, 1, 3, 2, 1, -1, 4], { nrow: 3 });
+solve(a, [1, 2, 3]);      // [-0.06666666666666665, 0.8, 0.3333333333333333]
+```
+
+Each routine follows R down to the arithmetic of its LAPACK and LINPACK
+calls, so the factorizations, the solves and the fitted values match R's
+doubles exactly, and the rest is verified at a stated tolerance. Where R
+warns and recycles a mismatched length, or silently reads only the lower
+triangle of a matrix, this entry refuses and says so at the function.
 
 ### Bundled data
 
@@ -287,12 +337,14 @@ R idioms that a browser has no answer for are handled like this:
 - **Devices.** Every plot function takes an explicit target. There is no
   current device.
 
-One thing the port adds. It exports the statistical primitives that base R
+Two things the port adds. It exports the statistical primitives that base R
 hands the R package for free — descriptives, the t distribution, seeded
 samplers, binning, density, axis ticks and small linear algebra, listed under
-[Statistics without a picture](#statistics-without-a-picture). This is an
-addition, not a divergence: each one follows its R counterpart's rule and is
-tested against R's output.
+[Statistics without a picture](#statistics-without-a-picture). And it carries
+a general [linear-algebra entry](#linear-algebra) — a column-major matrix,
+`solve`, `qr`, `lm`, `prcomp` and the rest — for the same reason. Both are
+additions, not divergences: each routine follows its R counterpart's rule and
+is tested against R's output.
 
 The core statistics are asserted against values computed in R. The fixtures
 live in the R package under `conformance-fixtures/`.

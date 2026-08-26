@@ -52,8 +52,8 @@ What this means when working here:
 The port is complete. All 9 function families from the R package are
 implemented across the three layers, with both bundled datasets exported from
 R and a demo page per family. The full test suite asserts core math against
-R-computed conformance fixtures. Not yet done: CDN/IIFE bundle and the first
-npm publish.
+R-computed conformance fixtures. Published to npm as `@compstats/core`. The
+`/linalg` entry adds the general linear algebra base R provides for free.
 
 ## Architecture
 
@@ -64,6 +64,10 @@ and so browser demos can consume computed results directly.
 src/
   core/         Pure functions: no DOM, no side effects, no rendering.
                 Take data + options, return plain objects.
+  core/linalg/  The general linear algebra behind `@compstats/core/linalg`:
+                a column-major Matrix type and R's matrix, qr, solve, lm,
+                eigen and prcomp as free functions. Own entry point, never
+                re-exported from the main one.
   plot/         Rendering: takes a target element + data + options, draws.
                 Calls into core/ for any math.
   interactive/  Stateful components: own user input and mutable state,
@@ -150,6 +154,11 @@ real numerical work. These are the R primitives the port depends on:
 | `hist()` | sampling statistic panel — needs a binning rule (R defaults to Sturges) |
 | `sample()`, `rnorm()`, `runif()` | sampling, sample CI |
 | `sd()`, `cor()`, `mean()` | throughout |
+| `matrix()`, `%*%`, `crossprod()`, `cbind()`, `diag()` | the linalg entry — column-major, R's dimnames rules |
+| `qr()` and its readers | the linalg entry — LINPACK `dqrdc2`, promoted out of `leastSquares` |
+| `solve()`, `det()`, `rcond()` | the linalg entry — LAPACK `dgetrf`/`dgetrs` for n×n |
+| `model.matrix()`, `lm()`, `summary.lm()` | the linalg entry — a term list, not a formula |
+| `cov()`, `cor()`, `eigen(symmetric = TRUE)`, `prcomp()` | the linalg entry — Jacobi rotations for the eigenproblem |
 
 This layer is **public API**, not an implementation detail. The R package
 never exports these — base R already provides them — but a consuming app has
