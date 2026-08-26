@@ -9,14 +9,17 @@
  * the row names of the left factor and the column names of the right, and
  * binding stacks them, with `""` for a bare vector joined to a named matrix.
  *
- * The product is written as index loops. A matrix product addresses entries
- * by position, and the loop over `k` innermost keeps each column of the left
- * factor in cache, which is the order R's reference BLAS uses; the sums then
- * accumulate in the same order and round the same way as R's on a build with
- * no fused multiply-add. (CLAUDE.md allows an index loop with a stated
- * reason; that is the reason.)
+ * The product follows the reference BLAS `dgemm` that R ships: the loop
+ * over `i` innermost walks each column of the left factor in order, and each
+ * product is rounded once into its running sum with `fusedMultiplyAdd`,
+ * because the build the conformance fixtures come from contracts
+ * `C + A * B` into one instruction (the fixture README records this; the LU
+ * and QR here already follow it). Index loops throughout: a product
+ * addresses entries by position. (CLAUDE.md allows an index loop with a
+ * stated reason; that is the reason.)
  */
 
+import { fusedMultiplyAdd } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
 
 /** A matrix, or a vector R would treat as a one-column matrix. */
@@ -97,7 +100,11 @@ function product(x: Matrix, y: Matrix): Float64Array {
     for (let k = 0; k < inner; k++) {
       const factor = y.data[j * y.nrow + k] as number;
       for (let i = 0; i < nrow; i++) {
-        data[j * nrow + i] += (x.data[k * nrow + i] as number) * factor;
+        data[j * nrow + i] = fusedMultiplyAdd(
+          x.data[k * nrow + i] as number,
+          factor,
+          data[j * nrow + i] as number,
+        );
       }
     }
   }

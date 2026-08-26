@@ -459,6 +459,20 @@ describe("leastSquares", () => {
     });
   });
 
+  describe("long inputs", () => {
+    test("a million-row design does not overflow the stack", () => {
+      // The column norm used to be `Math.hypot(...column)`, a spread that
+      // dies at about a million arguments. A fold does not.
+      const n = 1_000_000;
+      const fit = leastSquares(
+        Array.from({ length: n }, () => [1]),
+        new Array<number>(n).fill(2),
+      );
+      expect(fit.rank).toBe(1);
+      expect(Math.abs((fit.coefficients[0] as number) - 2)).toBeLessThan(1e-9);
+    });
+  });
+
   describe("purity", () => {
     test("does not modify the design, the response, or the weights", () => {
       const design = simpleDesign(x);
