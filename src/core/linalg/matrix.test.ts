@@ -71,6 +71,47 @@ describe("matrix()", () => {
     expect(y.dimnames).toEqual([null, ["u", "v", "w"]]);
   });
 
+  test("recycles a scalar, as R silently does — fixture 1g", () => {
+    expect(columnMajor(matrix([0], { nrow: 3, ncol: 3 }))).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const column = matrix([7], { nrow: 2 });
+    expect([column.nrow, column.ncol]).toEqual([2, 1]);
+    expect(columnMajor(column)).toEqual([7, 7]);
+  });
+
+  test("refuses a sub-multiple, which R silently recycles — fixture 1g", () => {
+    // R's matrix(1:3, 3, 2) repeats the column. The port recycles a scalar
+    // only; a caller who wants the repeat writes cbind(v, v).
+    expect(() => matrix([1, 2, 3], { nrow: 3, ncol: 2 })).toThrow(
+      /data length \[3\] is not nrow \* ncol \[3 \* 2\]/,
+    );
+  });
+
+  test("allows zero extents, as R does — fixture 1g", () => {
+    expect([matrix([], { nrow: 0 }).nrow, matrix([], { nrow: 0 }).ncol]).toEqual([0, 0]);
+    expect([matrix([], { nrow: 0, ncol: 3 }).nrow, matrix([], { nrow: 0, ncol: 3 }).ncol]).toEqual([0, 3]);
+    expect([matrix([], { ncol: 0 }).nrow, matrix([], { ncol: 0 }).ncol]).toEqual([0, 0]);
+    expect(() => matrix([1, 2], { nrow: 0 })).toThrow(/data is too long/);
+  });
+
+  test("reads a hole in a sparse array as NaN on every fill path", () => {
+    const sparse = [1, , 3, 4] as number[];
+    expect(columnMajor(matrix(sparse, { nrow: 2 }))).toEqual([1, NaN, 3, 4]);
+    expect(columnMajor(matrix(sparse, { nrow: 2, byrow: true }))).toEqual([1, 3, NaN, 4]);
+    expect(columnMajor(fromRows([sparse]))).toEqual([1, NaN, 3, 4]);
+    expect(columnMajor(fromColumns([sparse]))).toEqual([1, NaN, 3, 4]);
+  });
+
+  test("copies its dimnames", () => {
+    const names: [string[], string[]] = [["r1", "r2"], ["a", "b"]];
+    const x = matrix([1, 2, 3, 4], { nrow: 2, dimnames: names });
+    names[0][0] = "changed";
+    names[1].push("extra");
+    expect(x.dimnames).toEqual([
+      ["r1", "r2"],
+      ["a", "b"],
+    ]);
+  });
+
   test("refuses a length that nrow does not divide, where R warns and recycles — fixture 1f", () => {
     expect(() => matrix([1, 2, 3, 4, 5], { nrow: 2 })).toThrow(
       /data length \[5\] is not a multiple of the number of rows \[2\]/,
@@ -83,10 +124,11 @@ describe("matrix()", () => {
     ).toThrow(/dimnames/);
   });
 
-  test("refuses a missing or non-positive dimension", () => {
+  test("refuses a missing, negative, fractional or unsafe dimension", () => {
     expect(() => matrix([1, 2], {})).toThrow(RangeError);
-    expect(() => matrix([1, 2], { nrow: 0 })).toThrow(RangeError);
+    expect(() => matrix([1, 2], { nrow: -1 })).toThrow(RangeError);
     expect(() => matrix([1, 2], { nrow: 1.5 })).toThrow(RangeError);
+    expect(() => matrix([], { nrow: 1e21 })).toThrow(RangeError);
   });
 
   test("copies its input", () => {

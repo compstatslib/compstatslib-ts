@@ -34,6 +34,7 @@ export {
   rbind,
   t,
   tcrossprod,
+  transpose,
 } from "./core/linalg/ops";
 export type { MatrixOrVector } from "./core/linalg/ops";
 

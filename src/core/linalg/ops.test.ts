@@ -19,6 +19,7 @@ import {
   rbind,
   t,
   tcrossprod,
+  transpose,
 } from "./ops";
 
 function columnMajor(m: Matrix): number[] {
@@ -46,6 +47,19 @@ describe("t()", () => {
     expect([at.nrow, at.ncol]).toEqual([2, 3]);
     expect(columnMajor(at)).toEqual([1, 4, 2, 5, 3, 6]);
     expect(at.dimnames).toBeNull();
+  });
+
+  test("transpose() is the same function under a name that does not collide with i18n's t", () => {
+    expect(transpose).toBe(t);
+  });
+
+  test("does not share its dimnames arrays with the input", () => {
+    const names: [string[], string[]] = [["r1", "r2"], ["a", "b"]];
+    const x = matrix([1, 2, 3, 4], { nrow: 2, dimnames: names });
+    const xt = t(x);
+    names[0][0] = "changed";
+    expect(x.dimnames?.[0]?.[0]).toBe("r1");
+    expect(xt.dimnames?.[1]?.[0]).toBe("r1");
   });
 
   test("swaps dimnames — fixture 1c", () => {
@@ -86,6 +100,45 @@ describe("matmul()", () => {
     expect(() => matmul(A, A)).toThrow(/non-conformable arguments/);
     expect(() => matmul(A, [1, 2, 3])).toThrow(/non-conformable arguments/);
   });
+
+  test("a vector on the left is a row when its length matches the rows — fixture 1g", () => {
+    const cb = matmul([1, 2], B);
+    expect([cb.nrow, cb.ncol]).toEqual([1, 4]);
+    expect(columnMajor(cb)).toEqual([-1.5, 8, 1.5, 5.5]);
+    expect(columnMajor(matmul([1, 2, 3], A))).toEqual([14, 32]);
+  });
+
+  test("a vector on the left is a column against a one-row matrix: the outer product — fixture 1g", () => {
+    const outer = matmul([1, 2, 3], matrix([1, 2, 3, 4], { nrow: 1 }));
+    expect([outer.nrow, outer.ncol]).toEqual([3, 4]);
+    expect(columnMajor(outer)).toEqual([1, 2, 3, 2, 4, 6, 3, 6, 9, 4, 8, 12]);
+  });
+
+  test("a vector on the right is a row against a one-column matrix — fixture 1g", () => {
+    const outer = matmul(matrix([1, 2, 3], { nrow: 3 }), [10, 20]);
+    expect([outer.nrow, outer.ncol]).toEqual([3, 2]);
+    expect(columnMajor(outer)).toEqual([10, 20, 30, 20, 40, 60]);
+    expect(columnMajor(matmul(matrix([2], { nrow: 1 }), [1, 2, 3]))).toEqual([2, 4, 6]);
+  });
+
+  test("two vectors: the inner product, or a scalar times a row — fixture 1g", () => {
+    const inner = matmul([1, 2, 3], [1, 2, 3]);
+    expect([inner.nrow, inner.ncol]).toEqual([1, 1]);
+    expect(columnMajor(inner)).toEqual([14]);
+    expect(columnMajor(matmul([2], [1, 2, 3]))).toEqual([2, 4, 6]);
+  });
+
+  test("refuses the vector shapes R refuses — fixture 1g", () => {
+    expect(() => matmul([1, 2], A)).toThrow(/non-conformable arguments/);
+    expect(() => matmul([1, 2, 3], [1, 2])).toThrow(/non-conformable arguments/);
+    expect(() => matmul([1, 2, 3], [2])).toThrow(/non-conformable arguments/);
+  });
+
+  test("refuses a typed array or a non-matrix object at runtime", () => {
+    const typed = new Float64Array([1, 2]) as unknown as readonly number[];
+    expect(() => matmul(A, typed)).toThrow(TypeError);
+    expect(() => matmul({} as unknown as Matrix, A)).toThrow(TypeError);
+  });
 });
 
 describe("crossprod() and tcrossprod()", () => {
@@ -107,12 +160,58 @@ describe("crossprod() and tcrossprod()", () => {
     expect(columnMajor(c)).toEqual([6.25, 14.5]);
   });
 
-  test("crossprod carries the column names of both factors", () => {
+  test("crossprod carries the column names of both factors — fixture 1g", () => {
     const c = crossprod(X, Y);
+    expect(columnMajor(c)).toEqual([1, 3, 0, 2, 6.5, 13.5]);
     expect(c.dimnames).toEqual([
       ["a", "b"],
       ["u", "v", "w"],
     ]);
+  });
+
+  test("a bare vector is a column in crossprod — fixture 1g", () => {
+    expect(columnMajor(crossprod([1, 2, 3]))).toEqual([14]);
+    expect([crossprod([1, 2, 3]).nrow, crossprod([1, 2, 3]).ncol]).toEqual([1, 1]);
+    expect(columnMajor(crossprod([1, 2, 3], A))).toEqual([14, 32]);
+    expect(() => crossprod([1, 2], A)).toThrow(/non-conformable arguments/);
+    expect(() => crossprod(A, [1, 2])).toThrow(/non-conformable arguments/);
+  });
+
+  test("R's vector rules on the shapes that tell them apart — fixture 1h", () => {
+    const m = (values: number[], nrow: number): Matrix => matrix(values, { nrow });
+    const shape = (r: Matrix): [number, number, number[]] => [r.nrow, r.ncol, columnMajor(r)];
+    // tcrossprod, vector y: a row only when x has one row.
+    expect(() => tcrossprod(m([2], 1), [1, 2, 3])).toThrow(/non-conformable/);
+    expect(shape(tcrossprod(m([1, 2], 2), [1, 2]))).toEqual([2, 2, [1, 2, 2, 4]]);
+    expect(shape(tcrossprod(m([1, 2], 1), [1, 2]))).toEqual([1, 1, [5]]);
+    expect(() => tcrossprod(m([1, 2, 3, 4, 5, 6], 3), [1, 2])).toThrow(/non-conformable/);
+    expect(() => tcrossprod(m([1, 2, 3, 4, 5, 6], 2), [1, 2, 3])).toThrow(/non-conformable/);
+    // tcrossprod, vector x: a row when its length matches the columns of y.
+    expect(shape(tcrossprod([1, 2], m([1, 2], 2)))).toEqual([2, 2, [1, 2, 2, 4]]);
+    expect(shape(tcrossprod([1, 2], m([1, 2], 1)))).toEqual([1, 1, [5]]);
+    expect(shape(tcrossprod([1, 2, 3], m([1, 2, 3, 4, 5, 6], 2)))).toEqual([1, 2, [22, 28]]);
+    expect(() => tcrossprod([1, 2], m([1, 2, 3, 4, 5, 6], 2))).toThrow(/non-conformable/);
+    // tcrossprod, two vectors: both columns.
+    expect(shape(tcrossprod([1, 2, 3], [1, 2]))).toEqual([3, 2, [1, 2, 3, 2, 4, 6]]);
+    expect(shape(tcrossprod([2], [1, 2, 3]))).toEqual([1, 3, [2, 4, 6]]);
+    // crossprod, vector y: a column when its length matches the rows of x.
+    expect(shape(crossprod(m([1, 2, 3], 1), [1, 2, 3]))).toEqual([3, 3, [1, 2, 3, 2, 4, 6, 3, 6, 9]]);
+    expect(shape(crossprod(m([1, 2, 3, 4, 5, 6], 2), [1, 2]))).toEqual([3, 1, [5, 11, 17]]);
+    // crossprod, vector x: always a column.
+    expect(() => crossprod([1, 2, 3], m([1, 2, 3], 1))).toThrow(/non-conformable/);
+    expect(shape(crossprod([1, 2], m([1, 2, 3, 4, 5, 6], 2)))).toEqual([1, 3, [5, 11, 17]]);
+    expect(() => crossprod([1, 2, 3], [1, 2])).toThrow(/non-conformable/);
+    expect(shape(crossprod([2], [1, 2, 3]))).toEqual([1, 3, [2, 4, 6]]);
+  });
+
+  test("a bare vector is a row in tcrossprod when that conforms, else a column — fixture 1g", () => {
+    expect(columnMajor(tcrossprod([1, 2, 3]))).toEqual([1, 2, 3, 2, 4, 6, 3, 6, 9]);
+    expect(columnMajor(tcrossprod(matrix([1, 2, 3], { nrow: 1 }), [1, 2, 3]))).toEqual([14]);
+    expect(columnMajor(tcrossprod(matrix([1, 2, 3], { nrow: 3 }), [1, 2, 3]))).toEqual([
+      1, 2, 3, 2, 4, 6, 3, 6, 9,
+    ]);
+    expect(columnMajor(tcrossprod([1, 2], A))).toEqual([9, 12, 15]);
+    expect(() => tcrossprod(A, [1, 2])).toThrow(/non-conformable arguments/);
   });
 
   test("refuse non-conformable arguments — fixture 1f", () => {
@@ -172,9 +271,14 @@ describe("cbind() and rbind()", () => {
     expect(() =>
       rbind(matrix([1, 2, 3, 4], { nrow: 2 }), matrix([1, 2, 3, 4, 5, 6], { nrow: 2 })),
     ).toThrow(/number of columns of matrices must match \(see arg 2\)/);
-    // R warns and recycles a short vector; the port refuses.
-    expect(() => cbind(X, [9, 8, 7])).toThrow(RangeError);
-    expect(() => rbind(X, [7])).toThrow(RangeError);
+    // R warns and recycles a short vector; the port refuses, in R's own
+    // words for a vector part — fixture 1g.
+    expect(() => cbind(X, [9, 8, 7])).toThrow(
+      /number of rows of result is not a multiple of vector length \(arg 2\)/,
+    );
+    expect(() => rbind(X, [7])).toThrow(
+      /number of columns of result is not a multiple of vector length \(arg 2\)/,
+    );
   });
 
   test("refuse an empty call", () => {
@@ -201,8 +305,16 @@ describe("diag() and identity()", () => {
   });
 
   test("refuses a non-integer or negative order", () => {
-    expect(() => identity(0)).not.toThrow();
+    expect([identity(0).nrow, identity(0).ncol]).toEqual([0, 0]);
     expect(() => identity(-1)).toThrow(RangeError);
     expect(() => identity(2.5)).toThrow(RangeError);
+  });
+
+  test("dispatches on type, not on length: diag([5]) is 1 x 1 and diag(2.5) refuses — fixture 1g states R's gotcha", () => {
+    // R's diag(c(5)) is the 5 x 5 identity and diag(2.5) truncates to 2 x 2.
+    const one = diag([5]);
+    expect([one.nrow, one.ncol]).toEqual([1, 1]);
+    expect(columnMajor(one)).toEqual([5]);
+    expect(() => diag(2.5)).toThrow(RangeError);
   });
 });

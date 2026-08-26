@@ -21,6 +21,7 @@ const EXPORTED = [
   "toColumns",
   // ops
   "t",
+  "transpose",
   "matmul",
   "crossprod",
   "tcrossprod",
