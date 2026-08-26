@@ -50,10 +50,15 @@
       "import": "./dist/3d.js",
       "default": "./dist/3d.js"
     },
+    "./linalg": {
+      "types": "./dist/linalg.d.ts",
+      "import": "./dist/linalg.js",
+      "default": "./dist/linalg.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/3d.ts --outdir dist --target browser --format esm --sourcemap=linked --external plotly.js-dist-min && bunx tsc -p tsconfig.build.json",
+    "build": "bun build src/index.ts src/3d.ts src/linalg.ts --outdir dist --target browser --format esm --sourcemap=linked --external plotly.js-dist-min && bunx tsc -p tsconfig.build.json",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
     "dev": "bun run demo/server.ts",
