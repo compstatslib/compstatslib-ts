@@ -43,8 +43,26 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   `1e-12`. Where R warns and recycles, or silently reads only half of a
   matrix, the port refuses, and each such narrowing is stated at the function.
 
+### Changed
+
+* `moderationSurface()` fits through the new `lm()` instead of building R's
+  model matrix itself. Its fitted values and residuals are now R's exactly —
+  all 200 of each, for all three pinned models, against 16 of 200 at 8.6e-15
+  before. R's `lm.fit` reports the residuals its factorization computes and
+  takes the fitted values as the outcome minus them; the old path re-summed
+  `X · β`, which lands a few bits away. Coefficients, grid, surface and `zlim`
+  are unchanged. A caller who compared residuals against `y - fitted` with
+  `===` will now see a difference in the last bit, as R does on 93 of the 200
+  rows.
+
 ### Bug fixes
 
+* `eigenSymmetric()` refuses what R's `eigen()` refuses, in R's order and R's
+  words: a non-square matrix, then a 0 x 0 one, then a missing or infinite
+  entry. A NaN used to run the Jacobi sweeps and return a result full of NaN,
+  and a 0 x 0 matrix used to return an empty decomposition.
+* `prcomp()` carries the row names of its input onto the scores, as R does.
+  The rotation already carried the variable names.
 * `leastSquares()` no longer overflows the call stack on a long design. The
   column norm was `Math.hypot(...column)`, a spread that dies at about a
   million arguments; it is a fold now, and it follows the BLAS `dnrm2` R runs,
