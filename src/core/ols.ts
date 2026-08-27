@@ -13,7 +13,7 @@
  */
 
 import { sum, zipWith } from "./arith";
-import { fromRows } from "./linalg/matrix";
+import { make } from "./linalg/matrix";
 import { qr, qrCoef } from "./linalg/qr";
 
 /**
@@ -114,10 +114,18 @@ export function leastSquares(
   const scaled = (value: number, row: number): number =>
     scale === undefined ? value : value * (scale[row] as number);
 
-  const factored = qr(
-    fromRows(design.map((row, index) => row.map((value) => scaled(value, index)))),
-    { tolerance },
-  );
+  // The design goes straight into `qr`'s column-major buffer. Building the
+  // nested rows first would copy the whole design twice on every call, and
+  // `glm.fit`'s IRLS loop calls this once per iteration. Index loop: the
+  // buffer is addressed by position.
+  const buffer = new Float64Array(rows * width);
+  design.forEach((row, index) => {
+    for (let column = 0; column < width; column++) {
+      buffer[column * rows + index] = scaled(row[column] as number, index);
+    }
+  });
+
+  const factored = qr(make(rows, width, buffer, null), { tolerance });
   const coefficients = qrCoef(factored, y.map(scaled));
 
   const fitted = design.map((row) =>

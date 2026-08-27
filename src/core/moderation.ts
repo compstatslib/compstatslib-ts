@@ -19,8 +19,11 @@
  * **The design follows R's model matrix, not the option order.** R's
  * `model.matrix` puts every main effect before any interaction, whatever
  * order the formula was typed in, so `y ~ x + z + w + x:z` gives the columns
- * `(Intercept), x, z, w, x:z`. This module builds them in that order, which
- * is what lets a caller read the coefficients next to R's.
+ * `(Intercept), x, z, w, x:z`. This module names the terms and hands them to
+ * `linalg/lm`, which is `model.matrix()` followed by `lm.fit()` and puts the
+ * columns in that order, so a caller can read the coefficients next to R's.
+ * Going through `lm` also makes the fitted values `y` minus the residuals of
+ * the factorization, which is R's own definition, rather than `X · β`.
  *
  * **Controls are held at their mean, and only numbers are accepted.** R's
  * `hold_value()` also handles factors (first level), characters (first in
@@ -40,7 +43,7 @@
 
 import { extent, mean, sum, zipWith } from "./arith";
 import { frameRows, requireNumericColumn, type DataFrame } from "./frame";
-import { leastSquares } from "./ols";
+import { lm } from "./linalg/lm";
 
 /**
  * The number of steps along each axis of the grid. R's
@@ -160,7 +163,10 @@ export function moderationSurface(
     named.add(control);
   });
 
-  const rows = frameRows(data);
+  // `lm` validates the frame again through `modelMatrix`, but reading the
+  // columns here first is what lets the refusals below name the option the
+  // column arrived through.
+  frameRows(data);
   const y = requireNumericColumn(data, outcome, "outcome");
   const ivColumn = requireNumericColumn(data, iv, "iv");
   const modColumn = requireNumericColumn(data, mod, "mod");
@@ -170,63 +176,33 @@ export function moderationSurface(
 
   // R's na.omit: a row with a missing value in any model column leaves the
   // fit. NaN is this library's missing value, and an infinity would poison
-  // the fit the same way, so "complete" means finite everywhere.
+  // the fit the same way, so "complete" means finite everywhere. `lm` drops
+  // the same rows and refuses an empty fit in R's words, "0 (non-NA) cases";
+  // the check is repeated here only to name the columns that can be at
+  // fault, which a caller who chose them one by one needs.
   const modelColumns = [y, ivColumn, modColumn, ...controlColumns];
-  const completeRows = y
-    .map((_, row) => row)
-    .filter((row) =>
-      modelColumns.every((column) => Number.isFinite(column[row])),
-    );
-  if (completeRows.length === 0) {
+  const anyComplete = y.some((_, row) =>
+    modelColumns.every((column) => Number.isFinite(column[row])),
+  );
+  if (!anyComplete) {
     throw new RangeError(
       "the model has no complete rows: every row is missing a value in " +
         "the outcome, the IV, the moderator, or a control",
     );
   }
 
-  // R's model.matrix order: the intercept, the main effects in the order the
-  // model names them, then the interaction.
-  const designColumns: readonly {
-    readonly name: string;
-    readonly values: readonly number[];
-  }[] = [
-    { name: "(Intercept)", values: new Array<number>(rows).fill(1) },
-    { name: iv, values: ivColumn },
-    { name: mod, values: modColumn },
-    ...controls.map((control, index) => ({
-      name: control,
-      values: controlColumns[index] as readonly number[],
-    })),
-    ...(interaction
-      ? [
-          {
-            name: `${iv}:${mod}`,
-            values: zipWith(ivColumn, modColumn, (a, b) => a * b),
-          },
-        ]
-      : []),
-  ];
-
-  const design = completeRows.map((row) =>
-    designColumns.map((column) => column.values[row] as number),
-  );
-  const fit = leastSquares(
-    design,
-    completeRows.map((row) => y[row] as number),
-  );
-  const coefficients = designColumns.map((column, index) => ({
-    name: column.name,
-    value: fit.coefficients[index] ?? null,
-  }));
-
-  // R's na.exclude padding: report the fit in input order, NaN where a row
-  // was dropped.
-  const fitted = new Array<number>(rows).fill(Number.NaN);
-  const residuals = new Array<number>(rows).fill(Number.NaN);
-  completeRows.forEach((row, survivor) => {
-    fitted[row] = fit.fitted[survivor] as number;
-    residuals[row] = fit.residuals[survivor] as number;
+  // R's `y ~ x * z + w` as a term list: the main effects as the model names
+  // them, then the product. `lm` restores R's column order, drops the
+  // incomplete rows and pads the fit back with NaN (`na.exclude`).
+  const fit = lm(data, {
+    outcome,
+    terms: [iv, mod, ...controls, ...(interaction ? [[iv, mod]] : [])],
   });
+  const { fitted, residuals } = fit;
+  const coefficients = fit.coefficients.names.map((name, index) => ({
+    name,
+    value: fit.coefficients.values[index] ?? null,
+  }));
 
   // extent() ignores non-finite values, so each axis spans its column's
   // finite range — R's seq over min and max, which R only reaches when the
