@@ -4,17 +4,16 @@
 
 **Statistical routines for TypeScript, checked against R.**
 
-JavaScript has no statistics standard library. Nothing in the language or in
-the browser will fit a regression, factor a matrix, find principal components,
-or tell you what tail probability a t-statistic sits at. Every project that
-needs one of those has to get it from somewhere, and the usual somewhere is a
-snippet whose correctness nobody has ever established.
+The package fits linear models, factors matrices, finds principal components,
+and evaluates distributions. Results are plain arrays and plain objects, so a
+fit serializes, clones, and crosses a worker boundary as it is. The statistics
+touch no DOM, so the same code runs in a browser, under Node, and under Bun.
 
-This package supplies them, and establishes their correctness the only way
-that scales: every routine is run against the same input in
-[R](https://www.r-project.org) — the language statisticians build these in and
-have been correcting for thirty years — and the answers are pinned into the
-test suite to seventeen significant digits. What you get today:
+Each routine follows the definition that [R](https://www.r-project.org) uses.
+Statisticians write these methods in R, and they have read and corrected them
+there for thirty years. The test suite compares each routine against R on the
+same input and pins the answer to seventeen significant digits. The package
+covers these areas today:
 
 - **Models.** Fit a linear model from a table of columns and a list of terms,
   interactions included, and read back coefficients, standard errors, t and p
@@ -61,8 +60,7 @@ what the statistics were built for, and they are the standing proof that the
 statistics work.
 
 The R original runs in RStudio. This runs in a browser, with no R installation
-and no server. The statistics touch no DOM, so they run just as well under
-Node or Bun. The 2D plots draw on a plain Canvas 2D context. The 3D plots
+and no server. The 2D plots draw on a plain Canvas 2D context. The 3D plots
 draw through Plotly, behind a separate entry point, so a page that shows only
 2D never loads it.
 
