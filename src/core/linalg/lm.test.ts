@@ -231,3 +231,45 @@ describe("lm() — refusals", () => {
     expect(() => lm(moderationData, { outcome: "y", terms: ["nope"] })).toThrow(/"nope"/);
   });
 });
+
+describe("lm() — fixture 4g, the edges of the residual degrees of freedom", () => {
+  const saturated = { y: [1, 3, 2], x: [1, 2, 3], z: [2, 1, 4] };
+
+  test("a saturated fit reports NaN for sigma, adjusted R² and every standard error", () => {
+    const fit = lm(saturated, { outcome: "y", terms: ["x", "z"] });
+    expect(values(fit.coefficients)).toEqual([
+      1.2500000000000002, 1.2499999999999998, -0.74999999999999989,
+    ]);
+    expect(fit.rank).toBe(3);
+    expect(fit.dfResidual).toBe(0);
+    expect(fit.rSquared).toBe(1);
+    expect(fit.sigma).toBeNaN();
+    expect(fit.adjRSquared).toBeNaN();
+    fit.standardErrors.values.forEach((se) => expect(se).toBeNaN());
+    expect(fit.fStatistic?.value).toBeNaN();
+    expect(fit.fStatistic?.numdf).toBe(2);
+    expect(fit.fStatistic?.dendf).toBe(0);
+    fit.residuals.forEach((residual) => expect(residual).toBe(0));
+  });
+
+  test("no intercept: R² is over the uncentered fit, so mss is the plain sum of squares", () => {
+    const fit = lm(moderationData, { outcome: "y", terms: ["x"], intercept: false });
+    expect(values(fit.coefficients)).toEqual([0.4604943433948091]);
+    expect(fit.coefficients.names).toEqual(["x"]);
+    relativelyClose(fit.rSquared, 0.060943071659733311);
+    relativelyClose(fit.adjRSquared, 0.056224192622847613);
+    relativelyClose(fit.sigma, 3.5247748975840953);
+    relativelyClose(fit.fStatistic?.value as number, 12.914734873126323);
+    expect(fit.fStatistic?.numdf).toBe(1);
+    expect(fit.fStatistic?.dendf).toBe(199);
+  });
+
+  test("intercept only: summary.lm() reports 0 for both R² and no F statistic", () => {
+    const fit = lm(moderationData, { outcome: "y", terms: [] });
+    expect(values(fit.coefficients)).toEqual([-0.31562302098439893]);
+    expect(fit.rSquared).toBe(0);
+    expect(fit.adjRSquared).toBe(0);
+    relativelyClose(fit.sigma, 3.6235641115369814);
+    expect(fit.fStatistic).toBeNull();
+  });
+});

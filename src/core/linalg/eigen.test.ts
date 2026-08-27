@@ -120,6 +120,19 @@ describe("eigenSymmetric() — fixture 5b", () => {
     expect(() => eigenSymmetric(matrix([1, 2, 3, 4, 5, 6], { nrow: 2 }))).toThrow(RangeError);
   });
 
+  test("refuses a missing or infinite entry, in R's words (fixture 5e)", () => {
+    expect(() => eigenSymmetric(matrix([Number.NaN, 1, 1, 1], { nrow: 2 }))).toThrow(
+      /infinite or missing values in 'x'/,
+    );
+    expect(() => eigenSymmetric(matrix([Number.POSITIVE_INFINITY, 1, 1, 1], { nrow: 2 }))).toThrow(
+      /infinite or missing values in 'x'/,
+    );
+  });
+
+  test("refuses a 0 x 0 matrix, in R's words (fixture 5e)", () => {
+    expect(() => eigenSymmetric(matrix([], { nrow: 0, ncol: 0 }))).toThrow(/0 x 0 matrix/);
+  });
+
   test("does not modify its input", () => {
     const s = matrix([2, 1, 1, 2], { nrow: 2 });
     eigenSymmetric(s);

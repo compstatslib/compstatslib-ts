@@ -18,7 +18,9 @@
  * Two departures from R, both stated: a matrix that is not symmetric is
  * refused, where R silently reads its lower triangle; and the eigenvector
  * matrix carries the row names of the input as its row names, where R's
- * carries none — a loading without its variable is unreadable.
+ * carries none — a loading without its variable is unreadable. The refusals
+ * R does make are followed in its order and its words: a non-square matrix,
+ * then a 0 x 0 one, then a missing or infinite entry (fixture 5e).
  *
  * Index loops throughout: a rotation addresses entries by position.
  */
@@ -62,11 +64,18 @@ export function isSymmetric(m: Matrix, tolerance = 100 * Number.EPSILON): boolea
  *
  * @param m The symmetric matrix. The function does not modify it.
  * @returns The eigenvalues, descending, and the eigenvectors as columns.
- * @throws RangeError If the matrix is not square or not symmetric.
+ * @throws RangeError If the matrix is not square, is 0 x 0, holds a missing
+ *   or infinite entry, or is not symmetric.
  */
 export function eigenSymmetric(m: Matrix): SymmetricEigen {
   if (m.nrow !== m.ncol) {
-    throw new RangeError(`'x' (${m.nrow} x ${m.ncol}) must be a square matrix`);
+    throw new RangeError("non-square matrix in 'eigen'");
+  }
+  if (m.nrow === 0) {
+    throw new RangeError("0 x 0 matrix");
+  }
+  if (!m.data.every(Number.isFinite)) {
+    throw new RangeError("infinite or missing values in 'x'");
   }
   if (!isSymmetric(m)) {
     throw new RangeError("'x' must be symmetric");

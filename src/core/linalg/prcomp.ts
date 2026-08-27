@@ -49,7 +49,11 @@ export interface Prcomp {
   readonly center: readonly number[];
   /** The value each column was divided by, or null when not scaled. */
   readonly scale: readonly number[] | null;
-  /** The scores: the centered, scaled data in component coordinates. */
+  /**
+   * The scores: the centered, scaled data in component coordinates, with
+   * the row names of the input and `PC1`, `PC2`, … as column names, as R's
+   * are (fixture 5e).
+   */
   readonly x: Matrix;
 }
 
@@ -118,7 +122,7 @@ export function prcomp(input: Matrix | DataFrame, options: PrcompOptions = {}): 
     rotation,
     center: centers,
     scale: scales,
-    x: make(n, p, scores.data, [null, components]),
+    x: make(n, p, scores.data, [m.dimnames?.[0] ?? null, components]),
   };
 }
 

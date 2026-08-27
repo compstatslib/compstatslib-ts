@@ -13,7 +13,7 @@ import { describe, expect, test } from "bun:test";
 import { moderationData } from "../../data/moderationData";
 import { pcaDegenerate } from "../../data/pcaDegenerate";
 import { principalComponents } from "../pca";
-import { column, fromFrame, fromRows, type Matrix } from "./matrix";
+import { column, fromFrame, fromRows, matrix, type Matrix } from "./matrix";
 import { prcomp } from "./prcomp";
 import { dot, mul } from "./vector";
 
@@ -195,6 +195,17 @@ describe("prcomp() — refusals and edges", () => {
     expect(() => prcomp(fromRows([[1, 1], [2, 1], [3, 1]]), { scale: true })).toThrow(
       /cannot rescale a constant\/zero column to unit variance/,
     );
+  });
+
+  test("the scores carry the row names of the input, as R's do (fixture 5e)", () => {
+    const named = matrix([1, 2, 3, 4, 5, 6, 2, 1, 4, 3, 6, 5], {
+      nrow: 6,
+      dimnames: [["o1", "o2", "o3", "o4", "o5", "o6"], ["a", "b"]],
+    });
+    const p = prcomp(named);
+    expect(p.x.dimnames).toEqual([["o1", "o2", "o3", "o4", "o5", "o6"], ["PC1", "PC2"]]);
+    expect(p.rotation.dimnames).toEqual([["a", "b"], ["PC1", "PC2"]]);
+    relativelyClose(p.sdev, [2.5298221281347035, 0.77459666924148318]);
   });
 
   test("fewer than two rows has no spread", () => {
