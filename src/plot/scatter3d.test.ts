@@ -1,7 +1,7 @@
 /**
  * Tests for the 3D scatterplot.
  *
- * The expected structure comes from `.claude/plans/moderation-fixtures.md`
+ * The expected structure comes from `.claude/plans/001-PLAN-port/moderation-fixtures.md`
  * section 5, which dumped the object R's `plot_scatter3d()` actually builds
  * (`plotly::plotly_build(p)$x`, from a real Plotly install), and R's own
  * error messages, traced case by case:

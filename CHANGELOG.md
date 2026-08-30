@@ -3,6 +3,77 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Added
+
+* A linear-algebra entry point, `@compstats/core/linalg`, built as
+  `dist/linalg.js` with no dependency and no Plotly. Base R hands the R package
+  `matrix()`, `%*%`, `solve()`, `qr()`, `model.matrix()`, `lm()`, `eigen()` and
+  `prcomp()` for free; a JavaScript application has none of them, so the port
+  writes them in R's vocabulary over a plain column-major `Matrix`
+  (`{ nrow, ncol, data: Float64Array, dimnames }`) — plain data, not a class,
+  so a matrix serializes, clones and crosses a worker boundary as it is. The
+  main entry does not re-export it: a page that draws only the 2D demos never
+  loads it. The names:
+  * matrices — `matrix`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`,
+    `column`, `toRows`, `toColumns`;
+  * elementary operations — `t` (also `transpose`, for an app whose `t` is its
+    translation function), `matmul`, `crossprod`, `tcrossprod`, `cbind`,
+    `rbind`, `diag`, `identity`;
+  * vectors — `add`, `sub`, `mul`, `div`, `square`, `dot`, `norm`, `cosine`:
+    R's operators by name, with a scalar recycled and any other length
+    mismatch refused; and the `Vector` type they are written over, which is
+    `readonly number[]` and nothing more — a name for the concept in a
+    signature, erased at compile time, so a plain array is a vector and
+    nothing needs wrapping;
+  * QR — `qr` with `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`,
+    `qrR`, which is the LINPACK `dqrdc2` factorization `lm.fit()` runs on,
+    promoted out of `leastSquares` (now a wrapper over it, with every existing
+    value unchanged);
+  * LU — `lu`, `solve`, `det`, `determinant`, `rcond`, `matrixNorm`;
+  * models — `modelMatrix`, `lm`, and the `NamedVector` that carries R's named
+    coefficients in R's order (`namedVector`, `lookup`);
+  * multivariate — `cov`, `cor`, `variance`, `eigenSymmetric`, `isSymmetric`,
+    `prcomp`.
+
+  Every routine is verified against R 4.5.3 in
+  `conformance-fixtures/linalg.R` of the R package. The factorizations, the
+  solves, the determinant and the fitted values of `lm` pin bit for bit
+  against R's reference-BLAS build (which contracts a multiply and an add into
+  one rounding, as the port does with `fusedMultiplyAdd`); the summary
+  statistics, eigenvalues and standard deviations are verified at a relative
+  `1e-12`. Where R warns and recycles, or silently reads only half of a
+  matrix, the port refuses, and each such narrowing is stated at the function.
+
+### Changed
+
+* `moderationSurface()` fits through the new `lm()` instead of building R's
+  model matrix itself. Its fitted values and residuals are now R's exactly —
+  all 200 of each, for all three pinned models, against 16 of 200 at 8.6e-15
+  before. R's `lm.fit` reports the residuals its factorization computes and
+  takes the fitted values as the outcome minus them; the old path re-summed
+  `X · β`, which lands a few bits away. Coefficients, grid, surface and `zlim`
+  are unchanged. A caller who compared residuals against `y - fitted` with
+  `===` will now see a difference in the last bit, as R does on 93 of the 200
+  rows.
+
+### Bug fixes
+
+* `eigenSymmetric()` refuses what R's `eigen()` refuses, in R's order and R's
+  words: a non-square matrix, then a 0 x 0 one, then a missing or infinite
+  entry. A NaN used to run the Jacobi sweeps and return a result full of NaN,
+  and a 0 x 0 matrix used to return an empty decomposition.
+* `prcomp()` carries the row names of its input onto the scores, as R does.
+  The rotation already carried the variable names.
+* `leastSquares()` no longer overflows the call stack on a long design. The
+  column norm was `Math.hypot(...column)`, a spread that dies at about a
+  million arguments; it is a fold now, and it follows the BLAS `dnrm2` R runs,
+  which also moved the Householder vectors of the factorization onto R's
+  doubles exactly. No coefficient, fitted value or residual changed.
+* `fusedMultiplyAdd()` keeps the sign of a zero product, as the hardware
+  instruction does: `fma(-1, 0, -0)` is `-0`. No pinned value changed.
+
 ## 0.3.0
 
 ### Added

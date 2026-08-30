@@ -8,7 +8,7 @@
  *
  * Expected values come from R 4.5.3. The `th7`, `th30`, boundary, constant
  * and single-value cases are Section 2b of
- * `.claude/plans/sampling-fixtures.md`; the rest were computed in session
+ * `.claude/plans/001-PLAN-port/sampling-fixtures.md`; the rest were computed in session
  * with `hist(x, plot = FALSE)`, named at each assertion.
  *
  * Counts are integers and are asserted exactly. Breaks come from `rPretty`

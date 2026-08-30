@@ -5,7 +5,7 @@
  * only the default path is ported and pinned here.
  *
  * Every expected value comes from R 4.5.3 at full double precision. Source:
- * `.claude/plans/sampling-fixtures.md`, Section 1, which also quotes the
+ * `.claude/plans/001-PLAN-port/sampling-fixtures.md`, Section 1, which also quotes the
  * pipeline of `stats::density.default` verbatim. Values marked "computed in
  * session" below come from the same R 4.5.3 install; the script is in the
  * agent report for slice 4 and each call is named at its assertion.

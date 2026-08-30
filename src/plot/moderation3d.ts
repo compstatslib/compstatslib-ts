@@ -6,7 +6,7 @@
  * `../compstatslib/R/moderation_3d_plot.R`. Every number comes from
  * `moderationSurface` in `src/core/moderation.ts`; this module computes no
  * statistics of its own. The grid values are pinned in
- * `.claude/plans/moderation-fixtures.md` section 3.
+ * `.claude/plans/001-PLAN-port/moderation-fixtures.md` section 3.
  *
  * Three decisions are worth stating.
  *

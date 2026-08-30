@@ -4,7 +4,7 @@
  *
  * Every expected value below comes from R 4.5.3, printed at full double
  * precision with `sprintf("%.17g", x)`. Do not edit these numbers by hand.
- * Source: `.claude/plans/regression-fixtures.md`.
+ * Source: `.claude/plans/001-PLAN-port/regression-fixtures.md`.
  *
  * R script that produced the values:
  *

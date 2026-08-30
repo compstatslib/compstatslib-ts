@@ -5,7 +5,7 @@
  *
  * Every expected value below comes from R 4.5.3 on arm64 macOS, printed at
  * full double precision with `sprintf("%.17g", x)`. Do not edit these numbers
- * by hand. Source: `.claude/plans/matrix-inverse-fixtures.md`, plus the extra
+ * by hand. Source: `.claude/plans/001-PLAN-port/matrix-inverse-fixtures.md`, plus the extra
  * cases marked "in-session" that were computed with the same R install while
  * writing these tests.
  *

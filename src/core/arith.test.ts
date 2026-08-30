@@ -45,7 +45,7 @@ describe("mean", () => {
 });
 
 describe("sd", () => {
-  // Expected values from R 4.5.3, `.claude/plans/sampling-fixtures.md`
+  // Expected values from R 4.5.3, `.claude/plans/001-PLAN-port/sampling-fixtures.md`
   // Section 3. R divides by n - 1.
   test("matches R on the sampling fixtures", () => {
     expectCloseToR(
