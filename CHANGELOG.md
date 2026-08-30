@@ -3,6 +3,21 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## 0.4.1
+
+### Bug fixes
+
+* The key separator in `modelMatrix()` is written as an escape rather than as
+  a raw NUL byte. The function joins a sorted interaction's factors on a NUL to
+  make the key that collapses `a:b` and `b:a` into one term, and the separator
+  had been typed as the byte itself. The source file therefore held a literal
+  NUL, which made git read it as binary: `git diff`, `git blame` and a
+  three-way merge all declined to open it. **Nothing that ships changed.** The
+  bundler already emitted the separator as an escape, so `dist/index.js`,
+  `dist/linalg.js` and `dist/3d.js` are byte for byte what 0.4.0 published.
+  This release exists so that the tag and the source agree; a consumer already
+  on 0.4.0 gains nothing by moving.
+
 ## 0.4.0
 
 ### Added
