@@ -236,7 +236,7 @@ Matrix arithmetic, the factorizations that solvers and model fits are built on, 
 import { matrix, matmul, solve, lm, prcomp } from "@compstats/core/linalg";
 ```
 
-A matrix is plain data, laid out as R lays it out — **column-major**, with `nrow`, `ncol`, a `Float64Array` of the entries column by column, and optional `dimnames`. `matrix(values, { nrow })` fills column by column as R's `matrix()` does, and `byrow: true` fills by rows. Operations are functions that take matrices and return new ones; nothing modifies its input. Indices are zero-based.
+A matrix is plain data, laid out as R lays it out — **column-major**, with `nrow`, `ncol`, a `Float64Array` of the entries column by column, and optional `dimnames`. `matrix(values, { nrow })` fills column by column as R's `matrix()` does, and `byrow: true` fills by rows. Operations are functions that take matrices and return new ones; nothing modifies its input. Indices are zero-based. A vector is a plain array of numbers: the exported `Vector` type is a name for `readonly number[]` and nothing more, so a JavaScript caller passes an array as it always did.
 
 | Group | Functions |
 | --- | --- |
