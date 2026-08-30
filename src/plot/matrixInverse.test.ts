@@ -31,7 +31,7 @@
  *
  * Five details of that code decide what the tests below expect, and each was
  * read out of R rather than assumed. They are in
- * `.claude/plans/matrix-inverse-fixtures.md`, section 3, which pinned them by
+ * `.claude/plans/001-PLAN-port/matrix-inverse-fixtures.md`, section 3, which pinned them by
  * tracing the graphics primitives on a null device.
  *
  * 1. **A singular matrix draws nothing at all.** `solve(A)` is the second

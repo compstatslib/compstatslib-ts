@@ -5,7 +5,7 @@
  *
  * Every expected value below comes from R 4.5.3, printed with
  * `sprintf("%.17g", x)`. Do not edit these numbers by hand.
- * Source: `.claude/plans/moderation-fixtures.md`, sections 2 to 4.
+ * Source: `.claude/plans/001-PLAN-port/moderation-fixtures.md`, sections 2 to 4.
  *
  * R script that produced them, abridged to what these tests assert:
  *
@@ -55,10 +55,19 @@
  *
  * ```text
  * coefficients        3.3e-16   (M1 and M2 intercepts land bit-exact)
- * fitted values       8.6e-15   (16 of 200 bit-exact)
+ * fitted values       0         (200 of 200 bit-exact, all three models)
+ * residuals           0         (200 of 200 bit-exact)
  * grid predictions    2.1e-15   (24 of 225 bit-exact)
  * zlim, hold value    2.7e-16
  * ```
+ *
+ * The fitted values and residuals moved to bit equality when the module was
+ * rebased on `linalg/lm`: they now come out of `dqrsl` as R's do — the
+ * residuals from the factorization and the fit as `y` minus them — instead
+ * of being re-summed as `X · β`, which had left them 8.6e-15 out with only
+ * 16 of 200 exact. The assertions stay on the tolerance, because the
+ * coefficients and the grid still carry one; fixture 4h pins the first five
+ * of each with `toEqual` as a tripwire.
  *
  * R's own `predict()` disagrees with a hand-summed linear combination of its
  * own coefficients by 3.6e-15 (fixture section 3), so summation order alone
@@ -489,10 +498,24 @@ describe("moderationSurface: M1, y ~ x * z", () => {
     });
   });
 
-  test("reports residuals as the outcome minus the fit", () => {
+  test("reports R's residuals, which are the factorization's and not y minus the fit", () => {
+    // `lm.fit` returns the residuals `dqrsl` computes and takes the fitted
+    // values as `y` minus them, so the two do not satisfy
+    // `residuals == y - fitted` in the last bit. R's own disagree on 93 of
+    // the 200 rows, by at most 1.3e-15 — see linalg fixture 4h, which the
+    // first five values below come from.
     expect(surface.residuals).toHaveLength(200);
+    expect(surface.fitted.slice(0, 5)).toEqual([
+      -9.3130443937296636, -1.0085002297724963, 2.4752805151804269,
+      6.2660758865938044, -2.4157444554560819,
+    ]);
+    expect(surface.residuals.slice(0, 5)).toEqual([
+      2.0401471936584668, -0.82835018078112699, 0.007222511740669642,
+      -0.17752563937798069, -0.36564880316550952,
+    ]);
     surface.residuals.forEach((residual, index) => {
-      expect(residual).toBe(
+      expectCloseToR(
+        residual,
         (moderationData.y[index] as number) - (surface.fitted[index] as number),
       );
     });

@@ -10,7 +10,7 @@
  * (`../compstatslib/data/pca_degenerate.rda`), printed at 17 significant
  * digits, which round-trips an IEEE-754 double. **Exported from R, never
  * regenerated** — a JavaScript regeneration would silently change the demo.
- * Source of the printed values: `.claude/plans/pca-fixtures.md`, section F1.
+ * Source of the printed values: `.claude/plans/001-PLAN-port/pca-fixtures.md`, section F1.
  */
 
 import type { Point } from "../core/regression";

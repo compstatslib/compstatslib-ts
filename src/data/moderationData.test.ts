@@ -1,10 +1,10 @@
 /**
  * Tests for the bundled `moderation_data` export.
  *
- * The 800 values of the module come from `.claude/plans/moderation-data.tsv`,
+ * The 800 values of the module come from `.claude/plans/001-PLAN-port/moderation-data.tsv`,
  * a `%.17g` dump of `../compstatslib/data/moderation_data.rda`. Rather than
  * repeat all of them here, these tests assert the column checksums of
- * `.claude/plans/moderation-fixtures.md` section 1, plus the first and last
+ * `.claude/plans/001-PLAN-port/moderation-fixtures.md` section 1, plus the first and last
  * row, which together catch a truncated, reordered, or mistyped column.
  *
  * R script that produced the checksums:

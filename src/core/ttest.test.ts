@@ -3,7 +3,7 @@
  * `plot_t_test()` in `../compstatslib/R/t_statistic_plot.R`.
  *
  * Every expected value below comes from R 4.5.3 at full double precision.
- * Source: `.claude/plans/tdist-fixtures.md`, Section 3. Those values were not
+ * Source: `.claude/plans/001-PLAN-port/tdist-fixtures.md`, Section 3. Those values were not
  * re-derived by hand: the fixture run sourced the R package and called its own
  * `t_null_plot()` and `t_alt_lines()` on a null graphics device, so they come
  * off the same code path `plot_t_test()` runs.

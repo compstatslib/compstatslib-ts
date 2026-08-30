@@ -4,7 +4,7 @@
  *
  * This is `plot_scatter3d()` of `../compstatslib/R/scatter3d_plot.R`, drawn
  * through Plotly as the R original is. The trace and the layout follow the
- * object R actually builds, dumped in `.claude/plans/moderation-fixtures.md`
+ * object R actually builds, dumped in `.claude/plans/001-PLAN-port/moderation-fixtures.md`
  * section 5.
  *
  * Four things are worth knowing before reading the code.

@@ -4,7 +4,7 @@
  *
  * Every expected value below comes from R 4.5.3, printed at full double
  * precision with `sprintf("%.17g", x)`. Do not edit these numbers by hand.
- * Sources: `.claude/plans/logit-fixtures.md` sections 1 to 4, and the R script
+ * Sources: `.claude/plans/001-PLAN-port/logit-fixtures.md` sections 1 to 4, and the R script
  * below, run for this task to raise the edge cases to full precision and to
  * pin the parts of `glm.fit` the fixture document describes in prose.
  *

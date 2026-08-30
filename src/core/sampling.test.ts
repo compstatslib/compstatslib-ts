@@ -4,7 +4,7 @@
  * `../compstatslib/R/`.
  *
  * The confidence-interval expected values come from R 4.5.3 at full double
- * precision, `.claude/plans/sampling-fixtures.md` Section 4, over a fixed
+ * precision, `.claude/plans/001-PLAN-port/sampling-fixtures.md` Section 4, over a fixed
  * five-sample matrix. Nothing about the *drawn* values can be checked against
  * R — a seeded JavaScript generator does not reproduce R's Mersenne Twister,
  * and the port does not try to. What is checked instead is that the draws

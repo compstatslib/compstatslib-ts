@@ -11,9 +11,9 @@
  *
  * Sources:
  *
- * - `.claude/plans/logit-fixtures.md`, section 5 (weighted OLS fixtures) and
+ * - `.claude/plans/001-PLAN-port/logit-fixtures.md`, section 5 (weighted OLS fixtures) and
  *   section 4 (the `glm.fit` iteration-1 weighted solve).
- * - `.claude/plans/regression-fixtures.md` (the slice-1 simple-regression
+ * - `.claude/plans/001-PLAN-port/regression-fixtures.md` (the slice-1 simple-regression
  *   fixtures, reused here for the matrix-versus-scalar agreement test that
  *   question Q6 of the port plan asks for).
  * - The R script below, run for this task, which covers rank deficiency,
@@ -456,6 +456,20 @@ describe("leastSquares", () => {
 
     test("rows of differing widths", () => {
       expect(() => leastSquares([[1, 2], [1]], [1, 2])).toThrow(RangeError);
+    });
+  });
+
+  describe("long inputs", () => {
+    test("a million-row design does not overflow the stack", () => {
+      // The column norm used to be `Math.hypot(...column)`, a spread that
+      // dies at about a million arguments. A fold does not.
+      const n = 1_000_000;
+      const fit = leastSquares(
+        Array.from({ length: n }, () => [1]),
+        new Array<number>(n).fill(2),
+      );
+      expect(fit.rank).toBe(1);
+      expect(Math.abs((fit.coefficients[0] as number) - 2)).toBeLessThan(1e-9);
     });
   });
 

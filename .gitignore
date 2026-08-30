@@ -15,3 +15,6 @@ CLAUDE.local.md
 # Cross-machine sync manifests (e.g. Sideways)
 .swcopy
 .swsymlink
+
+# Scratch experiments
+.scratch/

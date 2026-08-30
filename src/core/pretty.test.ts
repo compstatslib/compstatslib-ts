@@ -7,7 +7,7 @@
  * keeps ticks inside a fixed window. The two are not interchangeable.
  *
  * Expected values come from R 4.5.3. The twelve cases marked "Section 2c" are
- * in `.claude/plans/sampling-fixtures.md`; the rest were computed in session
+ * in `.claude/plans/001-PLAN-port/sampling-fixtures.md`; the rest were computed in session
  * with `pretty(c(lo, up), n = n, min.n = min.n)` at `%.17g`, chosen to cover
  * the branches the doc's algorithm sketch could get wrong: negative and
  * zero-crossing ranges, extreme magnitudes, zero-width ranges, the unit

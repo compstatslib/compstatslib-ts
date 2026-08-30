@@ -17,7 +17,7 @@
  * ```
  *
  * and its output on the bundled dataset, pinned in
- * `.claude/plans/moderation-fixtures.md` section 5:
+ * `.claude/plans/001-PLAN-port/moderation-fixtures.md` section 5:
  *
  * ```text
  * numeric columns: y, x, z, w

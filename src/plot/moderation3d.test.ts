@@ -1,7 +1,7 @@
 /**
  * Tests for the moderation surface plot.
  *
- * The numbers come from `.claude/plans/moderation-fixtures.md` section 3,
+ * The numbers come from `.claude/plans/001-PLAN-port/moderation-fixtures.md` section 3,
  * computed in R 4.5.3 over the bundled `moderation_data` with
  * `iv = "x"`, `mod = "z"`. Grid rows are R's `expand.grid(seq_x, seq_z)`
  * order, the IV varying fastest, printed with `%.17g`:
