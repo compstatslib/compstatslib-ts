@@ -23,6 +23,7 @@ import { pt } from "../tdist";
 import { modelMatrix, type ModelSpec } from "./modelMatrix";
 import { namedVector, type NamedVector } from "./namedVector";
 import { DEFAULT_QR_TOLERANCE, qr, qrCoef, qrResid, type QrDecomposition } from "./qr";
+import type { Vector } from "./vector";
 
 /** The model, with the outcome required, and the rank tolerance. */
 export interface LmOptions extends ModelSpec {
@@ -50,9 +51,9 @@ export interface LmFit {
   /** `coef(summary(fit))[, "Pr(>|t|)"]`, null for an aliased term. */
   readonly pValues: NamedVector;
   /** The fitted outcome of each data row, in input order; NaN for a row dropped. */
-  readonly fitted: readonly number[];
+  readonly fitted: Vector;
   /** The outcome minus the fit, in input order; NaN for a row dropped. */
-  readonly residuals: readonly number[];
+  readonly residuals: Vector;
   /** The number of columns the fit could identify. */
   readonly rank: number;
   /** `fit$df.residual`: rows fitted minus rank. */
@@ -90,7 +91,7 @@ export function lm(data: DataFrame, options: LmOptions): LmFit {
     throw new RangeError("0 (non-NA) cases");
   }
   // modelMatrix has already checked the outcome column.
-  const outcomeColumn = data[outcome] as readonly number[];
+  const outcomeColumn = data[outcome] as Vector;
   const y = rows.map((row) => outcomeColumn[row] as number);
 
   const factored = qr(design.matrix, { tolerance });
@@ -184,7 +185,7 @@ function standardErrorsOf(
 }
 
 /** Spread values fitted on `rows` back over `length` slots, NaN elsewhere. */
-function padded(values: readonly number[], rows: readonly number[], length: number): number[] {
+function padded(values: Vector, rows: readonly number[], length: number): number[] {
   const out = new Array<number>(length).fill(Number.NaN);
   rows.forEach((row, index) => {
     out[row] = values[index] as number;

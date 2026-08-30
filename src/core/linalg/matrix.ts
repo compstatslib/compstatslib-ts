@@ -31,6 +31,7 @@ import {
   requireNumericColumn,
   type DataFrame,
 } from "../frame";
+import type { Vector } from "./vector";
 
 /** Row names and column names, either of which R may leave `NULL`. */
 export type Dimnames = readonly [
@@ -81,7 +82,7 @@ export interface MatrixOptions {
  *   refuses), or a dimnames entry has the wrong length.
  */
 export function matrix(
-  values: readonly number[],
+  values: Vector,
   options: MatrixOptions,
 ): Matrix {
   const { byrow = false, dimnames } = options;
@@ -207,7 +208,7 @@ export function make(
  * @throws RangeError If there are no rows, a row is empty, or the rows have
  *   different lengths.
  */
-export function fromRows(rows: readonly (readonly number[])[]): Matrix {
+export function fromRows(rows: readonly Vector[]): Matrix {
   const nrow = rows.length;
   const first = rows[0];
   if (first === undefined || first.length === 0) {
@@ -217,7 +218,7 @@ export function fromRows(rows: readonly (readonly number[])[]): Matrix {
   const ragged = rows.findIndex((row) => row.length !== ncol);
   if (ragged !== -1) {
     throw new RangeError(
-      `every row needs ${ncol} values; row ${ragged} has ${(rows[ragged] as readonly number[]).length}`,
+      `every row needs ${ncol} values; row ${ragged} has ${(rows[ragged] as Vector).length}`,
     );
   }
 
@@ -241,7 +242,7 @@ export function fromRows(rows: readonly (readonly number[])[]): Matrix {
  *   columns have different lengths.
  */
 export function fromColumns(
-  columns: readonly (readonly number[])[],
+  columns: readonly Vector[],
 ): Matrix {
   const ncol = columns.length;
   const first = columns[0];
@@ -254,7 +255,7 @@ export function fromColumns(
   const ragged = columns.findIndex((column) => column.length !== nrow);
   if (ragged !== -1) {
     throw new RangeError(
-      `every column needs ${nrow} values; column ${ragged} has ${(columns[ragged] as readonly number[]).length}`,
+      `every column needs ${nrow} values; column ${ragged} has ${(columns[ragged] as Vector).length}`,
     );
   }
 

@@ -33,9 +33,10 @@
 
 import { fusedMultiplyAdd } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
+import type { Vector } from "./vector";
 
 /** A matrix, or a vector R would treat as a one-column matrix. */
-export type MatrixOrVector = Matrix | readonly number[];
+export type MatrixOrVector = Matrix | Vector;
 
 /** R's `t()`. Also exported as `transpose`, for an app whose `t` is already taken. */
 export function t(m: Matrix): Matrix {
@@ -172,7 +173,7 @@ function asColumn(value: MatrixOrVector): Matrix {
 }
 
 /** A vector as a one-row matrix. */
-function asRow(value: readonly number[]): Matrix {
+function asRow(value: Vector): Matrix {
   return make(1, value.length, Float64Array.from(value), null);
 }
 
@@ -289,15 +290,15 @@ function boundNames(
  * row and column names agree, which the port will do once a named vector
  * exists (plan Q11).
  */
-export function diag(values: readonly number[]): Matrix;
+export function diag(values: Vector): Matrix;
 export function diag(order: number): Matrix;
 export function diag(m: Matrix): number[];
-export function diag(arg: readonly number[] | number | Matrix): Matrix | number[] {
+export function diag(arg: Vector | number | Matrix): Matrix | number[] {
   if (typeof arg === "number") {
     return identity(arg);
   }
   if (Array.isArray(arg)) {
-    const values = arg as readonly number[];
+    const values = arg as Vector;
     const n = values.length;
     const data = new Float64Array(n * n);
     values.forEach((value, i) => {

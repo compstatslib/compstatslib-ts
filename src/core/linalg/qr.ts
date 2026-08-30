@@ -21,6 +21,7 @@
 import { fusedMultiplyAdd } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
 import { isMatrix, type MatrixOrVector } from "./ops";
+import type { Vector } from "./vector";
 
 /** R's `qr()` result. */
 export interface QrDecomposition {
@@ -36,7 +37,7 @@ export interface QrDecomposition {
    * column of a square or wide design, or an aliased column — its remaining
    * norm, which is what R reports there (fixtures 2b, 2c, 2g).
    */
-  readonly qraux: readonly number[];
+  readonly qraux: Vector;
   /**
    * The column order after pivoting, R's `qr$pivot` **zero-based**:
    * `pivot[k]` is the original index of the column now at position `k`.
@@ -122,7 +123,7 @@ export function qr(x: Matrix, options: QrOptions = {}): QrDecomposition {
  *   names; an aliased column reads NaN there, since a matrix holds no null.
  * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrCoef(q: QrDecomposition, y: readonly number[]): (number | null)[];
+export function qrCoef(q: QrDecomposition, y: Vector): (number | null)[];
 export function qrCoef(q: QrDecomposition, y: Matrix): Matrix;
 export function qrCoef(q: QrDecomposition, y: MatrixOrVector): (number | null)[] | Matrix {
   if (isMatrix(y)) {
@@ -142,7 +143,7 @@ export function qrCoef(q: QrDecomposition, y: MatrixOrVector): (number | null)[]
 }
 
 /** The coefficients of one response, in the original column order. */
-function coefficientsOf(q: QrDecomposition, y: readonly number[]): (number | null)[] {
+function coefficientsOf(q: QrDecomposition, y: Vector): (number | null)[] {
   const qty = transformed(q, y, true);
   const solved = backSubstitute(q.qr, qty, q.rank);
   const coefficients = new Array<number | null>(q.qr.ncol).fill(null);
@@ -172,7 +173,7 @@ function originalColumnNames(q: QrDecomposition): readonly string[] | null {
  *
  * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrFitted(q: QrDecomposition, y: readonly number[]): number[];
+export function qrFitted(q: QrDecomposition, y: Vector): number[];
 export function qrFitted(q: QrDecomposition, y: Matrix): Matrix;
 export function qrFitted(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
   return perColumn(q, y, (column) =>
@@ -187,7 +188,7 @@ export function qrFitted(q: QrDecomposition, y: MatrixOrVector): number[] | Matr
  *
  * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrResid(q: QrDecomposition, y: readonly number[]): number[];
+export function qrResid(q: QrDecomposition, y: Vector): number[];
 export function qrResid(q: QrDecomposition, y: Matrix): Matrix;
 export function qrResid(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
   return perColumn(q, y, (column) =>
@@ -201,7 +202,7 @@ export function qrResid(q: QrDecomposition, y: MatrixOrVector): number[] | Matri
  *
  * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrQty(q: QrDecomposition, y: readonly number[]): number[];
+export function qrQty(q: QrDecomposition, y: Vector): number[];
 export function qrQty(q: QrDecomposition, y: Matrix): Matrix;
 export function qrQty(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
   return perColumn(q, y, (column) => transformed(q, column, true));
@@ -213,7 +214,7 @@ export function qrQty(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix 
  *
  * @throws RangeError If `y` has the wrong number of rows.
  */
-export function qrQy(q: QrDecomposition, y: readonly number[]): number[];
+export function qrQy(q: QrDecomposition, y: Vector): number[];
 export function qrQy(q: QrDecomposition, y: Matrix): Matrix;
 export function qrQy(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
   return perColumn(q, y, (column) => transformed(q, column, false));
@@ -223,7 +224,7 @@ export function qrQy(q: QrDecomposition, y: MatrixOrVector): number[] | Matrix {
 function perColumn(
   q: QrDecomposition,
   y: MatrixOrVector,
-  read: (column: readonly number[]) => number[],
+  read: (column: Vector) => number[],
 ): number[] | Matrix {
   if (isMatrix(y)) {
     requireRows(q, y.nrow);
@@ -244,7 +245,7 @@ function readerDimnames(rows: readonly string[] | null, y: Matrix): Dimnames | n
 }
 
 /** Apply the reflectors to a copy of `y`, first to last for `Qᵀy`, last to first for `Qy`. */
-function transformed(q: QrDecomposition, y: readonly number[], transpose: boolean): number[] {
+function transformed(q: QrDecomposition, y: Vector, transpose: boolean): number[] {
   const result = [...y];
   const count = reflectorCount(q);
   if (transpose) {
@@ -476,7 +477,7 @@ function reflect(
  */
 function backSubstitute(
   compact: Matrix,
-  response: readonly number[],
+  response: Vector,
   rank: number,
 ): number[] {
   const { nrow } = compact;
@@ -511,7 +512,7 @@ function moveToEnd<T>(track: T[], from: number): void {
  * entries, and its rounding is not specified — with each square rounded
  * once into the sum, as the contracted BLAS does.
  */
-function norm(column: readonly number[], from: number): number {
+function norm(column: Vector, from: number): number {
   let squares = 0;
   for (let row = from; row < column.length; row++) {
     const value = column[row] as number;

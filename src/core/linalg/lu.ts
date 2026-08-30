@@ -27,6 +27,7 @@ import { fusedMultiplyAdd } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
 import { isMatrix, t, type MatrixOrVector } from "./ops";
 import { qr, qrR } from "./qr";
+import type { Vector } from "./vector";
 
 /**
  * The smallest normal double, LAPACK's `dlamch("S")`.
@@ -169,7 +170,7 @@ export const DEFAULT_SOLVE_TOLERANCE = Number.EPSILON;
  * @throws TypeError If `a` or `b` is neither a matrix nor an array.
  */
 export function solve(a: Matrix, options?: SolveOptions): Matrix;
-export function solve(a: Matrix, b: readonly number[], options?: SolveOptions): number[];
+export function solve(a: Matrix, b: Vector, options?: SolveOptions): number[];
 export function solve(a: Matrix, b: Matrix, options?: SolveOptions): Matrix;
 export function solve(
   a: Matrix,

@@ -88,4 +88,4 @@ export {
   square,
   sub,
 } from "./core/linalg/vector";
-export type { VectorOrScalar } from "./core/linalg/vector";
+export type { Vector, VectorOrScalar } from "./core/linalg/vector";

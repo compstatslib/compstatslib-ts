@@ -23,7 +23,10 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
     `rbind`, `diag`, `identity`;
   * vectors — `add`, `sub`, `mul`, `div`, `square`, `dot`, `norm`, `cosine`:
     R's operators by name, with a scalar recycled and any other length
-    mismatch refused;
+    mismatch refused; and the `Vector` type they are written over, which is
+    `readonly number[]` and nothing more — a name for the concept in a
+    signature, erased at compile time, so a plain array is a vector and
+    nothing needs wrapping;
   * QR — `qr` with `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`,
     `qrR`, which is the LINPACK `dqrdc2` factorization `lm.fit()` runs on,
     promoted out of `leastSquares` (now a wrapper over it, with every existing

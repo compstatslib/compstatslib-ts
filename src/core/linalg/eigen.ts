@@ -26,11 +26,12 @@
  */
 
 import { make, type Matrix } from "./matrix";
+import type { Vector } from "./vector";
 
 /** R's `eigen()` result for a symmetric matrix. */
 export interface SymmetricEigen {
   /** The eigenvalues, largest first. */
-  readonly values: readonly number[];
+  readonly values: Vector;
   /**
    * The eigenvectors as columns, in the order of the values, each of unit
    * length with its largest entry positive. Row names are the input's.

@@ -24,6 +24,7 @@ import { sum } from "../arith";
 import { eigenSymmetric } from "./eigen";
 import { fromFrame, make, type Matrix } from "./matrix";
 import { matmul } from "./ops";
+import type { Vector } from "./vector";
 
 export interface PrcompOptions {
   /** Subtract the column means first. True by default, as R's is. */
@@ -38,7 +39,7 @@ export interface PrcompOptions {
 /** R's `prcomp` result. */
 export interface Prcomp {
   /** The standard deviation along each component, largest first. */
-  readonly sdev: readonly number[];
+  readonly sdev: Vector;
   /**
    * The loadings: one row per variable, one column per component, named
    * `PC1`, `PC2`, … with the variable names as row names when the input
@@ -46,9 +47,9 @@ export interface Prcomp {
    */
   readonly rotation: Matrix;
   /** The value subtracted from each column; zeros when not centered. */
-  readonly center: readonly number[];
+  readonly center: Vector;
   /** The value each column was divided by, or null when not scaled. */
-  readonly scale: readonly number[] | null;
+  readonly scale: Vector | null;
   /**
    * The scores: the centered, scaled data in component coordinates, with
    * the row names of the input and `PC1`, `PC2`, … as column names, as R's

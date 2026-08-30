@@ -18,12 +18,13 @@
 import { sum } from "../arith";
 import { isMatrix, type MatrixOrVector } from "./ops";
 import { make, type Dimnames, type Matrix } from "./matrix";
+import type { Vector } from "./vector";
 
 /**
  * R's `mean()` as `cov()` computes it: the plain mean, refined by the mean
  * of the residuals. A non-finite first pass is returned as it is.
  */
-function refinedMean(values: readonly number[]): number {
+function refinedMean(values: Vector): number {
   const n = values.length;
   const first = sum(values) / n;
   if (!Number.isFinite(first)) {
@@ -34,9 +35,9 @@ function refinedMean(values: readonly number[]): number {
 
 /** The sum of products of deviations over `n − 1`; NaN below two values. */
 function covariance(
-  a: readonly number[],
+  a: Vector,
   meanA: number,
-  b: readonly number[],
+  b: Vector,
   meanB: number,
 ): number {
   const n = a.length;
@@ -51,7 +52,7 @@ function covariance(
 }
 
 /** Refuse two vectors of different lengths, in R's words. */
-function requireSameLength(a: readonly number[], b: readonly number[]): void {
+function requireSameLength(a: Vector, b: Vector): void {
   if (a.length !== b.length) {
     throw new RangeError("incompatible dimensions");
   }
@@ -62,7 +63,7 @@ function requireSameLength(a: readonly number[], b: readonly number[]): void {
  *
  * @returns The variance, or NaN below two values or with a missing value.
  */
-export function variance(a: readonly number[]): number {
+export function variance(a: Vector): number {
   const center = refinedMean(a);
   return covariance(a, center, a, center);
 }
@@ -77,9 +78,9 @@ export function variance(a: readonly number[]): number {
  *   column names of `x` on both sides.
  * @throws RangeError If two vectors differ in length.
  */
-export function cov(x: readonly number[], y: readonly number[]): number;
+export function cov(x: Vector, y: Vector): number;
 export function cov(x: Matrix): Matrix;
-export function cov(x: MatrixOrVector, y?: readonly number[]): number | Matrix {
+export function cov(x: MatrixOrVector, y?: Vector): number | Matrix {
   if (isMatrix(x)) {
     return pairwise(x, false);
   }
@@ -101,9 +102,9 @@ export function cov(x: MatrixOrVector, y?: readonly number[]): number | Matrix {
  *   variable has no spread.
  * @throws RangeError If two vectors differ in length.
  */
-export function cor(x: readonly number[], y: readonly number[]): number;
+export function cor(x: Vector, y: Vector): number;
 export function cor(x: Matrix): Matrix;
-export function cor(x: MatrixOrVector, y?: readonly number[]): number | Matrix {
+export function cor(x: MatrixOrVector, y?: Vector): number | Matrix {
   if (isMatrix(x)) {
     return pairwise(x, true);
   }
