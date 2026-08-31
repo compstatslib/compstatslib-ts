@@ -211,7 +211,7 @@ The routines the plots are built on are exported in their own right, because an 
 | --- | --- |
 | Descriptives | `mean`, `median`, `sd`, `quantile`, `quantiles`, `meanAbsoluteDeviation` |
 | Student t distribution | `dt`, `pt`, `qt`, with the `normalCdf`, `incompleteBeta` and `inverseIncompleteBeta` they stand on |
-| Chi-square distribution | `pchisq`, `qchisq`, central and noncentral, with `lowerTail` for a far tail |
+| Chi-square distribution | `pchisq`, `qchisq`, central and noncentral, with `lowerTail` for a far tail, and the `regularizedGammaP`, `regularizedGammaQ` and their log forms they stand on (R's `pgamma`) |
 | Normal distribution | `pnorm`, `qnorm`, with `mean`, `sd` and `lowerTail` |
 | Seeded random draws | `seededRng`, `runif`, `rnorm`, `rt`, `rlnorm`, `rcauchy`, `sampleWithoutReplacement` |
 | Binning and density | `histogram`, `nclassSturges`, `kernelDensity`, `bwNrd0` |
@@ -281,7 +281,7 @@ Each routine follows R down to the arithmetic of its LAPACK and LINPACK calls, s
 
 #### Throughput
 
-Every routine that multiplies rounds each product once, through a software fused multiply-add, so that a result is R's double bit for bit. That costs 10 to 20 times the time of plain arithmetic. Pass `{ fma: false }` to `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`, `determinant`, `rcond`, `lm` and `leastSquares` to use plain `a * b + c` instead. The plain result sits a few units in the last place from the default. `qr` and `lu` record the setting on the decomposition, so their readers follow it.
+Every routine that multiplies rounds each product once, through a software fused multiply-add, so that a result is R's double bit for bit. That costs 10 to 20 times the time of plain arithmetic. Pass `{ fma: false }` to `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`, `determinant`, `rcond`, `lm` and `leastSquares` to use plain `a * b + c` instead. The plain result sits a few units in the last place from the default. `qr` and `lu` record the setting on the decomposition, so their readers follow it. The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `CholOptions` and `LmOptions` extend it, and all are exported from the linalg entry.
 
 ```js
 const xtx = crossprod(x, { fma: false });

@@ -26,8 +26,9 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   option is meant for a hot loop, such as a bootstrap, where a consumer
   composes these routines many thousands of times. The two settings can be
   mixed in one program without a cost to either. The README's linear algebra
-  section holds the measured table. The types `FmaOption` and `LuOptions`
-  are exported from the linalg entry.
+  section holds the measured table. The types `FmaOption`, `LuOptions` and
+  `CholOptions` are exported from the linalg entry, beside the existing
+  `QrOptions` and `SolveOptions`, which now extend `FmaOption`.
 * `cov(x, y)` and `cor(x, y)` for two matrices, and `scale()`, in the
   linear-algebra entry. `cov` and `cor` each gain the overloads
   `(Matrix, Matrix)`, `(Vector, Matrix)` and `(Matrix, Vector)`, with `x`'s
@@ -85,7 +86,12 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   Every fixture point is verified at a relative 1e-12, with one stated
   bound: the upper tail of `pchisq(1500, 200, 1000)` holds at an absolute
   1e-12 rather than a relative one, because R itself reaches that value by
-  subtracting from 1.
+  subtracting from 1. The regularized incomplete gamma the chi-square stands
+  on is exported too, as `regularizedGammaP`, `regularizedGammaQ`,
+  `logRegularizedGammaP` and `logRegularizedGammaQ` — R's `pgamma(x, a)` in
+  its four tail and log forms — beside the `incompleteBeta` that `pt` stands
+  on. The types `TailOptions`, `NormalOptions`, `OptimOptions`,
+  `OptimControl` and `OptimResult` are exported from the main entry.
 * `optim(par, fn, options?)`, on the main entry, R's `optim(method =
   "BFGS")`. It is a port of the `bfgs` routine written for `seminr-ts` by
   this package's own author, so no license question stands in the way of

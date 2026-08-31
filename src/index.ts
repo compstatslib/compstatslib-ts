@@ -94,7 +94,11 @@ export {
   inverseIncompleteBeta,
   logBeta,
   logGamma,
+  logRegularizedGammaP,
+  logRegularizedGammaQ,
   normalCdf,
+  regularizedGammaP,
+  regularizedGammaQ,
 } from "./core/special";
 
 export { moderationData } from "./data/moderationData";
