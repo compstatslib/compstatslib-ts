@@ -211,12 +211,19 @@ The routines the plots are built on are exported in their own right, because an 
 | --- | --- |
 | Descriptives | `mean`, `median`, `sd`, `quantile`, `quantiles`, `meanAbsoluteDeviation` |
 | Student t distribution | `dt`, `pt`, `qt`, with the `normalCdf`, `incompleteBeta` and `inverseIncompleteBeta` they stand on |
+| Chi-square distribution | `pchisq`, `qchisq`, central and noncentral, with `lowerTail` for a far tail |
+| Normal distribution | `pnorm`, `qnorm`, with `mean`, `sd` and `lowerTail` |
 | Seeded random draws | `seededRng`, `runif`, `rnorm`, `rt`, `rlnorm`, `rcauchy`, `sampleWithoutReplacement` |
 | Binning and density | `histogram`, `nclassSturges`, `kernelDensity`, `bwNrd0` |
 | Axis ticks | `rPretty`, `prettyTicks` |
 | Fitting and 2x2 matrices | `leastSquares`, `determinant`, `invertMatrix` |
+| General optimization | `optim` |
 
 The names say which rule was followed, for anyone checking: `quantile` is type 7, `nclassSturges` is Sturges' rule, `bwNrd0` is the `nrd0` bandwidth, `rPretty` is R's `pretty()`, and the samplers take R's own parameters. The general matrix routines — solving, factorizing, model fitting, principal components — live under [Linear algebra](#linear-algebra) below.
+
+`pchisq`'s noncentral branch follows R's `pnchisq.c`, `qchisq` follows R's `qgamma`, and `qnorm` follows Wichura's Algorithm AS 241. Each is verified against R at a relative tolerance of 1e-12.
+
+`optim(par, fn, { gr, method: "BFGS", control })` lands on R's optimum. On the fixtures, with an analytic gradient, `par` sits within 1e-6 and `value` within 1e-10 of R's `optim(method = "BFGS")`. Its path there is not R's path. It backtracks with an Armijo line search instead of R's line search. It stops on a gradient-norm rule, and keeps R's `reltol` only as a stall test. It resets the inverse Hessian to the identity when a search direction does not go downhill. So its `counts` differ from R's, even where `par` and `value` agree. A stationary start returns at once, with one function count and one gradient count, as R's does.
 
 The draws take a generator you pass in, so a demonstration repeats exactly:
 
@@ -245,8 +252,14 @@ A matrix is plain data, laid out as R lays it out — **column-major**, with `nr
 | Vectors | `add`, `sub`, `mul`, `div`, `square`, `dot`, `norm`, `cosine` |
 | QR | `qr`, `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`, `qrR` |
 | LU | `lu`, `solve`, `det`, `determinant`, `rcond`, `matrixNorm` |
-| Models | `modelMatrix`, `lm`, `namedVector`, `lookup` |
-| Multivariate | `cov`, `cor`, `variance`, `eigenSymmetric`, `isSymmetric`, `prcomp` |
+| Models | `modelMatrix`, `lm`, `predictLm`, `namedVector`, `lookup` |
+| Multivariate | `cov`, `cor`, `variance`, `scale`, `chol`, `chol2inv`, `eigenSymmetric`, `isSymmetric`, `prcomp` |
+
+`cov(x, y)` and `cor(x, y)` take two matrices. `x`'s columns become the result's rows, and `y`'s columns become its columns. `scale` returns `{ scaled, center, scale }`, with R's `scaled:center` and `scaled:scale` as plain fields. `chol` returns R's upper triangular factor, and `chol2inv` returns its inverse. `predictLm(fit, newdata)` rebuilds the design over a new frame and multiplies it by the fit's coefficients. A row with a missing value comes back as NaN.
+
+```js
+predictLm(fit, { x: [0, 1], z: [0.5, -1], w: [2, 1] });
+```
 
 A model is a term list rather than a formula — R's `y ~ x * z + w` is `{ outcome: "y", terms: ["x", "z", "w", ["x", "z"]] }` — and `lm` returns the coefficients as a named vector in R's order, with `null` where R prints `NA`:
 

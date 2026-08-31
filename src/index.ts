@@ -75,6 +75,12 @@ export type {
   RunifOptions,
 } from "./core/rng";
 export { dt, pt, qt } from "./core/tdist";
+export { pchisq, qchisq } from "./core/chisq";
+export type { TailOptions } from "./core/chisq";
+export { pnorm, qnorm } from "./core/norm";
+export type { NormalOptions } from "./core/norm";
+export { optim } from "./core/optim";
+export type { OptimControl, OptimOptions, OptimResult } from "./core/optim";
 export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest";
 export type {
   FillRange,
