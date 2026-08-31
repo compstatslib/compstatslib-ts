@@ -34,7 +34,8 @@
   },
   "files": [
     "dist",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "NOTICE"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",

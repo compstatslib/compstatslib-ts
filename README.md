@@ -211,12 +211,19 @@ The routines the plots are built on are exported in their own right, because an 
 | --- | --- |
 | Descriptives | `mean`, `median`, `sd`, `quantile`, `quantiles`, `meanAbsoluteDeviation` |
 | Student t distribution | `dt`, `pt`, `qt`, with the `normalCdf`, `incompleteBeta` and `inverseIncompleteBeta` they stand on |
+| Chi-square distribution | `pchisq`, `qchisq`, central and noncentral, with `lowerTail` for a far tail, and the `regularizedGammaP`, `regularizedGammaQ` and their log forms they stand on (R's `pgamma`) |
+| Normal distribution | `pnorm`, `qnorm`, with `mean`, `sd` and `lowerTail` |
 | Seeded random draws | `seededRng`, `runif`, `rnorm`, `rt`, `rlnorm`, `rcauchy`, `sampleWithoutReplacement` |
 | Binning and density | `histogram`, `nclassSturges`, `kernelDensity`, `bwNrd0` |
 | Axis ticks | `rPretty`, `prettyTicks` |
 | Fitting and 2x2 matrices | `leastSquares`, `determinant`, `invertMatrix` |
+| General optimization | `optim` |
 
 The names say which rule was followed, for anyone checking: `quantile` is type 7, `nclassSturges` is Sturges' rule, `bwNrd0` is the `nrd0` bandwidth, `rPretty` is R's `pretty()`, and the samplers take R's own parameters. The general matrix routines — solving, factorizing, model fitting, principal components — live under [Linear algebra](#linear-algebra) below.
+
+`pchisq`'s noncentral branch follows R's `pnchisq.c`, `qchisq` follows R's `qgamma`, and `qnorm` follows Wichura's Algorithm AS 241. Each is verified against R at a relative tolerance of 1e-12.
+
+`optim(par, fn, { gr, method: "BFGS", control })` lands on R's optimum. On the fixtures, with an analytic gradient, `par` sits within 1e-6 and `value` within 1e-10 of R's `optim(method = "BFGS")`. Its path there is not R's path. It backtracks with an Armijo line search instead of R's line search. It stops on a gradient-norm rule, and keeps R's `reltol` only as a stall test. It resets the inverse Hessian to the identity when a search direction does not go downhill. So its `counts` differ from R's, even where `par` and `value` agree. A stationary start returns at once, with one function count and one gradient count, as R's does.
 
 The draws take a generator you pass in, so a demonstration repeats exactly:
 
@@ -241,12 +248,20 @@ A matrix is plain data, laid out as R lays it out — **column-major**, with `nr
 | Group | Functions |
 | --- | --- |
 | Building | `matrix`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`, `column`, `toRows`, `toColumns` |
-| Elementary operations | `t` (or `transpose`), `matmul`, `crossprod`, `tcrossprod`, `cbind`, `rbind`, `diag`, `identity` |
-| Vectors | `add`, `sub`, `mul`, `div`, `square`, `dot`, `norm`, `cosine` |
+| Elementary operations | `t` (or `transpose`), `matmul`, `crossprod`, `tcrossprod`, `outer`, `cbind`, `rbind`, `diag`, `identity` |
+| Vectors and elementwise | `add`, `sub`, `mul`, `div` (also take two matrices, or a matrix and a scalar), `square`, `dot`, `norm`, `cosine` |
 | QR | `qr`, `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`, `qrR` |
 | LU | `lu`, `solve`, `det`, `determinant`, `rcond`, `matrixNorm` |
-| Models | `modelMatrix`, `lm`, `namedVector`, `lookup` |
-| Multivariate | `cov`, `cor`, `variance`, `eigenSymmetric`, `isSymmetric`, `prcomp` |
+| Models | `modelMatrix`, `lm`, `predictLm`, `namedVector`, `lookup` |
+| Multivariate | `cov`, `cor`, `variance`, `scale`, `chol`, `chol2inv`, `eigenSymmetric`, `isSymmetric`, `prcomp` |
+
+`cov(x, y)` and `cor(x, y)` take two matrices. `x`'s columns become the result's rows, and `y`'s columns become its columns. `scale` returns `{ scaled, center, scale }`, with R's `scaled:center` and `scaled:scale` as plain fields. `chol` returns R's upper triangular factor, and `chol2inv` returns its inverse. `predictLm(fit, newdata)` rebuilds the design over a new frame and multiplies it by the fit's coefficients. A row with a missing value comes back as NaN.
+
+`add`, `sub`, `mul`, and `div` are R's elementwise `+`, `-`, `*`, `/` on matrices. Extents must agree, and dimnames follow the first operand. `outer(x, y)` is R's outer product of two vectors.
+
+```js
+predictLm(fit, { x: [0, 1], z: [0.5, -1], w: [2, 1] });
+```
 
 A model is a term list rather than a formula — R's `y ~ x * z + w` is `{ outcome: "y", terms: ["x", "z", "w", ["x", "z"]] }` — and `lm` returns the coefficients as a named vector in R's order, with `null` where R prints `NA`:
 
@@ -263,6 +278,17 @@ solve(a, [1, 2, 3]);      // [-0.06666666666666665, 0.8, 0.3333333333333333]
 ```
 
 Each routine follows R down to the arithmetic of its LAPACK and LINPACK calls, so the factorizations, the solves and the fitted values match R's doubles exactly, and the rest is verified at a stated tolerance. Where R warns and recycles a mismatched length, or silently reads only the lower triangle of a matrix, this entry refuses and says so at the function.
+
+#### Throughput
+
+Every routine that multiplies rounds each product once, through a software fused multiply-add, so that a result is R's double bit for bit. That costs 10 to 25 times the time of plain arithmetic. Pass `{ fma: false }` to `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`, `determinant`, `rcond`, `lm` and `leastSquares` to use plain `a * b + c` instead, for a result a few units in the last place away. `qr` and `lu` record the setting on the decomposition, so their readers follow it. A program may mix the two settings without a penalty.
+
+```js
+const xtx = crossprod(x, { fma: false });
+solve(xtx, crossprod(x, y, { fma: false }), { fma: false });
+```
+
+The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `CholOptions` and `LmOptions` extend it, and all are exported from the linalg entry.
 
 ### Bundled data
 
@@ -325,3 +351,33 @@ Issues and pull requests are welcome.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Attribution
+
+The package has no runtime dependencies and copies no third-party source
+file. It does reimplement numerical algorithms that other people wrote, which
+is unavoidable given the goal: returning the double R returns means following
+the algorithm R follows, and in several places the arrangement R gives it —
+the order of a loop, where a series is cut off, which branch a value takes.
+
+[NOTICE](NOTICE) records where that work came from. In summary:
+
+- **R** (GPL-2 or later, The R Core Team). The chi-square, normal and
+  non-central t routines follow R's `nmath` sources, and the covariance and
+  QR routines follow R's own C and Fortran. Two pieces are R Core's own
+  contributions rather than transcriptions of published algorithms, and are
+  called out individually in NOTICE: the far-tail expansion in `qnorm` due to
+  Martin Maechler, and the regime split and tolerances in the non-central
+  chi-square. R is not bundled, linked, or called at runtime; it is a
+  separate program used to generate the reference values the tests pin.
+- **Applied Statistics algorithms** AS 91, AS 109, AS 241, AS 243 and AS 275,
+  copyright the Royal Statistical Society, implemented from their published
+  descriptions.
+- **LAPACK** (three-clause BSD) and **LINPACK**, whose reference loop orders
+  the Cholesky, LU and QR factorizations follow.
+- Standard published results — Lanczos, Abramowitz and Stegun, Dekker,
+  Sturges, Silverman, Nash — listed individually in NOTICE.
+
+If you need any of that upstream code itself rather than an independent
+reimplementation of the method, take it from its own project under its own
+terms.

@@ -24,6 +24,7 @@ import {
   qrQy,
   qrR,
   qrResid,
+  type QrOptions,
 } from "./qr";
 
 function columnMajor(m: Matrix): number[] {
@@ -419,5 +420,153 @@ describe("qr() — fixture 2i, names, a matrix y, tol = 0", () => {
       /'qr' and 'y' must have the same number of rows/,
     );
     expect(() => qr([[1]] as unknown as Matrix)).toThrow(TypeError);
+  });
+});
+
+/**
+ * The `fma` option, plan 004 Slice 0.
+ *
+ * The default rounds every product through the software fused multiply-add,
+ * which is what pins the fixtures above bit for bit. `{ fma: false }` takes
+ * plain `a * b + c` for throughput. The decomposition carries the setting,
+ * and every reader runs `dqrsl` the same way the factorization ran, so no
+ * reader takes an option of its own.
+ *
+ * The two paths differ by a few ulps, so the tests here compare the paths to
+ * each other at 1e-14 relative. They never restate R's doubles: the pins
+ * above own that job, and they still run on the default.
+ */
+
+/** Agreement between the two arithmetic paths: |a − b| ≤ 1e-14 · max(1, |b|). */
+function agrees(actual: readonly number[], expected: readonly number[]): void {
+  expect(actual.length).toBe(expected.length);
+  actual.forEach((value, index) => {
+    const target = expected[index] as number;
+    expect(Math.abs(value - target)).toBeLessThanOrEqual(
+      1e-14 * Math.max(1, Math.abs(target)),
+    );
+  });
+}
+
+/** The same, for coefficients: an aliased entry is null under both paths. */
+function coefficientsAgree(
+  actual: readonly (number | null)[],
+  expected: readonly (number | null)[],
+): void {
+  expect(actual.length).toBe(expected.length);
+  actual.forEach((value, index) => {
+    const target = expected[index] as number | null;
+    if (value === null || target === null) {
+      expect(value).toBe(target);
+      return;
+    }
+    expect(Math.abs(value - target)).toBeLessThanOrEqual(
+      1e-14 * Math.max(1, Math.abs(target)),
+    );
+  });
+}
+
+describe("qr() — the fma option", () => {
+  test("the decomposition records the setting", () => {
+    expect(qr(X).fma).toBe(true);
+    expect(qr(X, {}).fma).toBe(true);
+    expect(qr(X, { tolerance: 1e-11 }).fma).toBe(true);
+    expect(qr(X, { fma: true }).fma).toBe(true);
+    expect(qr(X, { fma: false }).fma).toBe(false);
+  });
+
+  test("fixture 2a — the readers follow the setting and agree at 1e-14", () => {
+    const fma = qr(X);
+    const plain = qr(X, { fma: false });
+    expect(plain.fma).toBe(false);
+    coefficientsAgree(qrCoef(plain, y), qrCoef(fma, y));
+    agrees(qrFitted(plain, y), qrFitted(fma, y));
+    agrees(qrResid(plain, y), qrResid(fma, y));
+    agrees(qrQty(plain, y), qrQty(fma, y));
+    agrees(qrQy(plain, y), qrQy(fma, y));
+    agrees(columnMajor(qrQ(plain)), columnMajor(qrQ(fma)));
+    agrees(columnMajor(qrR(plain)), columnMajor(qrR(fma)));
+  });
+
+  test("fixture 2e — the moderation-shaped design agrees at 1e-14", () => {
+    const xx = [1, 2, 3, 4, 5, 6];
+    const z = [2, 5, 1, 9, 4, 6];
+    const yy = [3.1, 4.4, 2.2, 9.9, 5.5, 7.7];
+    const M = matrix(
+      [1, 1, 1, 1, 1, 1, ...xx, ...z, ...xx.map((v, i) => v * (z[i] as number))],
+      { nrow: 6, dimnames: [null, ["(Intercept)", "xx", "z", "xx:z"]] },
+    );
+    const fma = qr(M);
+    const plain = qr(M, { fma: false });
+    expect(plain.fma).toBe(false);
+    coefficientsAgree(qrCoef(plain, yy), qrCoef(fma, yy));
+    agrees(qrFitted(plain, yy), qrFitted(fma, yy));
+    agrees(qrResid(plain, yy), qrResid(fma, yy));
+    agrees(qrQty(plain, yy), qrQty(fma, yy));
+    agrees(qrQy(plain, yy), qrQy(fma, yy));
+    agrees(columnMajor(qrQ(plain)), columnMajor(qrQ(fma)));
+    agrees(columnMajor(qrR(plain)), columnMajor(qrR(fma)));
+  });
+
+  test("an aliased coefficient stays null under plain arithmetic", () => {
+    const dup = cbind([1, 1, 1, 1], [1, 1, 1, 1], x);
+    const plain = qr(dup, { fma: false });
+    expect(plain.fma).toBe(false);
+    const coefficients = qrCoef(plain, y);
+    expect(coefficients[1]).toBeNull();
+    coefficientsAgree(coefficients, qrCoef(qr(dup), y));
+  });
+
+  const fixtures: readonly {
+    readonly name: string;
+    readonly m: Matrix;
+    readonly options: QrOptions;
+  }[] = [
+    { name: "2a, full rank", m: X, options: {} },
+    {
+      name: "2b, a duplicated column",
+      m: cbind([1, 1, 1, 1], [1, 1, 1, 1], x),
+      options: {},
+    },
+    { name: "2c, more columns than rows", m: matrix([1, 10], { nrow: 1 }), options: {} },
+    {
+      name: "2d, square full rank",
+      m: matrix([2, 1, -1, 1, 3, 2, 1, -1, 4], { nrow: 3 }),
+      options: {},
+    },
+    {
+      name: "2e, the moderation-shaped design",
+      m: matrix(
+        [1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5, 6, 2, 5, 1, 9, 4, 6, 2, 10, 3, 36, 20, 36],
+        { nrow: 6 },
+      ),
+      options: {},
+    },
+    {
+      name: "2f, near-collinear at tol 1e-7",
+      m: cbind([1, 1, 1, 1], [1, 1, 1, 1 + 1e-8]),
+      options: { tolerance: 1e-7 },
+    },
+    {
+      name: "2f, near-collinear at tol 1e-11",
+      m: cbind([1, 1, 1, 1], [1, 1, 1, 1 + 1e-8]),
+      options: { tolerance: 1e-11 },
+    },
+    { name: "2g, an all-zero column", m: cbind(x, [0, 0, 0, 0]), options: {} },
+  ];
+
+  fixtures.forEach(({ name, m, options }) => {
+    test(`rank and pivot agree exactly — fixture ${name}`, () => {
+      const fma = qr(m, options);
+      const plain = qr(m, { ...options, fma: false });
+      expect(plain.fma).toBe(false);
+      expect(plain.rank).toBe(fma.rank);
+      expect(plain.pivot).toEqual(fma.pivot);
+    });
+  });
+
+  test("a non-boolean fma is refused", () => {
+    expect(() => qr(X, { fma: 1 } as unknown as QrOptions)).toThrow(TypeError);
+    expect(() => qr(X, { fma: "yes" } as unknown as QrOptions)).toThrow(TypeError);
   });
 });

@@ -11,13 +11,22 @@
  * a stated tolerance (plan Q1): R's `summary.lm()` reaches them through
  * `chol2inv` and `pt`, whose rounding the port does not follow step for
  * step.
+ *
+ * `predictLm()` is pinned against `../compstatslib/conformance-fixtures/linalg.R`
+ * section 8, captured in
+ * `.claude/plans/004-PLAN-seminr-utilities/linalg-fixtures.md`. R's
+ * `predict.lm()` rebuilds the design over the new frame and multiplies it by
+ * the coefficients, so the predictions pin bit for bit. That product is why
+ * `predict(fit)` on the training frame is not `fitted(fit)`: the fitted
+ * values are what `dqrsl` returned during the fit, and the two agree only to
+ * about 1e-14.
  */
 
 import { describe, expect, test } from "bun:test";
 import { moderationData } from "../../data/moderationData";
 import { moderationSurface } from "../moderation";
 import { linearRegression } from "../regression";
-import { lm } from "./lm";
+import { lm, predictLm } from "./lm";
 import { lookup, namedVector, type NamedVector } from "./namedVector";
 
 /** Compare at a relative tolerance, the way plan Q1 asks for values above 1. */
@@ -271,5 +280,193 @@ describe("lm() — fixture 4g, the edges of the residual degrees of freedom", ()
     expect(fit.adjRSquared).toBe(0);
     relativelyClose(fit.sigma, 3.6235641115369814);
     expect(fit.fStatistic).toBeNull();
+  });
+});
+
+describe("lm() — the fma option (plan 004, slice 0)", () => {
+  const model = { outcome: "y", terms: ["x", "z", "w", ["x", "z"]] } as const;
+  const standard = lm(moderationData, { ...model, terms: [...model.terms] });
+  const plain = lm(moderationData, { ...model, terms: [...model.terms], fma: false });
+
+  /**
+   * The two arithmetic paths round each product a different number of times,
+   * so they agree to a few units in the last place, not bit for bit. See the
+   * README's linear algebra section for the measured spread.
+   */
+  const AGREEMENT = 1e-14;
+
+  test("the default still pins R's coefficients exactly", () => {
+    const asked = lm(moderationData, { ...model, terms: [...model.terms], fma: true });
+    expect(values(asked.coefficients)).toEqual([
+      -0.046252109941790048, 0.47180209229612374, 0.31363421997396679,
+      -0.003665271584484884, 0.84815858062951188,
+    ]);
+  });
+
+  test("a plain fit gives the same coefficients, names and rank", () => {
+    expect(plain.coefficients.names).toEqual([...standard.coefficients.names]);
+    expect(plain.rank).toBe(standard.rank);
+    expect(plain.dfResidual).toBe(standard.dfResidual);
+    values(standard.coefficients).forEach((expected, index) => {
+      relativelyClose(
+        values(plain.coefficients)[index] as number,
+        expected as number,
+        AGREEMENT,
+      );
+    });
+  });
+
+  test("a plain fit gives the same fitted values and residuals", () => {
+    expect(plain.fitted.length).toBe(standard.fitted.length);
+    standard.fitted.forEach((expected, index) => {
+      relativelyClose(plain.fitted[index] as number, expected, AGREEMENT);
+    });
+    standard.residuals.forEach((expected, index) => {
+      relativelyClose(plain.residuals[index] as number, expected, AGREEMENT);
+    });
+  });
+
+  test("a plain fit gives the same standard errors, R² and sigma", () => {
+    values(standard.standardErrors).forEach((expected, index) => {
+      relativelyClose(
+        values(plain.standardErrors)[index] as number,
+        expected as number,
+        AGREEMENT,
+      );
+    });
+    relativelyClose(plain.rSquared, standard.rSquared, AGREEMENT);
+    relativelyClose(plain.sigma, standard.sigma, AGREEMENT);
+  });
+
+  test("refuses an fma that is not a boolean", () => {
+    expect(() =>
+      lm(moderationData, {
+        ...model,
+        terms: [...model.terms],
+        fma: 1 as unknown as boolean,
+      }),
+    ).toThrow(TypeError);
+  });
+});
+
+describe("predictLm() — fixture 8, R's predict.lm() over a new frame", () => {
+  /** Fixture 8's new frame `nd`. It carries no outcome column, as R's does not. */
+  const nd = {
+    x: [-1, 0, 0.5, 2, 1.25],
+    z: [0.5, -0.25, 1, -1, 0],
+    w: [2, 1, -0.5, 0.75, -1.5],
+  };
+
+  /** The fit of section 4a and 8a, `y ~ x * z + w`. */
+  const withControl = lm(moderationData, {
+    outcome: "y",
+    terms: ["x", "z", "w", ["x", "z"]],
+  });
+  /** The fit of section 4b and 8b, `y ~ x + z - 1`. */
+  const noIntercept = lm(moderationData, {
+    outcome: "y",
+    terms: ["x", "z"],
+    intercept: false,
+  });
+  /** The fit of section 4h and 8c, `y ~ x * z`, the moderation demo's model. */
+  const moderation = lm(moderationData, {
+    outcome: "y",
+    terms: ["x", "z", ["x", "z"]],
+  });
+
+  test("the fit records the model it was built from", () => {
+    expect(withControl.model.outcome).toBe("y");
+    expect(withControl.model.terms).toEqual(["x", "z", "w", ["x", "z"]]);
+    // The flag is the one the fit used, so a default reads as true.
+    expect(withControl.model.intercept).toBe(true);
+    expect(noIntercept.model.terms).toEqual(["x", "z"]);
+    expect(noIntercept.model.intercept).toBe(false);
+  });
+
+  test("fixture 8a: y ~ x * z + w predicts nd bit for bit", () => {
+    expect(predictLm(withControl, nd)).toEqual([
+      -0.792646925734656, -0.12832593651976662, 0.92919508228723702,
+      -1.1153482602708968, 0.54899841280509187,
+    ]);
+  });
+
+  test("fixture 8b: the no-intercept fit predicts nd bit for bit", () => {
+    expect(predictLm(noIntercept, nd)).toEqual([
+      -0.18071596973512427, -0.16588812261796826, 0.91979859795740349,
+      0.36143193947024854, 0.64061526871382601,
+    ]);
+  });
+
+  test("fixture 8c: y ~ x * z predicts nd bit for bit", () => {
+    expect(predictLm(moderation, nd)).toEqual([
+      -0.78458977416299436, -0.12369957138455989, 0.9284241010678238,
+      -1.1112524068949277, 0.54472295005409754,
+    ]);
+  });
+
+  test("fixture 8d: a row with a missing value gives NaN, as R gives NA", () => {
+    const holed = { ...nd, x: nd.x.map((v, i) => (i === 2 ? Number.NaN : v)) };
+    expect(predictLm(withControl, holed)).toEqual([
+      -0.792646925734656, -0.12832593651976662, Number.NaN,
+      -1.1153482602708968, 0.54899841280509187,
+    ]);
+  });
+
+  test("fixture 8e: a frame that lacks a column the terms need, in R's words", () => {
+    const withoutW = { x: nd.x, z: nd.z };
+    expect(() => predictLm(withControl, withoutW)).toThrow(RangeError);
+    expect(() => predictLm(withControl, withoutW)).toThrow("object 'w' not found");
+  });
+
+  test("fixture 8f: an aliased coefficient adds nothing, whatever the new frame holds", () => {
+    const aliased = {
+      y: moderationData.y,
+      x: moderationData.x,
+      x2: moderationData.x.map((v) => 2 * v),
+    };
+    const fit = lm(aliased, { outcome: "y", terms: ["x", "x2"] });
+    expect(values(fit.coefficients)).toEqual([
+      -0.29054220305114831, 0.45627294314681255, null,
+    ]);
+
+    const expected = [
+      -0.74681514619796086, -0.29054220305114831, -0.062405731477742032,
+      0.62200368324247679, 0.27979897588236735,
+    ];
+    // R stays silent for a frame that keeps x2 = 2 * x, and warns for one
+    // that breaks the relation. Both give these numbers, because the aliased
+    // column never enters the product, and a library cannot warn.
+    const keepsTheRelation = { x: nd.x, x2: nd.x.map((v) => 2 * v) };
+    const breaksTheRelation = { x: nd.x, x2: [-2, 0, 1, 3, 2.5] };
+    expect(predictLm(fit, keepsTheRelation)).toEqual(expected);
+    expect(predictLm(fit, breaksTheRelation)).toEqual(expected);
+  });
+
+  test("fixture 8g: predicting the training frame is not the fitted values", () => {
+    const predicted = predictLm(moderation, moderationData);
+    expect(predicted.length).toBe(200);
+    expect(predicted.slice(0, 5)).toEqual([
+      -9.3130443937296761, -1.0085002297724956, 2.4752805151804051,
+      6.2660758865938178, -2.415744455456081,
+    ]);
+    expect(moderation.fitted.slice(0, 5)).toEqual([
+      -9.3130443937296636, -1.0085002297724963, 2.4752805151804269,
+      6.2660758865938044, -2.4157444554560819,
+    ]);
+
+    const differences = predicted.map((value, index) =>
+      Math.abs(value - (moderation.fitted[index] as number)),
+    );
+    expect(differences.filter((d) => d !== 0).length).toBe(189);
+    expect(Math.max(...differences)).toBeLessThanOrEqual(2.1760371282653068e-14);
+  });
+
+  test("the fma option: plain arithmetic agrees with the default", () => {
+    const standard = predictLm(withControl, nd);
+    const plain = predictLm(withControl, nd, { fma: false });
+    expect(plain.length).toBe(standard.length);
+    standard.forEach((expected, index) => {
+      relativelyClose(plain[index] as number, expected, 1e-14);
+    });
   });
 });

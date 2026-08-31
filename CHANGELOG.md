@@ -3,6 +3,162 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Added
+
+* An `fma` option on the routines of the linear-algebra entry that multiply:
+  `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`,
+  `determinant`, `rcond` and `lm`, and on the main entry's `leastSquares`.
+  The default, `true`, is what every earlier release did: each product is
+  rounded once through a software fused multiply-add, so the result is R's
+  double bit for bit, and every pinned value is unchanged. `{ fma: false }`
+  selects plain `a * b + c`, which runs 10 to 25 times faster on the shapes
+  measured (a 2000 × 24 product, a 24-column `crossprod`, a six-predictor
+  OLS by `crossprod` + `solve`, a 2000 × 20 `qr`, a 24 × 24 `solve`) and
+  lands a few units in the last place from the default. `qr` and `lu` record
+  the setting on the decomposition they return (`QrDecomposition.fma`,
+  `LuDecomposition.fma`), so `qrCoef`, `qrFitted`, `qrResid`, `qrQty`,
+  `qrQy`, `qrQ`, `qrR` and the solves follow the factorization that built
+  them. `crossprod(x, { fma: false })` and `solve(a, { fma: false })` take
+  the options in the second position, as `solve(a, { tolerance })` already
+  did. A value that is not a boolean is refused with a `TypeError`. The
+  option is meant for a hot loop, such as a bootstrap, where a consumer
+  composes these routines many thousands of times. The two settings can be
+  mixed in one program without a cost to either. The README's linear algebra
+  section holds the measured table. The types `FmaOption`, `LuOptions` and
+  `CholOptions` are exported from the linalg entry, beside the existing
+  `QrOptions` and `SolveOptions`, which now extend `FmaOption`.
+* `cov(x, y)` and `cor(x, y)` for two matrices, and `scale()`, in the
+  linear-algebra entry. `cov` and `cor` each gain the overloads
+  `(Matrix, Matrix)`, `(Vector, Matrix)` and `(Matrix, Vector)`, with `x`'s
+  columns carried as the result's row names and `y`'s as its column names.
+  Rows must agree, or the call throws `RangeError("incompatible
+  dimensions")`, R's own wording. A constant column gives NaN, where R warns
+  and gives NA. `cov(x, y)` is a plain sum, as R's `cov.c` is, so its values
+  pin bit for bit against R. `cor(x, y)` sums each column's spread through
+  the fused multiply-add, because the loop it comes from is contracted in
+  the build the fixtures pin against, and it takes the same `fma` option as
+  `matmul`. `scale(x, options?)` follows R's `scale.default`: it centers on
+  `colMeans`, a plain sum, and divides by `sqrt(Σv² / (n − 1))` of the
+  centered column, so `{ center: false }` divides by the root mean square
+  instead of the standard deviation. It returns `{ scaled, center, scale }`,
+  R's `scaled:center` and `scaled:scale` attributes carried as plain fields.
+  A zero-variance column gives NaN, with no warning, as R gives. `scale`
+  takes no `na.rm`: a missing value spreads through its column, where R's
+  own `colMeans` and column function drop it.
+* `chol()` and `chol2inv()` in the linear-algebra entry. `chol` follows
+  LAPACK's recursive `dpotrf2` and `chol2inv` follows `dpotri`, both step
+  for step, so the factor and its inverse pin bit for bit against R. Both
+  read only the upper triangle of their argument. `chol` carries the
+  argument's dimnames onto the factor. `chol2inv` returns none, as R does.
+  A matrix that is not positive definite throws `RangeError` with R's own
+  words, "the leading minor of order k is not positive", the same message
+  R gives for a NaN entry. `chol2inv` refuses a non-square matrix outright,
+  where R instead reads the leading square block of a taller one, a stated
+  narrowing. Both take the `fma` option `matmul` and `qr` already take.
+* `predictLm(fit, newdata)` and a new `LmFit.model` field, in the
+  linear-algebra entry. `LmFit` now carries the `terms` and `intercept` it
+  was fit from, so `predictLm` can rebuild the design over `newdata` with
+  `modelMatrix` and multiply it by the fit's coefficients, pinning bit for
+  bit against R's `predict.lm`. A row of `newdata` with a missing value
+  comes back as NaN, R's own answer for that row. An aliased coefficient's
+  column is dropped from the product rather than multiplied by zero,
+  because the two round differently, as R's own `beta[piv]` drops it. A
+  column a term names but `newdata` lacks throws `RangeError`, R's own
+  words, "object 'w' not found". Note that R's `predict.lm` on the training
+  frame is not `fitted()`: on the moderation data, 189 of 200 rows differ in
+  the last few bits, because `predict.lm` rebuilds `X %*% β` rather than
+  reading the residuals the factorization already computed. `predictLm`
+  matches `predict`, not `fitted`.
+* `pchisq(x, df, ncp?)`, `qchisq(p, df)`, `pnorm(z)` and `qnorm(p)`, on the
+  main entry, each taking `lowerTail` so a far upper tail does not have to
+  be rebuilt as one minus the lower tail. `pchisq`'s central branch is the
+  regularized incomplete gamma. Its noncentral branch follows R's
+  `nmath/pnchisq.c`, a Poisson-weighted sum of central terms below a
+  noncentrality of 80 and the AS 275 series of Ding (1992) at or above it.
+  `qchisq` follows R's `nmath/qgamma.c`: the AS 91 starting value of Best
+  and Roberts, then R's closing Newton steps in the log scale. `qnorm`
+  follows Wichura's Algorithm AS 241 (PPND16), as R's `qnorm.c` runs it.
+  `pchisq(x, 0)` is R's point mass at zero: 1 for `x > 0`, 0 for `x <= 0`.
+  A negative or infinite degrees of freedom or noncentrality, or a NaN
+  argument, gives NaN. R warns "NaNs produced", which a library cannot do.
+  Every fixture point is verified at a relative 1e-12, with one stated
+  bound: the upper tail of `pchisq(1500, 200, 1000)` holds at an absolute
+  1e-12 rather than a relative one, because R itself reaches that value by
+  subtracting from 1. The regularized incomplete gamma the chi-square stands
+  on is exported too, as `regularizedGammaP`, `regularizedGammaQ`,
+  `logRegularizedGammaP` and `logRegularizedGammaQ` — R's `pgamma(x, a)` in
+  its four tail and log forms — beside the `incompleteBeta` that `pt` stands
+  on. The types `TailOptions`, `NormalOptions`, `OptimOptions`,
+  `OptimControl` and `OptimResult` are exported from the main entry.
+* `optim(par, fn, options?)`, on the main entry, R's `optim(method =
+  "BFGS")`. It is a port of the `bfgs` routine written for `seminr-ts` by
+  this package's own author, so no license question stands in the way of
+  bringing it in under this package's MIT terms. It takes `gr`, `method`
+  (only `"BFGS"` is accepted, and anything else throws `RangeError`), and
+  `control`, and returns R's `par`, `value`, `counts`, `convergence` and
+  `message`, plus a `gradNorm` field of its own. Four things stand apart
+  from R's own `optim`. The line search backtracks by Armijo's rule, in
+  place of Nash's. The stopping rule reads the gradient first, and keeps
+  R's `reltol` only as a stall test on the objective. A search direction
+  that does not go downhill resets the inverse Hessian to the identity.
+  Because of the above, `counts` does not match R's count for the same
+  problem. `par` and `value` still land on R's optimum, within 1e-6 and
+  1e-10 on the fixtures that give `optim` an analytic gradient. A run with
+  no `gr` uses R's own central finite differences, `ndeps = 1e-3`.
+
+* `add`, `sub`, `mul`, and `div` gain overloads for two matrices, and for a
+  matrix and a scalar, R's elementwise `+`, `-`, `*`, `/`. The two matrices
+  must share extents, or the call throws `RangeError("non-conformable
+  arrays")`, R's own words. A vector beside a matrix is refused, where R
+  recycles it silently. This is a stated narrowing. The result carries the
+  first operand's dimnames when it has any, and the second's otherwise.
+  `outer(x, y)` joins them, R's outer product of two vectors, with no
+  dimnames. `optim`'s BFGS update is now written on this arithmetic as R's
+  own line: `H - r*(outer(s,Hy) + outer(Hy,s)) + (r^2*yHy + r)*outer(s,s)`,
+  with plain products in place of index loops.
+
+* A `NOTICE` file recording the provenance of every numerical algorithm the
+  package reimplements, and an Attribution subsection in the README that
+  summarizes it. The package stays MIT and still has no runtime dependency
+  and no copied third-party source file, but returning R's doubles means
+  following algorithms other people wrote, and that was not written down
+  anywhere. NOTICE names R and its GPL, the Applied Statistics algorithms
+  AS 91, AS 109, AS 241, AS 243 and AS 275 and the Royal Statistical
+  Society's terms, LAPACK's BSD license and LINPACK, and the published
+  results the rest of `core/` rests on. It calls out separately the two
+  places that follow R Core's own work rather than a published algorithm:
+  the far-tail expansion in `qnorm` and the regime split in the non-central
+  chi-square. The module headers of `chisq.ts`, `norm.ts`, `qr.ts`,
+  `chol.ts` and `lu.ts` now point at it. NOTICE ships in the npm tarball.
+
+* Tests for `qnorm` below the reach of AS 241. Wichura's third region runs
+  out at a smaller tail of about 2.5e-317, and the subnormals carry an
+  ordinary probability four orders further, to 4.9406564584124654e-324.
+  Every value in that window already reached R's asymptotic branch and
+  agreed with R exactly, but the pinned grid stopped at 1e-300, so nothing
+  covered it. Section 5 of the `distributions.R` fixture pins the window in
+  both tails, with a monotonicity check across the boundary.
+
+### Changed
+
+* `cov(x)` and `cor(x)` of one matrix center each column once and take dot
+  products of the centered columns, instead of centering a fresh pair of
+  columns for every cell of the result. The values are the same bits as
+  before. Only the arithmetic path to them is shorter. Measured at 24
+  columns and n = 2000: 733 µs, down from 1.82 ms.
+
+* The starting value for the inverse incomplete beta in `special.ts` is now
+  cited to its primary sources, Abramowitz and Stegun 26.2.22 and Algorithm
+  AS 109, rather than to a secondary text that carries the same published
+  approximation under a license that does not permit redistribution. The
+  code is unchanged.
+
+* The docstring on `qnorm`'s far-tail branch said the branch was unreachable
+  through the plain arguments the port takes. That was wrong: every
+  subnormal probability reaches it. Corrected, and the branch is now tested.
+
 ## 0.4.1
 
 ### Bug fixes
