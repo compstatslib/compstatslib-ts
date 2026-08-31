@@ -3,6 +3,32 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Added
+
+* An `fma` option on the routines of the linear-algebra entry that multiply:
+  `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`,
+  `determinant`, `rcond` and `lm`, and on the main entry's `leastSquares`.
+  The default, `true`, is what every earlier release did: each product is
+  rounded once through a software fused multiply-add, so the result is R's
+  double bit for bit, and every pinned value is unchanged. `{ fma: false }`
+  selects plain `a * b + c`, which runs 10 to 25 times faster on the shapes
+  measured (a 2000 × 24 product, a 24-column `crossprod`, a six-predictor
+  OLS by `crossprod` + `solve`, a 2000 × 20 `qr`, a 24 × 24 `solve`) and
+  lands a few units in the last place from the default. `qr` and `lu` record
+  the setting on the decomposition they return (`QrDecomposition.fma`,
+  `LuDecomposition.fma`), so `qrCoef`, `qrFitted`, `qrResid`, `qrQty`,
+  `qrQy`, `qrQ`, `qrR` and the solves follow the factorization that built
+  them. `crossprod(x, { fma: false })` and `solve(a, { fma: false })` take
+  the options in the second position, as `solve(a, { tolerance })` already
+  did. A value that is not a boolean is refused with a `TypeError`. The
+  option is meant for a hot loop, such as a bootstrap, where a consumer
+  composes these routines many thousands of times. The two settings can be
+  mixed in one program without a cost to either. The README's linear algebra
+  section holds the measured table. The types `FmaOption` and `LuOptions`
+  are exported from the linalg entry.
+
 ## 0.4.1
 
 ### Bug fixes

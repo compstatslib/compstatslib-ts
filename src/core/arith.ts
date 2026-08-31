@@ -142,6 +142,54 @@ export function fusedMultiplyAdd(a: number, b: number, c: number): number {
   return Number.isFinite(rounded) ? rounded : a * b + c;
 }
 
+/**
+ * The arithmetic option the linear algebra routines share.
+ *
+ * `fma` selects how a product is rounded into its sum. The default, `true`,
+ * rounds once, as the reference-BLAS build the conformance fixtures come
+ * from does, so a result is R's double bit for bit. `false` rounds twice,
+ * as plain `a * b + c` does. The two paths differ by a few units in the
+ * last place, and the plain one runs 10 to 20 times faster. See the
+ * README's linear algebra section for the measured ratios.
+ *
+ * A routine resolves the option once with `resolveFma` and writes its
+ * innermost loop twice, one body per setting, with the branch around the
+ * loop. A multiply-add passed as a function would make its call site
+ * polymorphic once a program had used both settings, and the engine would
+ * then stop inlining it.
+ */
+export interface FmaOption {
+  readonly fma?: boolean;
+}
+
+/**
+ * Resolve the `fma` option for one call.
+ *
+ * A routine calls this once, before its loops, and branches on the result
+ * around each innermost loop, so that each loop body calls one multiply-add
+ * directly. The two loop bodies are written out because a multiply-add
+ * passed as a function makes its call site polymorphic once a program has
+ * used both settings, and the engine then stops inlining it: measured on
+ * Bun 1.3.14, the default path lost 45% and the plain path lost 6× for the
+ * rest of the process. A branch around the loop costs nothing measurable.
+ *
+ * @param fma The option as the caller gave it. `undefined` means the
+ *   default, `true`.
+ * @returns The setting as a boolean.
+ * @throws TypeError If `fma` is anything other than a boolean or
+ *   `undefined`. A truthy `1` or `"yes"` is refused rather than read as
+ *   `true`, so a misspelled option cannot pass in silence.
+ */
+export function resolveFma(fma: boolean | undefined): boolean {
+  if (fma === undefined || fma === true) {
+    return true;
+  }
+  if (fma === false) {
+    return false;
+  }
+  throw new TypeError(`fma must be true or false, got ${String(fma)}`);
+}
+
 /** Split a double into two halves whose product is exact. Dekker's method. */
 function split(value: number): [number, number] {
   const scaled = 134217729 * value;

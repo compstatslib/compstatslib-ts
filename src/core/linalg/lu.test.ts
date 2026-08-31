@@ -30,6 +30,19 @@ function closeTo(actual: readonly number[], expected: readonly number[], toleran
   });
 }
 
+/**
+ * The bar the `fma` option promises: `|a - b| <= 1e-14 * max(1, |b|)`, the
+ * default path's value as the reference. Plain arithmetic rounds twice per
+ * product, so it lands a few ulps away from the pinned doubles.
+ */
+function agreesWithDefault(actual: readonly number[], expected: readonly number[]): void {
+  expect(actual.length).toBe(expected.length);
+  actual.forEach((value, index) => {
+    const target = expected[index] as number;
+    expect(Math.abs(value - target)).toBeLessThanOrEqual(1e-14 * Math.max(1, Math.abs(target)));
+  });
+}
+
 const S = matrix([2, 1, -1, 1, 3, 2, 1, -1, 4], { nrow: 3 });
 const P = matrix([0, 1, 2, 3, 1, 0, 1, 4, 2], { nrow: 3 });
 const M4 = matrix(
@@ -403,5 +416,71 @@ describe("fixture 3l — the review cases", () => {
     expect(() => lu([1, 2, 3, 4] as unknown as Matrix)).toThrow(TypeError);
     expect(() => det({} as unknown as Matrix)).toThrow(TypeError);
     expect(() => matrixNorm([1] as unknown as Matrix)).toThrow(TypeError);
+  });
+});
+
+describe("the fma option — plain arithmetic beside the default", () => {
+  const fixtures: { label: string; a: Matrix; b: number[]; rhs: Matrix }[] = [
+    { label: "3a", a: S, b: [1, 2, 3], rhs: matrix([1, 0, 0, 2, 1, 1], { nrow: 3 }) },
+    { label: "3b", a: P, b: [1, 2, 3], rhs: matrix([1, 0, 0, 2, 1, 1], { nrow: 3 }) },
+    {
+      label: "3c",
+      a: M4,
+      b: [1, -1, 0.5, 2],
+      rhs: matrix([1, 0, 0, 1, 2, 1, 1, 0], { nrow: 4 }),
+    },
+  ];
+
+  test("the decomposition records the arithmetic it used", () => {
+    fixtures.forEach(({ a }) => {
+      expect(lu(a).fma).toBe(true);
+      expect(lu(a, { fma: false }).fma).toBe(false);
+    });
+  });
+
+  fixtures.forEach(({ label, a, b, rhs }) => {
+    test(`fixture ${label} — every reader agrees with the default at 1e-14 relative`, () => {
+      const plain = lu(a, { fma: false });
+      expect(plain.fma).toBe(false);
+      expect(plain.pivots).toEqual(lu(a).pivots);
+      agreesWithDefault(columnMajor(solve(a, { fma: false })), columnMajor(solve(a)));
+      agreesWithDefault(solve(a, b, { fma: false }), solve(a, b));
+      agreesWithDefault(columnMajor(solve(a, rhs, { fma: false })), columnMajor(solve(a, rhs)));
+      agreesWithDefault([det(a, { fma: false })], [det(a)]);
+      agreesWithDefault([determinant(a, { fma: false }).modulus], [determinant(a).modulus]);
+      expect(determinant(a, { fma: false }).sign).toBe(determinant(a).sign);
+      agreesWithDefault([rcond(a, { fma: false })], [rcond(a)]);
+    });
+  });
+
+  test("solve(a, options) needs no placeholder for b when the options carry fma", () => {
+    const inverse = solve(S, { fma: false, tolerance: 0 });
+    expect([inverse.nrow, inverse.ncol]).toEqual([3, 3]);
+    agreesWithDefault(columnMajor(inverse), columnMajor(solve(S)));
+  });
+
+  test("3g — the arithmetic moves one bit, and the singularity class holds", () => {
+    // Both paths reach R's exactly zero third pivot, so both give R's
+    // "exactly singular" message. The two roundings show one place
+    // earlier, in the multiplier below the second pivot: 0.5 rather than
+    // R's 0.50000000000000011. This is pinned behavior, not a promise
+    // that every singular matrix classifies the same way under either
+    // arithmetic.
+    const Z2 = matrix([1, 2, 3, 4, 5, 6, 7, 8, 9], { nrow: 3 });
+    expect(lu(Z2).zeroPivot).toBe(2);
+    expect(lu(Z2, { fma: false }).zeroPivot).toBe(2);
+    expect(columnMajor(lu(Z2).lu)[5]).toBe(0.50000000000000011);
+    expect(columnMajor(lu(Z2, { fma: false }).lu)[5]).toBe(0.5);
+    expect(() => solve(Z2)).toThrow(
+      /Lapack routine dgesv: system is exactly singular: U\[3,3\] = 0/,
+    );
+    expect(() => solve(Z2, { fma: false })).toThrow(
+      /Lapack routine dgesv: system is exactly singular: U\[3,3\] = 0/,
+    );
+  });
+
+  test("an fma that is not a boolean is refused with a TypeError", () => {
+    expect(() => lu(S, { fma: 1 } as never)).toThrow(TypeError);
+    expect(() => solve(S, { fma: "yes" } as never)).toThrow(TypeError);
   });
 });

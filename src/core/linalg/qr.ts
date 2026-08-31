@@ -16,9 +16,22 @@
  * blocking or vectorizing them. Index loops throughout: a factorization
  * addresses single entries by position, and this one follows `dqrdc2` and
  * `dqrsl` step for step so that the fixtures pin bit for bit.
+ *
+ * Every product goes into its sum through a multiply-add the caller picks
+ * with the `fma` option. The default rounds once, as the build the fixtures
+ * come from does, and plain `a * b + c` runs much faster for a few units in
+ * the last place. See the README's linear algebra section for the measured
+ * ratios. The decomposition carries the setting, so each reader below runs
+ * the arithmetic the factorization ran.
+ *
+ * `qr()` resolves the option once and hands the boolean down. Each helper
+ * then branches on it around its innermost loop and writes the loop body
+ * twice, once for each form. The bodies are written out because one shared
+ * call site inside a hot loop goes polymorphic as soon as a program has used
+ * both settings, and the engine stops inlining it from then on.
  */
 
-import { fusedMultiplyAdd } from "../arith";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
 import { isMatrix, type MatrixOrVector } from "./ops";
 import type { Vector } from "./vector";
@@ -46,9 +59,16 @@ export interface QrDecomposition {
   readonly pivot: readonly number[];
   /** The number of columns the factorization could identify. */
   readonly rank: number;
+  /**
+   * The arithmetic the factorization ran, as `qr()` resolved the `fma`
+   * option. Every reader in this module follows it, so a decomposition and
+   * its coefficients always come from one kind of multiply-add.
+   */
+  readonly fma: boolean;
 }
 
-export interface QrOptions {
+/** The rank tolerance, and the arithmetic of `FmaOption`. */
+export interface QrOptions extends FmaOption {
   /**
    * How far a column's norm may collapse before it is aliased: the column is
    * moved to the end when its remaining norm falls below this fraction of
@@ -68,19 +88,25 @@ export const DEFAULT_QR_TOLERANCE = 1e-7;
  *
  * @param x The matrix. The function does not modify it. Row names travel
  *   onto the compact form; column names follow the pivot.
- * @param options The rank tolerance.
- * @returns The compact factorization, `qraux`, the pivot, and the rank.
+ * @param options The rank tolerance and the arithmetic. `{ fma: false }`
+ *   takes plain `a * b + c` for throughput, a few units in the last place
+ *   from the default. The setting travels on the result.
+ * @returns The compact factorization, `qraux`, the pivot, the rank, and the
+ *   arithmetic it ran.
  * @throws RangeError If the tolerance is negative or NaN, or if an entry is
  *   not finite — R's "NA/NaN/Inf in foreign function call (arg 1)". NaN is
  *   this library's missing value; a caller drops incomplete rows first, as
  *   `modelMatrix` does.
- * @throws TypeError If `x` is not a matrix.
+ * @throws TypeError If `x` is not a matrix, or if `fma` is not a boolean.
  */
 export function qr(x: Matrix, options: QrOptions = {}): QrDecomposition {
-  const { tolerance = DEFAULT_QR_TOLERANCE } = options;
+  const { tolerance = DEFAULT_QR_TOLERANCE, fma: fmaOption } = options;
   if (!(tolerance >= 0)) {
     throw new RangeError(`tolerance must be a non-negative number, got ${tolerance}`);
   }
+  // The option is read here, once. The helpers below take the boolean and
+  // branch on it around each innermost loop, so no entry pays for the choice.
+  const fma = resolveFma(fmaOption);
   if (!isMatrix(x)) {
     throw new TypeError("expected a Matrix");
   }
@@ -94,7 +120,7 @@ export function qr(x: Matrix, options: QrOptions = {}): QrDecomposition {
   const columns = Array.from({ length: ncol }, (_, j) =>
     Array.from(x.data.subarray(j * nrow, (j + 1) * nrow)),
   );
-  const { householders, pivot, rank } = decompose(columns, tolerance, nrow);
+  const { householders, pivot, rank } = decompose(columns, tolerance, nrow, fma);
 
   const data = new Float64Array(nrow * ncol);
   columns.forEach((column, j) => {
@@ -107,7 +133,13 @@ export function qr(x: Matrix, options: QrOptions = {}): QrDecomposition {
       ? null
       : [rows, names === null ? null : pivot.map((from) => names[from] as string)];
 
-  return { qr: make(nrow, ncol, data, dimnames), qraux: householders, pivot, rank };
+  return {
+    qr: make(nrow, ncol, data, dimnames),
+    qraux: householders,
+    pivot,
+    rank,
+    fma,
+  };
 }
 
 /**
@@ -145,7 +177,7 @@ export function qrCoef(q: QrDecomposition, y: MatrixOrVector): (number | null)[]
 /** The coefficients of one response, in the original column order. */
 function coefficientsOf(q: QrDecomposition, y: Vector): (number | null)[] {
   const qty = transformed(q, y, true);
-  const solved = backSubstitute(q.qr, qty, q.rank);
+  const solved = backSubstitute(q.qr, qty, q.rank, q.fma);
   const coefficients = new Array<number | null>(q.qr.ncol).fill(null);
   q.pivot.slice(0, q.rank).forEach((column, position) => {
     coefficients[column] = solved[position] as number;
@@ -244,17 +276,24 @@ function readerDimnames(rows: readonly string[] | null, y: Matrix): Dimnames | n
   return rows === null && columns === null ? null : [rows, columns];
 }
 
-/** Apply the reflectors to a copy of `y`, first to last for `Qᵀy`, last to first for `Qy`. */
+/**
+ * Apply the reflectors to a copy of `y`, first to last for `Qᵀy`, last to
+ * first for `Qy`.
+ *
+ * The setting of the decomposition is read once here and handed to every
+ * step, so no entry pays for the choice.
+ */
 function transformed(q: QrDecomposition, y: Vector, transpose: boolean): number[] {
   const result = [...y];
   const count = reflectorCount(q);
+  const { fma } = q;
   if (transpose) {
     for (let step = 0; step < count; step++) {
-      applyReflector(q, step, result);
+      applyReflector(q, step, result, fma);
     }
   } else {
     for (let step = count - 1; step >= 0; step--) {
-      applyReflector(q, step, result);
+      applyReflector(q, step, result, fma);
     }
   }
   return result;
@@ -319,13 +358,16 @@ function reflectorCount(q: QrDecomposition): number {
  * inner product and the update read it separately from the entries under
  * the diagonal. Both are BLAS calls in LINPACK — `ddot` and `daxpy` — and on
  * the build the fixtures come from each product is contracted into a fused
- * multiply-add, so `fusedMultiplyAdd` is used where the BLAS would round
- * once.
+ * multiply-add, so the default rounds once where the BLAS would. Each of the
+ * two loops is written twice, with the branch on `fma` around it, and only
+ * the single entry at the diagonal takes the branch inline, once per
+ * reflector.
  */
 function applyReflector(
   q: QrDecomposition,
   step: number,
   vector: number[],
+  fma: boolean,
 ): void {
   const leading = q.qraux[step] as number;
   if (leading === 0) {
@@ -335,13 +377,27 @@ function applyReflector(
   const column = q.qr.data.subarray(step * nrow, (step + 1) * nrow);
 
   let inner = leading * (vector[step] as number);
-  for (let row = step + 1; row < nrow; row++) {
-    inner = fusedMultiplyAdd(column[row] as number, vector[row] as number, inner);
+  if (fma) {
+    for (let row = step + 1; row < nrow; row++) {
+      inner = fusedMultiplyAdd(column[row] as number, vector[row] as number, inner);
+    }
+  } else {
+    for (let row = step + 1; row < nrow; row++) {
+      inner = (column[row] as number) * (vector[row] as number) + inner;
+    }
   }
   const factor = -inner / leading;
-  vector[step] = fusedMultiplyAdd(factor, leading, vector[step] as number);
-  for (let row = step + 1; row < nrow; row++) {
-    vector[row] = fusedMultiplyAdd(factor, column[row] as number, vector[row] as number);
+  vector[step] = fma
+    ? fusedMultiplyAdd(factor, leading, vector[step] as number)
+    : factor * leading + (vector[step] as number);
+  if (fma) {
+    for (let row = step + 1; row < nrow; row++) {
+      vector[row] = fusedMultiplyAdd(factor, column[row] as number, vector[row] as number);
+    }
+  } else {
+    for (let row = step + 1; row < nrow; row++) {
+      vector[row] = factor * (column[row] as number) + (vector[row] as number);
+    }
   }
 }
 
@@ -370,10 +426,11 @@ function decompose(
   columns: number[][],
   tolerance: number,
   rows: number,
+  fma: boolean,
 ): { householders: number[]; pivot: number[]; rank: number } {
   const width = columns.length;
   const pivot = columns.map((_, column) => column);
-  const qraux = columns.map((column) => norm(column, 0));
+  const qraux = columns.map((column) => norm(column, 0, fma));
   // `work(j, 1)`: the norm the running value was last set from.
   const lastNorms = [...qraux];
   // `work(j, 2)`: the original norm, with 1 substituted for zero so that an
@@ -403,7 +460,7 @@ function decompose(
     if (step === rows - 1) {
       continue;
     }
-    reflect(columns, qraux, lastNorms, step, rows);
+    reflect(columns, qraux, lastNorms, step, rows, fma);
   }
 
   return { householders: qraux, pivot, rank: Math.min(k - 1, rows) };
@@ -420,9 +477,10 @@ function reflect(
   lastNorms: number[],
   step: number,
   rows: number,
+  fma: boolean,
 ): void {
   const column = columns[step] as number[];
-  const length = norm(column, step);
+  const length = norm(column, step, fma);
   if (length === 0) {
     return;
   }
@@ -441,14 +499,27 @@ function reflect(
 
   for (let index = step + 1; index < columns.length; index++) {
     const other = columns[index] as number[];
-    // `ddot` and `daxpy`, each product rounded once with its addition.
+    // `ddot` and `daxpy`. The default rounds each product once with its
+    // addition, as the build the fixtures come from does.
     let inner = 0;
-    for (let row = step; row < rows; row++) {
-      inner = fusedMultiplyAdd(column[row] as number, other[row] as number, inner);
+    if (fma) {
+      for (let row = step; row < rows; row++) {
+        inner = fusedMultiplyAdd(column[row] as number, other[row] as number, inner);
+      }
+    } else {
+      for (let row = step; row < rows; row++) {
+        inner = (column[row] as number) * (other[row] as number) + inner;
+      }
     }
     const factor = -inner / leading;
-    for (let row = step; row < rows; row++) {
-      other[row] = fusedMultiplyAdd(factor, column[row] as number, other[row] as number);
+    if (fma) {
+      for (let row = step; row < rows; row++) {
+        other[row] = fusedMultiplyAdd(factor, column[row] as number, other[row] as number);
+      }
+    } else {
+      for (let row = step; row < rows; row++) {
+        other[row] = factor * (column[row] as number) + (other[row] as number);
+      }
     }
 
     // Downdate the running norm of the column just updated, or recompute it
@@ -458,7 +529,7 @@ function reflect(
       const ratio = Math.abs(other[step] as number) / running;
       const remaining = Math.max(1 - ratio * ratio, 0);
       if (Math.abs(remaining) < 1e-6) {
-        qraux[index] = norm(other, step + 1);
+        qraux[index] = norm(other, step + 1, fma);
         lastNorms[index] = qraux[index] as number;
       } else {
         qraux[index] = running * Math.sqrt(remaining);
@@ -479,6 +550,7 @@ function backSubstitute(
   compact: Matrix,
   response: Vector,
   rank: number,
+  fma: boolean,
 ): number[] {
   const { nrow } = compact;
   const entry = (i: number, j: number): number =>
@@ -488,8 +560,14 @@ function backSubstitute(
   for (let column = rank - 1; column >= 0; column--) {
     const value = (solved[column] as number) / entry(column, column);
     solved[column] = value;
-    for (let row = 0; row < column; row++) {
-      solved[row] = fusedMultiplyAdd(-value, entry(row, column), solved[row] as number);
+    if (fma) {
+      for (let row = 0; row < column; row++) {
+        solved[row] = fusedMultiplyAdd(-value, entry(row, column), solved[row] as number);
+      }
+    } else {
+      for (let row = 0; row < column; row++) {
+        solved[row] = -value * entry(row, column) + (solved[row] as number);
+      }
     }
   }
 
@@ -509,14 +587,22 @@ function moveToEnd<T>(track: T[], from: number): void {
  * square root; its scaling engages only near overflow or underflow, which
  * no fixture and no teaching dataset reaches. Written as a fold —
  * `Math.hypot(...column)` overflows the call stack past about a million
- * entries, and its rounding is not specified — with each square rounded
- * once into the sum, as the contracted BLAS does.
+ * entries, and its rounding is not specified — with each square rounded into
+ * the sum once for the default and twice for the plain form. Several places
+ * call this, so it takes the setting and writes its loop twice.
  */
-function norm(column: Vector, from: number): number {
+function norm(column: Vector, from: number, fma: boolean): number {
   let squares = 0;
-  for (let row = from; row < column.length; row++) {
-    const value = column[row] as number;
-    squares = fusedMultiplyAdd(value, value, squares);
+  if (fma) {
+    for (let row = from; row < column.length; row++) {
+      const value = column[row] as number;
+      squares = fusedMultiplyAdd(value, value, squares);
+    }
+  } else {
+    for (let row = from; row < column.length; row++) {
+      const value = column[row] as number;
+      squares = value * value + squares;
+    }
   }
   return Math.sqrt(squares);
 }

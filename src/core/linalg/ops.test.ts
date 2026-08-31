@@ -6,10 +6,15 @@
  * `.claude/plans/003-PLAN-linalg/linalg-fixtures.md`. The fixtures hold exact
  * binary fractions and the operations are fixed-order arithmetic, so every
  * numeric assertion is exact (plan Q1).
+ *
+ * The last block covers the `fma` option of plan 004, Slice 0. The option
+ * picks plain `a * b + c` in place of the fused rounding. The default keeps
+ * the fused rounding, so every pinned value above stays as it is.
  */
 
 import { describe, expect, test } from "bun:test";
-import { matrix, type Matrix } from "./matrix";
+import { moderationData } from "../../data/moderationData";
+import { fromFrame, matrix, type Matrix } from "./matrix";
 import {
   cbind,
   crossprod,
@@ -24,6 +29,19 @@ import {
 
 function columnMajor(m: Matrix): number[] {
   return Array.from(m.data);
+}
+
+/** Compare at a relative tolerance, as plan Q1 asks for values above 1. */
+function relativelyClose(
+  actual: readonly number[],
+  expected: readonly number[],
+  tolerance = 1e-14,
+): void {
+  expect(actual.length).toBe(expected.length);
+  actual.forEach((value, index) => {
+    const target = expected[index] as number;
+    expect(Math.abs(value - target)).toBeLessThanOrEqual(tolerance * Math.max(1, Math.abs(target)));
+  });
 }
 
 /** The fixture matrices, exactly as `linalg.R` builds them. */
@@ -316,5 +334,73 @@ describe("diag() and identity()", () => {
     expect([one.nrow, one.ncol]).toEqual([1, 1]);
     expect(columnMajor(one)).toEqual([5]);
     expect(() => diag(2.5)).toThrow(RangeError);
+  });
+});
+
+describe("the fma option", () => {
+  /** Plain arithmetic: two roundings per product, the fast path. */
+  const plain = { fma: false };
+  /** The 200 x 4 design of the bundled moderation data. */
+  const design = fromFrame(moderationData);
+
+  test("matmul with plain arithmetic agrees with the default — fixture 1b", () => {
+    relativelyClose(columnMajor(matmul(A, B, plain)), columnMajor(matmul(A, B)));
+    relativelyClose(columnMajor(matmul(X, Y, plain)), columnMajor(matmul(X, Y)));
+  });
+
+  test("crossprod and tcrossprod with plain arithmetic agree with the default — fixture 1b", () => {
+    relativelyClose(columnMajor(crossprod(A, plain)), columnMajor(crossprod(A)));
+    relativelyClose(columnMajor(tcrossprod(B, plain)), columnMajor(tcrossprod(B)));
+  });
+
+  test("the two paths agree on the 200 x 4 moderation design", () => {
+    expect([design.nrow, design.ncol]).toEqual([200, 4]);
+    relativelyClose(columnMajor(crossprod(design, plain)), columnMajor(crossprod(design)));
+    relativelyClose(
+      columnMajor(matmul(t(design), design, plain)),
+      columnMajor(matmul(t(design), design)),
+    );
+    relativelyClose(columnMajor(tcrossprod(t(design), plain)), columnMajor(tcrossprod(t(design))));
+  });
+
+  test("the default is still the pinned product — fixture 1b", () => {
+    const ab = [-3.5, -4, -4.5, 14, 19, 24, 1.5, 3, 4.5, 13.5, 15, 16.5];
+    expect(columnMajor(matmul(A, B, {}))).toEqual(ab);
+    expect(columnMajor(matmul(A, B, { fma: true }))).toEqual(ab);
+    expect(columnMajor(crossprod(A, {}))).toEqual([14, 32, 32, 77]);
+    expect(columnMajor(crossprod(A, { fma: true }))).toEqual([14, 32, 32, 77]);
+    expect(columnMajor(tcrossprod(A, { fma: true }))).toEqual([
+      17, 22, 27, 22, 29, 36, 27, 36, 45,
+    ]);
+  });
+
+  test("the options may take the place of y in crossprod and tcrossprod", () => {
+    expect(columnMajor(crossprod(A, plain))).toEqual(columnMajor(crossprod(A, A, plain)));
+    expect(columnMajor(tcrossprod(B, plain))).toEqual(columnMajor(tcrossprod(B, B, plain)));
+    expect(columnMajor(crossprod(design, plain))).toEqual(
+      columnMajor(crossprod(design, design, plain)),
+    );
+  });
+
+  test("refuses an fma that is not true or false", () => {
+    const bad = [{ fma: 1 }, { fma: "yes" }].map((o) => o as unknown as { fma?: boolean });
+    bad.forEach((options) => {
+      expect(() => matmul(A, B, options)).toThrow(TypeError);
+      expect(() => crossprod(A, options)).toThrow(TypeError);
+      expect(() => tcrossprod(B, options)).toThrow(TypeError);
+      expect(() => crossprod(A, A, options)).toThrow(TypeError);
+      expect(() => tcrossprod(B, B, options)).toThrow(TypeError);
+    });
+  });
+
+  test("dimnames travel with plain arithmetic — fixture 1c", () => {
+    expect(matmul(X, Y, plain).dimnames).toEqual([
+      ["r1", "r2"],
+      ["u", "v", "w"],
+    ]);
+    expect(crossprod(X, Y, plain).dimnames).toEqual([
+      ["a", "b"],
+      ["u", "v", "w"],
+    ]);
   });
 });

@@ -29,9 +29,18 @@
  * and QR here already follow it). Index loops throughout: a product
  * addresses entries by position. (CLAUDE.md allows an index loop with a
  * stated reason; that is the reason.)
+ *
+ * `matmul`, `crossprod` and `tcrossprod` each take an `fma` option. The
+ * default, `true`, keeps that single rounding, so a product is R's double bit
+ * for bit. `{ fma: false }` rounds twice, as plain `a * b + c` does, which
+ * runs about an order of magnitude faster for a few units in the last place.
+ * See the README's linear algebra section for the measured ratios. The
+ * setting is read once per call, before the loops, and the innermost loop is
+ * written out twice with the branch around it, because a shared call site
+ * that sees both multiply-adds goes polymorphic and loses its inlining.
  */
 
-import { fusedMultiplyAdd } from "../arith";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
 import type { Vector } from "./vector";
 
@@ -63,19 +72,27 @@ export const transpose = t;
  * @param y The right factor. A vector is a column when its length matches
  *   the columns of `x`, else a row when `x` has one column. Two vectors of
  *   one length give their inner product as a 1 x 1 matrix.
+ * @param options `{ fma: false }` for plain arithmetic. See the module
+ *   comment above.
  * @returns The product, with the row names of `x` and the column names of
  *   `y`.
  * @throws RangeError If the inner extents differ: R's "non-conformable
  *   arguments".
+ * @throws TypeError If `fma` is neither true nor false.
  */
-export function matmul(x: MatrixOrVector, y: MatrixOrVector): Matrix {
+export function matmul(
+  x: MatrixOrVector,
+  y: MatrixOrVector,
+  options: FmaOption = {},
+): Matrix {
+  const fma = resolveFma(options.fma);
   const [left, right] = conformProduct(x, y);
   if (left.ncol !== right.nrow) {
     throw new RangeError(
       `non-conformable arguments: ${left.nrow} x ${left.ncol} %*% ${right.nrow} x ${right.ncol}`,
     );
   }
-  const data = product(left, right);
+  const data = product(left, right, fma);
   return make(left.nrow, right.ncol, data, productDimnames(left, right));
 }
 
@@ -100,9 +117,23 @@ function conformProduct(x: MatrixOrVector, y: MatrixOrVector): [Matrix, Matrix] 
  * A bare vector `x` is a column; a bare vector `y` is a column when its
  * length matches the rows of `x`, else a row (fixture 1h).
  *
+ * The options may take the place of `y`, as `crossprod(x, { fma: false })`.
+ *
  * @throws RangeError If the row counts differ.
+ * @throws TypeError If `fma` is neither true nor false.
  */
-export function crossprod(x: MatrixOrVector, y: MatrixOrVector = x): Matrix {
+export function crossprod(x: MatrixOrVector, options?: FmaOption): Matrix;
+export function crossprod(
+  x: MatrixOrVector,
+  y: MatrixOrVector,
+  options?: FmaOption,
+): Matrix;
+export function crossprod(
+  x: MatrixOrVector,
+  second?: MatrixOrVector | FmaOption,
+  third: FmaOption = {},
+): Matrix {
+  const [y, options] = splitFactor(x, second, third);
   const left = asColumn(x);
   const right = isMatrix(y) ? y : y.length === left.nrow ? asColumn(y) : asRow(y);
   if (left.nrow !== right.nrow) {
@@ -110,7 +141,7 @@ export function crossprod(x: MatrixOrVector, y: MatrixOrVector = x): Matrix {
       `non-conformable arguments: crossprod of ${left.nrow} x ${left.ncol} and ${right.nrow} x ${right.ncol}`,
     );
   }
-  return matmul(t(left), right);
+  return matmul(t(left), right, options);
 }
 
 /**
@@ -119,9 +150,23 @@ export function crossprod(x: MatrixOrVector, y: MatrixOrVector = x): Matrix {
  * columns of a matrix `y`, else a column; a bare vector `y` is a row only
  * when `x` has one row, and two bare vectors are both columns (fixture 1h).
  *
+ * The options may take the place of `y`, as `tcrossprod(x, { fma: false })`.
+ *
  * @throws RangeError If the column counts differ.
+ * @throws TypeError If `fma` is neither true nor false.
  */
-export function tcrossprod(x: MatrixOrVector, y: MatrixOrVector = x): Matrix {
+export function tcrossprod(x: MatrixOrVector, options?: FmaOption): Matrix;
+export function tcrossprod(
+  x: MatrixOrVector,
+  y: MatrixOrVector,
+  options?: FmaOption,
+): Matrix;
+export function tcrossprod(
+  x: MatrixOrVector,
+  second?: MatrixOrVector | FmaOption,
+  third: FmaOption = {},
+): Matrix {
+  const [y, options] = splitFactor(x, second, third);
   const bothVectors = !isMatrix(x) && !isMatrix(y);
   const left = isMatrix(x) ? x : isMatrix(y) && y.ncol === x.length ? asRow(x) : asColumn(x);
   const right = isMatrix(y)
@@ -134,23 +179,71 @@ export function tcrossprod(x: MatrixOrVector, y: MatrixOrVector = x): Matrix {
       `non-conformable arguments: tcrossprod of ${left.nrow} x ${left.ncol} and ${right.nrow} x ${right.ncol}`,
     );
   }
-  return matmul(left, t(right));
+  return matmul(left, t(right), options);
 }
 
-/** The raw product of two conformable matrices, column-major. */
-function product(x: Matrix, y: Matrix): Float64Array {
+/**
+ * Read the second argument of `crossprod` and `tcrossprod`.
+ *
+ * The options may stand in for `y`, which defaults to `x`. This runs before
+ * `isMatrix`, because `isMatrix` throws on an object that is not a matrix,
+ * and the options are such an object.
+ */
+function splitFactor(
+  x: MatrixOrVector,
+  second: MatrixOrVector | FmaOption | undefined,
+  third: FmaOption,
+): [MatrixOrVector, FmaOption] {
+  if (second === undefined) {
+    return [x, third];
+  }
+  if (isOptions(second)) {
+    return [x, second];
+  }
+  return [second, third];
+}
+
+/** Tell the options from a matrix or a vector, by shape. */
+function isOptions(value: MatrixOrVector | FmaOption): value is FmaOption {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !ArrayBuffer.isView(value) &&
+    !("nrow" in value) &&
+    !("data" in value)
+  );
+}
+
+/**
+ * The raw product of two conformable matrices, column-major.
+ *
+ * The innermost loop is written out once for each setting, with the branch
+ * around it. One shared call site that sees both multiply-adds would go
+ * polymorphic and lose its inlining, which costs both paths far more than
+ * the duplicated loop body costs a reader.
+ */
+function product(x: Matrix, y: Matrix, fma: boolean): Float64Array {
   const { nrow, ncol: inner } = x;
   const { ncol } = y;
   const data = new Float64Array(nrow * ncol);
   for (let j = 0; j < ncol; j++) {
     for (let k = 0; k < inner; k++) {
       const factor = y.data[j * y.nrow + k] as number;
-      for (let i = 0; i < nrow; i++) {
-        data[j * nrow + i] = fusedMultiplyAdd(
-          x.data[k * nrow + i] as number,
-          factor,
-          data[j * nrow + i] as number,
-        );
+      if (fma) {
+        for (let i = 0; i < nrow; i++) {
+          data[j * nrow + i] = fusedMultiplyAdd(
+            x.data[k * nrow + i] as number,
+            factor,
+            data[j * nrow + i] as number,
+          );
+        }
+      } else {
+        for (let i = 0; i < nrow; i++) {
+          data[j * nrow + i] =
+            (x.data[k * nrow + i] as number) * factor +
+            (data[j * nrow + i] as number);
+        }
       }
     }
   }

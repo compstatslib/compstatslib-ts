@@ -8,6 +8,7 @@ import {
   quantile,
   quantiles,
   requireCount,
+  resolveFma,
   sd,
   sum,
   withoutNegativeZero,
@@ -291,5 +292,19 @@ describe("requireCount", () => {
 
   test("rejects a non-finite count", () => {
     expect(() => requireCount(Number.NaN, "n")).toThrow(RangeError);
+  });
+});
+
+describe("resolveFma()", () => {
+  test("the default and true select the fused form, false the plain one", () => {
+    expect(resolveFma(undefined)).toBe(true);
+    expect(resolveFma(true)).toBe(true);
+    expect(resolveFma(false)).toBe(false);
+  });
+
+  test("refuses anything that is not a boolean, so a truthy 1 cannot pass as true", () => {
+    expect(() => resolveFma(1 as unknown as boolean)).toThrow(TypeError);
+    expect(() => resolveFma("yes" as unknown as boolean)).toThrow(TypeError);
+    expect(() => resolveFma(null as unknown as boolean)).toThrow(/fma must be true or false/);
   });
 });

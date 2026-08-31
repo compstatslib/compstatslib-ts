@@ -303,7 +303,8 @@ folder uses the full path from the repository root.
 ```text
 001-PLAN-port/              the port (closed); also holds the fixture docs
 002-PLAN-initial-release/   the first npm publish (closed)
-003-PLAN-linalg/            active
+003-PLAN-linalg/            the linear algebra entry point (closed)
+004-PLAN-seminr-utilities/  active
 ```
 
 Source comments cite fixture documents by full path, e.g.

@@ -273,3 +273,69 @@ describe("lm() — fixture 4g, the edges of the residual degrees of freedom", ()
     expect(fit.fStatistic).toBeNull();
   });
 });
+
+describe("lm() — the fma option (plan 004, slice 0)", () => {
+  const model = { outcome: "y", terms: ["x", "z", "w", ["x", "z"]] } as const;
+  const standard = lm(moderationData, { ...model, terms: [...model.terms] });
+  const plain = lm(moderationData, { ...model, terms: [...model.terms], fma: false });
+
+  /**
+   * The two arithmetic paths round each product a different number of times,
+   * so they agree to a few units in the last place, not bit for bit. See the
+   * README's linear algebra section for the measured spread.
+   */
+  const AGREEMENT = 1e-14;
+
+  test("the default still pins R's coefficients exactly", () => {
+    const asked = lm(moderationData, { ...model, terms: [...model.terms], fma: true });
+    expect(values(asked.coefficients)).toEqual([
+      -0.046252109941790048, 0.47180209229612374, 0.31363421997396679,
+      -0.003665271584484884, 0.84815858062951188,
+    ]);
+  });
+
+  test("a plain fit gives the same coefficients, names and rank", () => {
+    expect(plain.coefficients.names).toEqual([...standard.coefficients.names]);
+    expect(plain.rank).toBe(standard.rank);
+    expect(plain.dfResidual).toBe(standard.dfResidual);
+    values(standard.coefficients).forEach((expected, index) => {
+      relativelyClose(
+        values(plain.coefficients)[index] as number,
+        expected as number,
+        AGREEMENT,
+      );
+    });
+  });
+
+  test("a plain fit gives the same fitted values and residuals", () => {
+    expect(plain.fitted.length).toBe(standard.fitted.length);
+    standard.fitted.forEach((expected, index) => {
+      relativelyClose(plain.fitted[index] as number, expected, AGREEMENT);
+    });
+    standard.residuals.forEach((expected, index) => {
+      relativelyClose(plain.residuals[index] as number, expected, AGREEMENT);
+    });
+  });
+
+  test("a plain fit gives the same standard errors, R² and sigma", () => {
+    values(standard.standardErrors).forEach((expected, index) => {
+      relativelyClose(
+        values(plain.standardErrors)[index] as number,
+        expected as number,
+        AGREEMENT,
+      );
+    });
+    relativelyClose(plain.rSquared, standard.rSquared, AGREEMENT);
+    relativelyClose(plain.sigma, standard.sigma, AGREEMENT);
+  });
+
+  test("refuses an fma that is not a boolean", () => {
+    expect(() =>
+      lm(moderationData, {
+        ...model,
+        terms: [...model.terms],
+        fma: 1 as unknown as boolean,
+      }),
+    ).toThrow(TypeError);
+  });
+});

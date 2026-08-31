@@ -26,6 +26,7 @@ export {
 } from "./core/linalg/matrix";
 export type { Dimnames, Matrix, MatrixOptions } from "./core/linalg/matrix";
 
+export type { FmaOption } from "./core/arith";
 export {
   cbind,
   crossprod,
@@ -61,7 +62,7 @@ export {
   rcond,
   solve,
 } from "./core/linalg/lu";
-export type { LuDecomposition, MatrixNormType, SolveOptions } from "./core/linalg/lu";
+export type { LuDecomposition, LuOptions, MatrixNormType, SolveOptions } from "./core/linalg/lu";
 
 export { lookup, namedVector } from "./core/linalg/namedVector";
 export type { NamedVector } from "./core/linalg/namedVector";

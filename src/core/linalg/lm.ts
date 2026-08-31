@@ -31,6 +31,11 @@ export interface LmOptions extends ModelSpec {
   readonly outcome: string;
   /** How far a column's norm may collapse before it is aliased. R's `lm.fit()` default. */
   readonly tolerance?: number;
+  /**
+   * The arithmetic of the factorization, passed straight to `qr()`:
+   * `{ fma: false }` trades the pinned last bits for throughput.
+   */
+  readonly fma?: boolean;
 }
 
 /** R's `summary(fit)$fstatistic`. */
@@ -76,14 +81,20 @@ export interface LmFit {
  * Fit a linear model, as R's `lm()` does.
  *
  * @param data The frame holding every column the model names.
- * @param options The outcome, the terms, the intercept flag, and the rank
- *   tolerance.
+ * @param options The outcome, the terms, the intercept flag, the rank
+ *   tolerance, and the arithmetic.
  * @returns The fit and its summary.
  * @throws RangeError If a named column is absent or not numeric, if the
  *   frame is ragged, or if no row is complete — R's "0 (non-NA) cases".
+ * @throws TypeError If `fma` is not a boolean. `qr()` refuses it.
  */
 export function lm(data: DataFrame, options: LmOptions): LmFit {
-  const { outcome, intercept = true, tolerance = DEFAULT_QR_TOLERANCE } = options;
+  const {
+    outcome,
+    intercept = true,
+    tolerance = DEFAULT_QR_TOLERANCE,
+    fma,
+  } = options;
   const design = modelMatrix(data, options);
   const { rows } = design;
   const n = rows.length;
@@ -94,7 +105,7 @@ export function lm(data: DataFrame, options: LmOptions): LmFit {
   const outcomeColumn = data[outcome] as Vector;
   const y = rows.map((row) => outcomeColumn[row] as number);
 
-  const factored = qr(design.matrix, { tolerance });
+  const factored = qr(design.matrix, { tolerance, fma });
   const coefficients = qrCoef(factored, y);
   const residuals = qrResid(factored, y);
   const fitted = zipWith(y, residuals, (value, residual) => value - residual);
