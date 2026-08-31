@@ -10,8 +10,9 @@
  * `qnorm` is Wichura's Algorithm AS 241 (PPND16), as R's `qnorm.c` runs it:
  * three minimax rational approximations, chosen by how far the probability
  * sits from one half, plus the asymptotic branch R added for the part of the
- * far tail the third approximation no longer covers. Verified against R in
- * `norm.test.ts`.
+ * far tail the third approximation no longer covers. That last branch is R
+ * Core's own work rather than Wichura's; see `asymptoticTail` below and
+ * NOTICE. Verified against R in `norm.test.ts`.
  */
 
 import { normalCdf } from "./special";
@@ -223,11 +224,19 @@ function farTail(r: number): number {
  * R's asymptotic branch, past the reach of AS 241's third region.
  *
  * The expansion refines x² = 2s − log(2π x²) − … by one more term for each
- * step inward, where s is minus the log of the smaller tail. A probability
- * that small only arrives on a log scale, so this branch is unreachable
- * through the plain arguments this port takes. It is kept because it is R's,
- * and because leaving it out would silently return the wrong number if a log
- * scale is ever added.
+ * step inward, where s is minus the log of the smaller tail. The thresholds
+ * choose how many terms to take.
+ *
+ * This branch is live. AS 241's third region runs out at a smaller tail of
+ * about 2.5e-317, which is r = 27, and the subnormals carry an ordinary
+ * probability four orders further, to 4.9406564584124654e-324 and r =
+ * 27.284. Every value in that window reaches this function through the
+ * plain arguments the port takes, and `norm.test.ts` pins all of them.
+ *
+ * Provenance: this expansion is not part of Wichura's published AS 241. It
+ * is R Core's own addition to `nmath/qnorm.c`, due to Martin Maechler
+ * (2022), and the port follows it including its thresholds, which is what
+ * makes the values above pin exactly. See NOTICE.
  */
 function asymptoticTail(r: number, logSmaller: number): number {
   if (r >= 6.4e8) {

@@ -364,3 +364,33 @@ Issues and pull requests are welcome.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Attribution
+
+The package has no runtime dependencies and copies no third-party source
+file. It does reimplement numerical algorithms that other people wrote, which
+is unavoidable given the goal: returning the double R returns means following
+the algorithm R follows, and in several places the arrangement R gives it —
+the order of a loop, where a series is cut off, which branch a value takes.
+
+[NOTICE](NOTICE) records where that work came from. In summary:
+
+- **R** (GPL-2 or later, The R Core Team). The chi-square, normal and
+  non-central t routines follow R's `nmath` sources, and the covariance and
+  QR routines follow R's own C and Fortran. Two pieces are R Core's own
+  contributions rather than transcriptions of published algorithms, and are
+  called out individually in NOTICE: the far-tail expansion in `qnorm` due to
+  Martin Maechler, and the regime split and tolerances in the non-central
+  chi-square. R is not bundled, linked, or called at runtime; it is a
+  separate program used to generate the reference values the tests pin.
+- **Applied Statistics algorithms** AS 91, AS 109, AS 241, AS 243 and AS 275,
+  copyright the Royal Statistical Society, implemented from their published
+  descriptions.
+- **LAPACK** (three-clause BSD) and **LINPACK**, whose reference loop orders
+  the Cholesky, LU and QR factorizations follow.
+- Standard published results — Lanczos, Abramowitz and Stegun, Dekker,
+  Sturges, Silverman, Nash — listed individually in NOTICE.
+
+If you need any of that upstream code itself rather than an independent
+reimplementation of the method, take it from its own project under its own
+terms.

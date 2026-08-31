@@ -20,6 +20,11 @@
  * would leave nothing of it.
  *
  * Verified against R in `chisq.test.ts`.
+ *
+ * Provenance: the two series are AS 91 (Best and Roberts 1975) and AS 275
+ * (Ding 1992), both copyright the Royal Statistical Society. The regime
+ * split between them, the tolerances, and the closing Newton steps are R
+ * Core's arrangement, followed here. See NOTICE.
  */
 
 import {

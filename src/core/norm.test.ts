@@ -234,4 +234,48 @@ describe("qnorm", () => {
       }
     }
   });
+  /**
+   * The tail below the reach of AS 241.
+   *
+   * Wichura's third region runs out at a smaller tail of about 2.5e-317,
+   * where `r = sqrt(-log(p))` reaches 27. The subnormals go four orders
+   * further, to 4.9406564584124654e-324 and r = 27.284, and every one of
+   * them is an ordinary argument. R covers the gap in `qnorm.c` with the
+   * asymptotic expansion of Maechler (2022); this port follows it, so these
+   * pin exactly rather than to a tolerance.
+   *
+   * The grid above stops at 1e-300, so without this test the branch that
+   * serves these values never runs. Pinned from section 5 of
+   * `.claude/plans/004-PLAN-seminr-utilities/distributions-fixtures.md`.
+   */
+  test("matches R on the subnormal tail below AS 241's third region", () => {
+    const subnormals: readonly (readonly [p: number, z: number])[] = [
+      [9.9999999999999694e-311, -37.663060331949517],
+      [2.3999999607833146e-317, -38.0653405106547],
+      [9.9999874849559983e-319, -38.148681370155138],
+      [9.9998886718268301e-321, -38.269125343032648],
+      [9.8813129168249309e-323, -38.389502202565737],
+      [4.9406564584124654e-324, -38.467405617144344],
+    ];
+    for (const [probability, z] of subnormals) {
+      expect(qnorm(probability)).toBe(z);
+      expect(qnorm(probability, { lowerTail: false })).toBe(-z);
+    }
+  });
+
+  /**
+   * The far tail is monotone. A rounding that lost the ordering here would
+   * still pass the pinned values above one at a time.
+   */
+  test("stays monotone across the AS 241 boundary at r = 27", () => {
+    const grid = [
+      1e-300, 9.9999999999999694e-311, 2.3999999607833146e-317,
+      9.9999874849559983e-319, 9.9998886718268301e-321,
+      9.8813129168249309e-323, 4.9406564584124654e-324,
+    ];
+    const quantiles = grid.map((probability) => qnorm(probability));
+    for (let i = 1; i < quantiles.length; i++) {
+      expect(quantiles[i] as number).toBeLessThan(quantiles[i - 1] as number);
+    }
+  });
 });

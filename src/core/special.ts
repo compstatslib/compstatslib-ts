@@ -423,7 +423,16 @@ const BELOW_ONE = 1 - Number.EPSILON / 2;
 const INVERSE_MAX_STEPS = 200;
 
 /**
- * A starting point for the inverse, from Numerical Recipes.
+ * A starting point for the inverse.
+ *
+ * Both branches are published approximations. Where both shapes are at least
+ * one, the guess is the normal quantile of Abramowitz and Stegun 26.2.22 —
+ * the rational function in `t = sqrt(-2 log p)` whose constants appear
+ * below, good to about 3e-3 — carried onto the beta scale by the
+ * Wilson-Hilferty transformation, the same starting value Algorithm AS 109
+ * of Cran, Martin and Thomas (1977) uses. Where either shape is below one,
+ * the guess inverts the leading term of the incomplete beta series instead,
+ * which is the behavior that governs near an endpoint.
  *
  * Both branches are approximations only. The Newton loop that follows carries
  * the value the rest of the way, so the guess needs to be in the right

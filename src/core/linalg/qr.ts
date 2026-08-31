@@ -11,6 +11,11 @@
  * `qr.resid`, `qr.qy`, `qr.qty`, `qr.Q` and `qr.R`. Verified against R in
  * `qr.test.ts`; `leastSquares` in `../ols.ts` is a wrapper over it.
  *
+ * Provenance: `dqrsl` is LINPACK, by Dongarra, Bunch, Moler and Stewart.
+ * `dqrdc2` is not — it is R Core's modification of LINPACK's `dqrdc`, and
+ * the limited pivoting rule described above is that modification. See
+ * NOTICE.
+ *
  * Designs here are small — two columns for logit, four for a moderation
  * surface — so the code follows the LINPACK routines plainly rather than
  * blocking or vectorizing them. Index loops throughout: a factorization

@@ -119,6 +119,28 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   own line: `H - r*(outer(s,Hy) + outer(Hy,s)) + (r^2*yHy + r)*outer(s,s)`,
   with plain products in place of index loops.
 
+* A `NOTICE` file recording the provenance of every numerical algorithm the
+  package reimplements, and an Attribution subsection in the README that
+  summarizes it. The package stays MIT and still has no runtime dependency
+  and no copied third-party source file, but returning R's doubles means
+  following algorithms other people wrote, and that was not written down
+  anywhere. NOTICE names R and its GPL, the Applied Statistics algorithms
+  AS 91, AS 109, AS 241, AS 243 and AS 275 and the Royal Statistical
+  Society's terms, LAPACK's BSD license and LINPACK, and the published
+  results the rest of `core/` rests on. It calls out separately the two
+  places that follow R Core's own work rather than a published algorithm:
+  the far-tail expansion in `qnorm` and the regime split in the non-central
+  chi-square. The module headers of `chisq.ts`, `norm.ts`, `qr.ts`,
+  `chol.ts` and `lu.ts` now point at it. NOTICE ships in the npm tarball.
+
+* Tests for `qnorm` below the reach of AS 241. Wichura's third region runs
+  out at a smaller tail of about 2.5e-317, and the subnormals carry an
+  ordinary probability four orders further, to 4.9406564584124654e-324.
+  Every value in that window already reached R's asymptotic branch and
+  agreed with R exactly, but the pinned grid stopped at 1e-300, so nothing
+  covered it. Section 5 of the `distributions.R` fixture pins the window in
+  both tails, with a monotonicity check across the boundary.
+
 ### Changed
 
 * `cov(x)` and `cor(x)` of one matrix center each column once and take dot
@@ -126,6 +148,16 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   columns for every cell of the result. The values are the same bits as
   before. Only the arithmetic path to them is shorter. Measured at 24
   columns and n = 2000: 733 µs, down from 1.82 ms.
+
+* The starting value for the inverse incomplete beta in `special.ts` is now
+  cited to its primary sources, Abramowitz and Stegun 26.2.22 and Algorithm
+  AS 109, rather than to a secondary text that carries the same published
+  approximation under a license that does not permit redistribution. The
+  code is unchanged.
+
+* The docstring on `qnorm`'s far-tail branch said the branch was unreachable
+  through the plain arguments the port takes. That was wrong: every
+  subnormal probability reaches it. Corrected, and the branch is now tested.
 
 ## 0.4.1
 

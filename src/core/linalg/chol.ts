@@ -24,6 +24,9 @@
  * `chol()` carries the dimnames of its argument, and `chol2inv()` returns
  * none, which is what R does with each.
  *
+ * Provenance: `dpotrf`, `dpotrf2`, `dpotri`, `dtrtri` and `dlauum` are
+ * LAPACK, under a three-clause BSD license. See NOTICE.
+ *
  * One stated narrowing: R's `chol2inv()` takes a `size` argument that
  * defaults to the column count, so R reads the leading square block of a
  * tall matrix and refuses only a wide one. The port takes no `size` and

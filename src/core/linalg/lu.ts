@@ -25,6 +25,9 @@
  * exactly zero pivot and both give R's message; `lu.test.ts` pins that.
  * See the README's linear algebra section for the measured ratios.
  *
+ * Provenance: `dgetrf`, `dgetrs`, `dgesv` and `dgecon` are LAPACK, under a
+ * three-clause BSD license. See NOTICE.
+ *
  * The setting is read once, at the entry of the routine, and kept as a
  * boolean on the decomposition so that every reader rounds the way the
  * factorization did. Each innermost loop is then written twice, once for

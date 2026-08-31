@@ -1,0 +1,214 @@
+THIRD-PARTY NOTICES
+===================
+
+`@compstats/core` is released under the MIT License; see LICENSE. The package
+has no runtime dependency on any third-party code, and no third-party source
+file is copied into it.
+
+It does, however, reimplement numerical algorithms whose authorship lies
+elsewhere. The package's stated purpose is to return the same doubles R
+returns, and reaching that goal meant following published algorithms and, in
+several places, the arrangement R gives them: the order of a loop, where a
+series is cut off, which branch a value takes. This file records where that
+work came from. It is offered as attribution, and it is not a claim that the
+parties below endorse this package.
+
+Every routine named here was written in TypeScript for this package. Values
+were verified against R, which is a separate program invoked to produce
+reference numbers; R itself is not distributed with this package and is not
+linked, bundled, or called at runtime.
+
+
+-------------------------------------------------------------------------
+1. The R Project for Statistical Computing
+-------------------------------------------------------------------------
+
+R is free software, released under the GNU General Public License, version 2
+or later. Copyright (C) The R Core Team and the R Foundation for Statistical
+Computing. <https://www.r-project.org>
+
+Reference values throughout this package's test suite were produced by
+R 4.5.3 on arm64 macOS with R's reference BLAS. The conformance scripts that
+generate them live in the sibling R package `compstatslib`, under
+`conformance-fixtures/`.
+
+The following routines follow the structure of R's C sources, in the sense
+described above. Each is an independent TypeScript implementation.
+
+  Port                        Follows
+  --------------------------  -----------------------------------------------
+  src/core/chisq.ts           R's src/nmath/pnchisq.c and src/nmath/qgamma.c
+  src/core/norm.ts            R's src/nmath/qnorm.c
+  src/core/tdist.ts           R's src/nmath/pnt.c
+  src/core/linalg/cov.ts      R's src/library/stats/src/cov.c
+  src/core/linalg/qr.ts       R's src/appl/dqrdc2.f (see section 3)
+
+Two items deserve to be called out rather than left in the table, because
+they are R Core's own contributions and not transcriptions of published
+algorithms:
+
+  * `asymptoticTail` in src/core/norm.ts. Wichura's published AS 241 stops at
+    a smaller tail of about 2.5e-317. R extends `qnorm` past that point with
+    an asymptotic expansion due to Martin Maechler (2022), and this port
+    follows it, including the thresholds that select how many terms to take.
+
+  * The regime split and stopping rules in src/core/chisq.ts. The underlying
+    series are Ding's and Best and Roberts's (section 2), but the choice of
+    where to switch between them, the tolerances, and the closing Newton
+    steps taken in the log scale are R's arrangement.
+
+R's own copyright notice on these files reads, in part:
+
+    This program is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the
+    Free Software Foundation; either version 2 of the License, or (at your
+    option) any later version.
+
+Anyone who needs R's C code itself, rather than an independent
+reimplementation of the methods it applies, should take it from R under
+those terms.
+
+
+-------------------------------------------------------------------------
+2. Applied Statistics algorithms (Royal Statistical Society)
+-------------------------------------------------------------------------
+
+Several routines implement algorithms published in the Journal of the Royal
+Statistical Society, Series C (Applied Statistics). The Royal Statistical
+Society holds the copyright in the published routines. The customary
+StatLib distribution statement is:
+
+    The Royal Statistical Society holds the copyright to these routines, but
+    has given permission for their distribution provided that no fee is
+    charged.
+
+The implementations in this package were written in TypeScript from the
+published descriptions of the methods; no Fortran or C listing is
+redistributed here.
+
+  AS 91    Best, D. J. and Roberts, D. E. (1975). The percentage points of
+           the chi-squared distribution. Applied Statistics 24(3), 385-388.
+           Used for the starting value in src/core/chisq.ts (`qchisq`).
+
+  AS 109   Cran, G. W., Martin, K. J. and Thomas, G. E. (1977). Inverse of
+           the incomplete beta function ratio. Applied Statistics 26(1),
+           111-114. The starting value in src/core/special.ts follows the
+           same approximation.
+
+  AS 241   Wichura, M. J. (1988). The percentage points of the normal
+           distribution. Applied Statistics 37(3), 477-484. The three
+           rational regions of `qnorm` in src/core/norm.ts.
+
+  AS 243   Lenth, R. V. (1989). Cumulative distribution function of the
+           non-central t distribution. Applied Statistics 38(1), 185-189.
+           The series in src/core/tdist.ts.
+
+  AS 275   Ding, C. G. (1992). Computing the non-central chi-squared
+           distribution function. Applied Statistics 41(2), 478-482. The
+           series used at high noncentrality in src/core/chisq.ts.
+
+
+-------------------------------------------------------------------------
+3. LAPACK and LINPACK
+-------------------------------------------------------------------------
+
+R performs its matrix work through LAPACK and, for the QR factorization
+behind `lm()`, through a modified LINPACK routine. This package's linear
+algebra follows those reference implementations so that its factorizations
+agree with R's bit for bit.
+
+LAPACK is distributed under a three-clause BSD license:
+
+    Copyright (c) 1992-2023 The University of Tennessee and The University
+    of Tennessee Research Foundation. All rights reserved.
+    Copyright (c) 2000-2023 The University of California Berkeley. All
+    rights reserved.
+    Copyright (c) 2006-2023 The University of Colorado Denver. All rights
+    reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+    - Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    - Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer listed in
+      this license in the documentation and/or other materials provided with
+      the distribution.
+    - Neither the name of the copyright holders nor the names of its
+      contributors may be used to endorse or promote products derived from
+      this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+    PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+    OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+    LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+    NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Routines followed:
+
+  src/core/linalg/chol.ts     dpotrf, dpotrf2, dpotri, dtrtri, dlauum,
+                              dlauu2, and the dtrsm, dsyrk, dtrmv and dgemv
+                              steps of the recursion
+  src/core/linalg/lu.ts       dgetrf, dgetrs, dgesv, dgecon
+  src/core/linalg/ops.ts      the dgemm loop order
+
+LINPACK was written by J. J. Dongarra, J. R. Bunch, C. B. Moler and G. W.
+Stewart, and distributed through Netlib without a restrictive license.
+
+  src/core/linalg/qr.ts       dqrsl, and dqrdc2
+
+Note on `dqrdc2`: this is not the original LINPACK `dqrdc`. It is R Core's
+modification of it, adding the limited column-pivoting rule that causes
+`lm()` to report an aliased coefficient as NA rather than divide by a
+near-zero pivot. That modification is R's work and is distributed under R's
+GPL; the port of its behavior is covered by section 1 above.
+
+
+-------------------------------------------------------------------------
+4. Other published methods
+-------------------------------------------------------------------------
+
+These are standard results from the literature, implemented from their
+published descriptions.
+
+  Lanczos, C. (1964). A precision approximation of the gamma function.
+  The log-gamma function in src/core/special.ts.
+
+  Abramowitz, M. and Stegun, I. A. (1964). Handbook of Mathematical
+  Functions. Formula 26.2.22 (a normal quantile approximation) in
+  src/core/special.ts, and 26.7.10 in src/core/tdist.ts.
+
+  Dekker, T. J. (1971). A floating-point technique for extending the
+  available precision. The `twoProduct` and `twoSum` pair that gives
+  src/core/arith.ts its software fused multiply-add.
+
+  Sturges, H. A. (1926). The choice of a class interval. The default bin
+  count in src/core/histogram.ts.
+
+  Silverman, B. W. (1986). Density Estimation for Statistics and Data
+  Analysis. The bandwidth rule in src/core/kde.ts.
+
+  Jacobi rotations for the symmetric eigenproblem, in
+  src/core/linalg/eigen.ts.
+
+  Nash, J. C. (1990). Compact Numerical Methods for Computers. R's `optim`
+  implements Nash's algorithm 21. The BFGS routine in src/core/optim.ts
+  reaches the same optima but does not follow Nash's line search; its
+  differences from R are stated at the function.
+
+
+-------------------------------------------------------------------------
+5. Bundled data
+-------------------------------------------------------------------------
+
+The `moderationData` and `pcaDegenerate` datasets in src/data/ are exported
+from the R package `compstatslib`, which is also MIT licensed and is
+maintained by the same author.
