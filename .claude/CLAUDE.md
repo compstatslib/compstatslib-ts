@@ -52,8 +52,14 @@ What this means when working here:
 The port is complete. All 9 function families from the R package are
 implemented across the three layers, with both bundled datasets exported from
 R and a demo page per family. The full test suite asserts core math against
-R-computed conformance fixtures. Published to npm as `@compstats/core`. The
-`/linalg` entry adds the general linear algebra base R provides for free.
+R-computed conformance fixtures. Published to npm as `@compstats/core`, at
+0.5.0. The `/linalg` entry adds the general linear algebra base R provides
+for free. 0.5.0 added the base-R primitives a consuming library needs of its
+own — two-matrix `cov`/`cor`, `scale`, `chol`/`chol2inv`, `predictLm`,
+`pchisq`, `qchisq`, `pnorm`, `qnorm`, `optim(method = "BFGS")`, elementwise
+matrix arithmetic and `outer` — and an `fma` option that trades the pinned
+last bits for 10 to 25 times the speed where a caller wants throughput.
+`NOTICE` records the provenance of every algorithm the package reimplements.
 
 ## Architecture
 
@@ -310,7 +316,7 @@ folder uses the full path from the repository root.
 001-PLAN-port/              the port (closed); also holds the fixture docs
 002-PLAN-initial-release/   the first npm publish (closed)
 003-PLAN-linalg/            the linear algebra entry point (closed)
-004-PLAN-seminr-utilities/  active
+004-PLAN-seminr-utilities/  the base-R primitives and the fma option (closed)
 ```
 
 Source comments cite fixture documents by full path, e.g.
