@@ -281,27 +281,14 @@ Each routine follows R down to the arithmetic of its LAPACK and LINPACK calls, s
 
 #### Throughput
 
-Every routine that multiplies rounds each product once, through a software fused multiply-add, so that a result is R's double bit for bit. That costs 10 to 20 times the time of plain arithmetic. Pass `{ fma: false }` to `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`, `determinant`, `rcond`, `lm` and `leastSquares` to use plain `a * b + c` instead. The plain result sits a few units in the last place from the default. `qr` and `lu` record the setting on the decomposition, so their readers follow it. The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `CholOptions` and `LmOptions` extend it, and all are exported from the linalg entry.
+Every routine that multiplies rounds each product once, through a software fused multiply-add, so that a result is R's double bit for bit. That costs 10 to 25 times the time of plain arithmetic. Pass `{ fma: false }` to `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`, `determinant`, `rcond`, `lm` and `leastSquares` to use plain `a * b + c` instead, for a result a few units in the last place away. `qr` and `lu` record the setting on the decomposition, so their readers follow it. A program may mix the two settings without a penalty.
 
 ```js
 const xtx = crossprod(x, { fma: false });
 solve(xtx, crossprod(x, y, { fma: false }), { fma: false });
 ```
 
-Measured on Bun 1.3.14, Apple M1 Pro, standard-normal data, median per call:
-
-| n | operation | default | `fma: false` | ratio | max abs Δ |
-| --- | --- | --- | --- | --- | --- |
-| 250 | `matmul` 250×24 · 24×8 | 897 µs | 43 µs | 21× | 3.6e-15 |
-| 250 | OLS k = 6, `crossprod` + `solve` | 249 µs | 19 µs | 13× | 1.4e-17 |
-| 2000 | `matmul` 2000×24 · 24×8 | 8.09 ms | 327 µs | 25× | 5.3e-15 |
-| 2000 | `crossprod(M)`, 24 columns | 24.2 ms | 1.12 ms | 22× | 2.3e-13 |
-| 2000 | `qr` + `qrCoef`, 2000×20 | 20.0 ms | 2.05 ms | 10× | 4.9e-17 |
-| 24×24 | `solve(A, b)` | 321 µs | 27 µs | 12× | 1.1e-19 |
-
-A program may mix the two settings without a penalty. Each inner loop is written once per setting, so the default keeps its speed after a plain call, and the plain path keeps its speed after a default call.
-
-A pivot that differs by one unit in the last place can, in principle, move a matrix across the line between "exactly singular" and "computationally singular". No fixture matrix does: `matrix(1:9, 3)` reaches an exactly zero pivot under both settings.
+The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `CholOptions` and `LmOptions` extend it, and all are exported from the linalg entry.
 
 ### Bundled data
 
