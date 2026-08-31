@@ -15,13 +15,20 @@
  * reports `NA` for an aliased column. Fitted values and residuals are padded
  * with NaN to the input length where a row was dropped for a missing value,
  * R's `na.exclude`, which is the convention every fit in this package uses.
+ *
+ * `predictLm()` is R's `predict.lm()` over a new frame. R has no generic
+ * `predict` here, because TypeScript dispatches on nothing at run time and
+ * an `LmFit` and a `LogitFit` are both plain objects; each family therefore
+ * keeps its own `predict*`, as `predictLogit()` already does.
  */
 
-import { mean, sum, zipWith } from "../arith";
-import type { DataFrame } from "../frame";
+import { mean, sum, zipWith, type FmaOption } from "../arith";
+import { frameRows, type DataFrame } from "../frame";
 import { pt } from "../tdist";
-import { modelMatrix, type ModelSpec } from "./modelMatrix";
+import { make } from "./matrix";
+import { modelMatrix, type ModelSpec, type Term } from "./modelMatrix";
 import { namedVector, type NamedVector } from "./namedVector";
+import { matmul } from "./ops";
 import { DEFAULT_QR_TOLERANCE, qr, qrCoef, qrResid, type QrDecomposition } from "./qr";
 import type { Vector } from "./vector";
 
@@ -75,6 +82,13 @@ export interface LmFit {
   readonly rows: readonly number[];
   /** R's `term.labels`. */
   readonly termLabels: readonly string[];
+  /**
+   * The model the fit was built from: the outcome, the terms as they were
+   * written, and the intercept flag the fit used rather than the one the
+   * caller left out. `predictLm()` rebuilds the design over a new frame from
+   * it, as R rebuilds one from `fit$terms`.
+   */
+  readonly model: ModelSpec;
 }
 
 /**
@@ -149,7 +163,81 @@ export function lm(data: DataFrame, options: LmOptions): LmFit {
       numdf > 0 ? { value: mss / numdf / resvar, numdf, dendf: dfResidual } : null,
     rows,
     termLabels: design.termLabels,
+    model: { outcome, terms: options.terms, intercept },
   };
+}
+
+/**
+ * Predict the outcome over a new frame, as R's `predict.lm()` does.
+ *
+ * R rebuilds the design from the model the fit holds and multiplies it by
+ * the coefficients: `X[, piv] %*% beta[piv]`. The port does the same. An
+ * aliased column, the one R reports as `NA`, is dropped from the product
+ * rather than multiplied by zero, because the two round differently. The
+ * columns that remain stand in the order the fit identified them, which is
+ * R's pivot order, since the limited pivoting of `dqrdc2` moves only the
+ * aliased columns and keeps the rest as written.
+ *
+ * A row of the new frame that holds a missing value gives NaN, R's `NA` for
+ * that row. R warns when a row of the new design leaves the column space of
+ * the fitted design; a library cannot warn, so it does not.
+ *
+ * @param fit The fit, from `lm()`.
+ * @param newdata The frame to predict over. It needs every column the terms
+ *   name, and no outcome column.
+ * @param options `{ fma: false }` for plain arithmetic in the product. See
+ *   `ops.ts`.
+ * @returns One prediction per row of `newdata`, in input order.
+ * @throws RangeError If a column a term names is absent — R's "object 'w'
+ *   not found" — if a named column is not numeric, or if the frame is
+ *   ragged.
+ * @throws TypeError If `fma` is neither true nor false.
+ */
+export function predictLm(
+  fit: LmFit,
+  newdata: DataFrame,
+  options: FmaOption = {},
+): Vector {
+  const { terms, intercept } = fit.model;
+  // R evaluates the model variables in the new frame and stops at the first
+  // one it cannot find, so the check runs before the design is built.
+  requireModelColumns(newdata, terms);
+  // The spec carries no outcome: R predicts a frame that has none, and a
+  // row is dropped only for a value one of the terms needs.
+  const design = modelMatrix(newdata, { terms, intercept });
+
+  const { nrow } = design.matrix;
+  const identified = fit.coefficients.values.flatMap((value, column) =>
+    value === null ? [] : [{ value, column }],
+  );
+  const data = new Float64Array(nrow * identified.length);
+  identified.forEach(({ column }, position) => {
+    data.set(
+      design.matrix.data.subarray(column * nrow, (column + 1) * nrow),
+      position * nrow,
+    );
+  });
+  const product = matmul(
+    make(nrow, identified.length, data, null),
+    identified.map(({ value }) => value),
+    options,
+  );
+
+  return padded(Array.from(product.data), design.rows, frameRows(newdata));
+}
+
+/**
+ * Refuse a frame that lacks a column a term names, in R's words.
+ *
+ * @throws RangeError Naming the first column the terms need and the frame
+ *   does not hold.
+ */
+function requireModelColumns(data: DataFrame, terms: readonly Term[]): void {
+  const needed = terms.flatMap((term) => (typeof term === "string" ? [term] : [...term]));
+  const missing = needed.find((name) => data[name] === undefined);
+  if (missing !== undefined) {
+    throw new RangeError(`object '${missing}' not found`);
+  }
 }
 
 /**
