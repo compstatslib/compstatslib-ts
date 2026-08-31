@@ -233,7 +233,19 @@ const GAMMA_MAX_STEPS = 1000;
 const GAMMA_EPSILON = 3e-16;
 
 /**
- * P(a, x), the regularized lower incomplete gamma, by its power series.
+ * The log of the common factor e^−x · x^a / Γ(a).
+ *
+ * Both incomplete-gamma routines carry it. Kept as a log so that a caller
+ * working in the log scale never has to exponentiate a number that underflows
+ * on the way, which is how the far lower tail of the chi-square keeps its
+ * digits at 200 degrees of freedom.
+ */
+function logGammaFactor(a: number, x: number): number {
+  return -x + a * Math.log(x) - logGamma(a);
+}
+
+/**
+ * The power series behind P(a, x), without its leading factor.
  *
  * The series converges quickly while x stays below a + 1. Index loop with a
  * stated reason: it sums one term at a time and stops on a size test.
@@ -248,12 +260,12 @@ function lowerGammaSeries(a: number, x: number): number {
       break;
     }
   }
-  return total * Math.exp(-x + a * Math.log(x) - logGamma(a));
+  return total;
 }
 
 /**
- * Q(a, x), the regularized upper incomplete gamma, by the modified Lentz
- * method on its continued fraction.
+ * The continued fraction behind Q(a, x), without its leading factor, by the
+ * modified Lentz method.
  *
  * This is the branch that carries the far normal tail, where the answer runs
  * to 1e-70 and below and must stay accurate relative to itself.
@@ -283,18 +295,107 @@ function upperGammaFraction(a: number, x: number): number {
     }
   }
 
-  return value * Math.exp(-x + a * Math.log(x) - logGamma(a));
+  return value;
 }
 
-/** Q(a, x), taking whichever of the two routes converges at this x. */
-function upperGamma(a: number, x: number): number {
+/**
+ * P(a, x), the regularized lower incomplete gamma, R's `pgamma(x, a)`.
+ *
+ * The series carries the side where x sits below a + 1, and the complement of
+ * the continued fraction carries the other side. Each route is taken where it
+ * converges and where it holds the answer away from a cancellation.
+ *
+ * @param a A positive shape.
+ * @param x A value of zero or more.
+ * @returns The share of the gamma density below x, or NaN for a bad shape.
+ */
+export function regularizedGammaP(a: number, x: number): number {
+  if (Number.isNaN(x) || !(a > 0)) {
+    return Number.NaN;
+  }
+  if (x <= 0) {
+    return 0;
+  }
+  if (!Number.isFinite(x)) {
+    return 1;
+  }
+  return x < a + 1
+    ? lowerGammaSeries(a, x) * Math.exp(logGammaFactor(a, x))
+    : 1 - upperGammaFraction(a, x) * Math.exp(logGammaFactor(a, x));
+}
+
+/**
+ * Q(a, x), the regularized upper incomplete gamma, R's
+ * `pgamma(x, a, lower.tail = FALSE)`.
+ *
+ * @param a A positive shape.
+ * @param x A value of zero or more.
+ * @returns The share of the gamma density above x, or NaN for a bad shape.
+ */
+export function regularizedGammaQ(a: number, x: number): number {
+  if (Number.isNaN(x) || !(a > 0)) {
+    return Number.NaN;
+  }
   if (x <= 0) {
     return 1;
   }
   if (!Number.isFinite(x)) {
     return 0;
   }
-  return x < a + 1 ? 1 - lowerGammaSeries(a, x) : upperGammaFraction(a, x);
+  return x < a + 1
+    ? 1 - lowerGammaSeries(a, x) * Math.exp(logGammaFactor(a, x))
+    : upperGammaFraction(a, x) * Math.exp(logGammaFactor(a, x));
+}
+
+/**
+ * log P(a, x), R's `pgamma(x, a, log.p = TRUE)`.
+ *
+ * The series branch never exponentiates: it adds the log of the sum to the log
+ * of the factor. That is what a caller needs where P itself is below the
+ * smallest double, as it is for the chi-square at 200 degrees of freedom near
+ * zero, and it is the scale R's own quantile search works in.
+ *
+ * @param a A positive shape.
+ * @param x A value of zero or more.
+ * @returns The log of the lower tail, or NaN for a bad shape.
+ */
+export function logRegularizedGammaP(a: number, x: number): number {
+  if (Number.isNaN(x) || !(a > 0)) {
+    return Number.NaN;
+  }
+  if (x <= 0) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  if (!Number.isFinite(x)) {
+    return 0;
+  }
+  if (x < a + 1) {
+    return Math.log(lowerGammaSeries(a, x)) + logGammaFactor(a, x);
+  }
+  return Math.log1p(-upperGammaFraction(a, x) * Math.exp(logGammaFactor(a, x)));
+}
+
+/**
+ * log Q(a, x), R's `pgamma(x, a, lower.tail = FALSE, log.p = TRUE)`.
+ *
+ * @param a A positive shape.
+ * @param x A value of zero or more.
+ * @returns The log of the upper tail, or NaN for a bad shape.
+ */
+export function logRegularizedGammaQ(a: number, x: number): number {
+  if (Number.isNaN(x) || !(a > 0)) {
+    return Number.NaN;
+  }
+  if (x <= 0) {
+    return 0;
+  }
+  if (!Number.isFinite(x)) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  if (x < a + 1) {
+    return Math.log1p(-lowerGammaSeries(a, x) * Math.exp(logGammaFactor(a, x)));
+  }
+  return Math.log(upperGammaFraction(a, x)) + logGammaFactor(a, x);
 }
 
 /**
@@ -311,7 +412,7 @@ export function normalCdf(z: number): number {
   if (Number.isNaN(z)) {
     return Number.NaN;
   }
-  const lower = 0.5 * upperGamma(0.5, 0.5 * z * z);
+  const lower = 0.5 * regularizedGammaQ(0.5, 0.5 * z * z);
   return z > 0 ? 1 - lower : lower;
 }
 
