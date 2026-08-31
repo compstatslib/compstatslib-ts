@@ -59,6 +59,12 @@ export interface LeastSquaresOptions {
    * `min(1e-7, epsilon / 1000)`, which is `1e-11` at R's default epsilon.
    */
   readonly tolerance?: number;
+  /**
+   * The arithmetic of the factorization, passed straight to `qr()`:
+   * `{ fma: false }` trades the pinned last bits for throughput, which an
+   * IRLS or bootstrap loop feels.
+   */
+  readonly fma?: boolean;
 }
 
 /** The rank tolerance of R's `lm.fit()`. */
@@ -71,18 +77,23 @@ export const DEFAULT_LEAST_SQUARES_TOLERANCE = 1e-7;
  *   model with an intercept carries a leading column of ones. The function
  *   does not modify it.
  * @param y The response, one value per row.
- * @param options Weights and the rank tolerance.
+ * @param options Weights, the rank tolerance, and the arithmetic.
  * @returns The coefficients, the fit, and the rank.
  * @throws RangeError if there are no rows, if the shapes disagree, or if a
  *   weight is negative. R refuses the same inputs: "0 (non-NA) cases" and
  *   "missing or negative weights not allowed".
+ * @throws TypeError if `fma` is not a boolean. `qr()` refuses it.
  */
 export function leastSquares(
   design: readonly (readonly number[])[],
   y: readonly number[],
   options: LeastSquaresOptions = {},
 ): LeastSquaresFit {
-  const { weights, tolerance = DEFAULT_LEAST_SQUARES_TOLERANCE } = options;
+  const {
+    weights,
+    tolerance = DEFAULT_LEAST_SQUARES_TOLERANCE,
+    fma,
+  } = options;
   const rows = design.length;
 
   if (rows === 0) {
@@ -125,7 +136,7 @@ export function leastSquares(
     }
   });
 
-  const factored = qr(make(rows, width, buffer, null), { tolerance });
+  const factored = qr(make(rows, width, buffer, null), { tolerance, fma });
   const coefficients = qrCoef(factored, y.map(scaled));
 
   const fitted = design.map((row) =>

@@ -122,6 +122,30 @@ function expectVectorCloseToR(
   }
 }
 
+/**
+ * Assert that two computed vectors agree entry by entry, at a relative
+ * tolerance. Both entries have to be null together, the way an aliased
+ * column reports on either arithmetic path.
+ */
+function expectVectorsAgree(
+  actual: readonly (number | null)[],
+  expected: readonly (number | null)[],
+  tolerance: number,
+): void {
+  expect(actual).toHaveLength(expected.length);
+  for (const [index, value] of expected.entries()) {
+    const other = actual[index] ?? null;
+    if (value === null) {
+      expect(other).toBeNull();
+      continue;
+    }
+    expect(other).not.toBeNull();
+    expect(Math.abs((other as number) - value)).toBeLessThanOrEqual(
+      tolerance * Math.max(1, Math.abs(value)),
+    );
+  }
+}
+
 /** Build the design matrix of a simple regression: an intercept and one term. */
 function simpleDesign(xs: readonly number[]): number[][] {
   return xs.map((x) => [1, x]);
@@ -470,6 +494,66 @@ describe("leastSquares", () => {
       );
       expect(fit.rank).toBe(1);
       expect(Math.abs((fit.coefficients[0] as number) - 2)).toBeLessThan(1e-9);
+    });
+  });
+
+  describe("the fma option (plan 004, slice 0)", () => {
+    // The option reaches the factorization through `qr`. The two arithmetic
+    // paths round each product a different number of times, so they agree to
+    // a few units in the last place, not bit for bit.
+    const AGREEMENT = 1e-14;
+
+    const xs = [1, 2, 3, 4, 5, 6];
+    const zs = [2, 5, 1, 9, 4, 6];
+    const ys = [3.1, 4.4, 2.2, 9.9, 5.5, 7.7];
+    const moderationShaped = xs.map((value, index) => {
+      const z = zs[index] as number;
+      return [1, value, z, value * z];
+    });
+
+    test("a plain fit gives the same coefficients, fit and residuals", () => {
+      const standard = leastSquares(moderationShaped, ys);
+      const plain = leastSquares(moderationShaped, ys, { fma: false });
+      expect(plain.rank).toBe(standard.rank);
+      expectVectorsAgree(plain.coefficients, standard.coefficients, AGREEMENT);
+      expectVectorsAgree(plain.fitted, standard.fitted, AGREEMENT);
+      expectVectorsAgree(plain.residuals, standard.residuals, AGREEMENT);
+    });
+
+    test("a plain fit aliases the same column of a rank-deficient design", () => {
+      const repeated = x.map((value) => [1, 1, value]);
+      const standard = leastSquares(repeated, y);
+      const plain = leastSquares(repeated, y, { fma: false });
+      expect(plain.rank).toBe(standard.rank);
+      expect(plain.coefficients[1]).toBeNull();
+      expectVectorsAgree(plain.coefficients, standard.coefficients, AGREEMENT);
+      expectVectorsAgree(plain.fitted, standard.fitted, AGREEMENT);
+    });
+
+    test("weights combine with a plain fit", () => {
+      const weights = [0.5, 2, 1, 4];
+      const standard = leastSquares(simpleDesign(x), y, { weights });
+      const plain = leastSquares(simpleDesign(x), y, { weights, fma: false });
+      expect(plain.rank).toBe(standard.rank);
+      expectVectorsAgree(plain.coefficients, standard.coefficients, AGREEMENT);
+      expectVectorsAgree(plain.fitted, standard.fitted, AGREEMENT);
+      expectVectorsAgree(plain.residuals, standard.residuals, AGREEMENT);
+    });
+
+    test("the default still pins R's coefficients exactly", () => {
+      const asked = leastSquares(moderationShaped, ys, { fma: true });
+      expect(asked.coefficients).toEqual([
+        2.4894248862431185, -0.36766225324164448, 0.26168702316192777,
+        0.17307297546956804,
+      ]);
+    });
+
+    test("refuses an fma that is not a boolean", () => {
+      expect(() =>
+        leastSquares(moderationShaped, ys, {
+          fma: "yes" as unknown as boolean,
+        }),
+      ).toThrow(TypeError);
     });
   });
 

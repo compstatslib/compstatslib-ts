@@ -159,6 +159,12 @@ real numerical work. These are the R primitives the port depends on:
 | `solve()`, `det()`, `rcond()` | the linalg entry — LAPACK `dgetrf`/`dgetrs` for n×n |
 | `model.matrix()`, `lm()`, `summary.lm()` | the linalg entry — a term list, not a formula |
 | `cov()`, `cor()`, `eigen(symmetric = TRUE)`, `prcomp()` | the linalg entry — Jacobi rotations for the eigenproblem |
+| `cov(x, y)`, `cor(x, y)`, `scale()` | the linalg entry — two-matrix forms; `scale.default`'s centering and divisor |
+| `chol()`, `chol2inv()` | the linalg entry — LAPACK's recursive `dpotrf2` and `dpotri` |
+| `predict.lm()` | the linalg entry — `predictLm`, the design rebuilt over new data |
+| `+`, `-`, `*`, `/` on matrices, `outer()` | the linalg entry — `add`/`sub`/`mul`/`div` overloads, `outer` |
+| `pchisq()`, `qchisq()`, `pnorm()`, `qnorm()`, `pgamma()` | the main entry — R's `pnchisq.c`, `qgamma`, AS 241; the regularized gamma exported |
+| `optim(method = "BFGS")` | the main entry — R's optimum with this port's path, stated at the function |
 
 This layer is **public API**, not an implementation detail. The R package
 never exports these — base R already provides them — but a consuming app has
@@ -303,7 +309,8 @@ folder uses the full path from the repository root.
 ```text
 001-PLAN-port/              the port (closed); also holds the fixture docs
 002-PLAN-initial-release/   the first npm publish (closed)
-003-PLAN-linalg/            active
+003-PLAN-linalg/            the linear algebra entry point (closed)
+004-PLAN-seminr-utilities/  active
 ```
 
 Source comments cite fixture documents by full path, e.g.

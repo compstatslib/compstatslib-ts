@@ -1,6 +1,6 @@
 {
   "name": "@compstats/core",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "type": "module",
   "description": "Interactive 2D and 3D visualization of data and statistical concepts, in the browser.",
   "license": "MIT",
@@ -34,7 +34,8 @@
   },
   "files": [
     "dist",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "NOTICE"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",

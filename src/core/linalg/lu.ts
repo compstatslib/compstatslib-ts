@@ -14,6 +14,27 @@
  * The 2 × 2 special case in `../matrix.ts` is the same algorithm and the
  * two agree exactly on every fixture of the interactive demo.
  *
+ * Every routine here takes `fma`, the option `FmaOption` describes. The
+ * default, `true`, keeps R's doubles. `false` rounds each product twice,
+ * which runs much faster and lands a few units in the last place away.
+ * A pivot carries that distance too, so a singular matrix can change the
+ * class of its error: an exactly zero pivot under one rounding may come
+ * out small and nonzero under two, and `solve` then reports a
+ * computationally singular system in place of R's exactly singular one.
+ * On `matrix(1:9, 3)`, R's own singular case, both paths reach the
+ * exactly zero pivot and both give R's message; `lu.test.ts` pins that.
+ * See the README's linear algebra section for the measured ratios.
+ *
+ * Provenance: `dgetrf`, `dgetrs`, `dgesv` and `dgecon` are LAPACK, under a
+ * three-clause BSD license. See NOTICE.
+ *
+ * The setting is read once, at the entry of the routine, and kept as a
+ * boolean on the decomposition so that every reader rounds the way the
+ * factorization did. Each innermost loop is then written twice, once for
+ * each rounding, with the branch on that boolean around the loop rather
+ * than inside it. One shared call site would go polymorphic as soon as a
+ * program uses both settings, and the engine would stop inlining it.
+ *
  * Three departures from R, each stated where it applies: `rcond` is the
  * exact one-norm ratio rather than `dgecon`'s estimate; a vector right-hand
  * side comes back as a plain array rather than R's named vector; and a
@@ -23,7 +44,7 @@
  * position, and this one follows `dgetf2` and `dtrsm` as written.
  */
 
-import { fusedMultiplyAdd } from "../arith";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
 import { make, type Dimnames, type Matrix } from "./matrix";
 import { isMatrix, t, type MatrixOrVector } from "./ops";
 import { qr, qrR } from "./qr";
@@ -59,19 +80,31 @@ export interface LuDecomposition {
    * `U[i,i] = 0`, one-based.
    */
   readonly zeroPivot: number | null;
+  /**
+   * The arithmetic the factorization used, so that every reader of it
+   * rounds the way it did.
+   */
+  readonly fma: boolean;
 }
+
+/** The arithmetic option of `lu()`, `det()`, `determinant()` and `rcond()`. */
+export interface LuOptions extends FmaOption {}
 
 /**
  * Factor a square matrix, as LAPACK's `dgetrf` does.
  *
  * @param a The matrix. The function does not modify it.
- * @returns The compact factorization, the row interchanges, and the first
- *   zero pivot if any. A zero pivot does not stop the factorization, as it
- *   does not in LAPACK.
+ * @param options The arithmetic. `{ fma: false }` rounds each product
+ *   twice, which is faster and a few units in the last place away from R.
+ * @returns The compact factorization, the row interchanges, the first
+ *   zero pivot if any, and the arithmetic used. A zero pivot does not stop
+ *   the factorization, as it does not in LAPACK.
  * @throws RangeError If the matrix is not square.
- * @throws TypeError If `a` is not a matrix.
+ * @throws TypeError If `a` is not a matrix, or `fma` is not a boolean.
  */
-export function lu(a: Matrix): LuDecomposition {
+export function lu(a: Matrix, options: LuOptions = {}): LuDecomposition {
+  // The arithmetic is read here, before the loops, and never per entry.
+  const fma = resolveFma(options.fma);
   requireSquare(a, "a");
   const n = a.nrow;
   const data = Float64Array.from(a.data);
@@ -112,17 +145,24 @@ export function lu(a: Matrix): LuDecomposition {
       zeroPivot = j;
     }
 
-    // The rank-one update of the trailing block, `dger`: each product is
-    // rounded once into the entry it updates.
+    // The rank-one update of the trailing block, `dger`: under the default
+    // each product is rounded once into the entry it updates. The loop is
+    // written twice, and the branch sits around it.
     for (let jj = j + 1; jj < n; jj++) {
       const factor = -entry(j, jj);
-      for (let i = j + 1; i < n; i++) {
-        data[jj * n + i] = fusedMultiplyAdd(entry(i, j), factor, entry(i, jj));
+      if (fma) {
+        for (let i = j + 1; i < n; i++) {
+          data[jj * n + i] = fusedMultiplyAdd(entry(i, j), factor, entry(i, jj));
+        }
+      } else {
+        for (let i = j + 1; i < n; i++) {
+          data[jj * n + i] = entry(i, j) * factor + entry(i, jj);
+        }
       }
     }
   }
 
-  return { lu: make(n, n, data, null), pivots, zeroPivot };
+  return { lu: make(n, n, data, null), pivots, zeroPivot, fma };
 }
 
 /** Exchange two rows of a column-major square buffer in place. */
@@ -134,7 +174,7 @@ function swapRows(data: Float64Array, n: number, i: number, p: number): void {
   }
 }
 
-export interface SolveOptions {
+export interface SolveOptions extends FmaOption {
   /**
    * The reciprocal condition number below which the system is refused as
    * computationally singular. R's default is `.Machine$double.eps`; zero
@@ -159,7 +199,9 @@ export const DEFAULT_SOLVE_TOLERANCE = Number.EPSILON;
  *   gives a matrix whose row names are the column names of `a` and whose
  *   column names are those of `b`; the inverse has the column names of `a`
  *   as rows and the row names of `a` as columns, as R's does.
- * @param options The singularity tolerance.
+ * @param options The singularity tolerance and the arithmetic. Under
+ *   `{ fma: false }` a matrix whose pivot R makes exactly zero can come
+ *   back computationally singular instead, as the module comment says.
  * @returns The solution.
  * @throws RangeError If `a` is not square or has no rows, `b` does not
  *   conform or has no columns, the factorization meets an exactly zero
@@ -167,7 +209,8 @@ export const DEFAULT_SOLVE_TOLERANCE = Number.EPSILON;
  *   each in R's own words. As in R, a non-finite entry in `a` leaves the
  *   condition unchecked: R's `dgecon` reports a bad norm and `solve()`
  *   goes on.
- * @throws TypeError If `a` or `b` is neither a matrix nor an array.
+ * @throws TypeError If `a` or `b` is neither a matrix nor an array, or
+ *   `fma` is not a boolean.
  */
 export function solve(a: Matrix, options?: SolveOptions): Matrix;
 export function solve(a: Matrix, b: Vector, options?: SolveOptions): number[];
@@ -203,7 +246,7 @@ export function solve(
     );
   }
 
-  const factored = lu(a);
+  const factored = lu(a, { fma: options.fma });
   if (factored.zeroPivot !== null) {
     const i = factored.zeroPivot + 1;
     throw new RangeError(
@@ -270,9 +313,13 @@ function identityData(n: number): Matrix {
  * the unit lower triangle and back through the upper one (`dtrsm`). A zero
  * entry is skipped as `dtrsm` skips it, which is how a negative zero on
  * the right-hand side survives, as it does in R.
+ *
+ * The arithmetic is the one the factorization used, read here once off the
+ * decomposition. Each sweep's innermost loop is written twice, and the
+ * branch sits around it, for the reason the module comment gives.
  */
 function substitute(factored: LuDecomposition, rhs: Matrix): Float64Array {
-  const { lu: compact, pivots } = factored;
+  const { lu: compact, pivots, fma } = factored;
   const n = compact.nrow;
   const entry = (i: number, j: number): number => compact.data[j * n + i] as number;
   const data = Float64Array.from(rhs.data);
@@ -292,16 +339,28 @@ function substitute(factored: LuDecomposition, rhs: Matrix): Float64Array {
     const at = (i: number): number => data[j * n + i] as number;
     for (let k = 0; k < n; k++) {
       if (at(k) !== 0) {
-        for (let i = k + 1; i < n; i++) {
-          data[j * n + i] = fusedMultiplyAdd(-at(k), entry(i, k), at(i));
+        if (fma) {
+          for (let i = k + 1; i < n; i++) {
+            data[j * n + i] = fusedMultiplyAdd(-at(k), entry(i, k), at(i));
+          }
+        } else {
+          for (let i = k + 1; i < n; i++) {
+            data[j * n + i] = -at(k) * entry(i, k) + at(i);
+          }
         }
       }
     }
     for (let k = n - 1; k >= 0; k--) {
       if (at(k) !== 0) {
         data[j * n + k] = at(k) / entry(k, k);
-        for (let i = 0; i < k; i++) {
-          data[j * n + i] = fusedMultiplyAdd(-at(k), entry(i, k), at(i));
+        if (fma) {
+          for (let i = 0; i < k; i++) {
+            data[j * n + i] = fusedMultiplyAdd(-at(k), entry(i, k), at(i));
+          }
+        } else {
+          for (let i = 0; i < k; i++) {
+            data[j * n + i] = -at(k) * entry(i, k) + at(i);
+          }
         }
       }
     }
@@ -314,11 +373,13 @@ function substitute(factored: LuDecomposition, rhs: Matrix): Float64Array {
  * R's `det()`: the determinant, through the factorization and a sum of
  * logarithms, as R computes it. A 0 × 0 matrix has determinant 1, as in R.
  *
+ * @param a The square matrix.
+ * @param options The arithmetic of the factorization.
  * @throws RangeError If the matrix is not square.
- * @throws TypeError If `a` is not a matrix.
+ * @throws TypeError If `a` is not a matrix, or `fma` is not a boolean.
  */
-export function det(a: Matrix): number {
-  const { modulus, sign } = determinant(a);
+export function det(a: Matrix, options: LuOptions = {}): number {
+  const { modulus, sign } = determinant(a, options);
   return sign * Math.exp(modulus);
 }
 
@@ -327,12 +388,17 @@ export function det(a: Matrix): number {
  * sign. An exactly singular matrix reports `-Infinity` and sign 1, so that
  * `det()` is a positive zero, as R's is.
  *
+ * @param a The square matrix.
+ * @param options The arithmetic of the factorization.
  * @throws RangeError If the matrix is not square.
- * @throws TypeError If `a` is not a matrix.
+ * @throws TypeError If `a` is not a matrix, or `fma` is not a boolean.
  */
-export function determinant(a: Matrix): { readonly modulus: number; readonly sign: 1 | -1 } {
+export function determinant(
+  a: Matrix,
+  options: LuOptions = {},
+): { readonly modulus: number; readonly sign: 1 | -1 } {
   requireSquare(a, "x");
-  const factored = lu(a);
+  const factored = lu(a, options);
   if (factored.zeroPivot !== null) {
     return { modulus: Number.NEGATIVE_INFINITY, sign: 1 };
   }
@@ -367,17 +433,21 @@ export function determinant(a: Matrix): { readonly modulus: number; readonly sig
  * every singular case pinned. The estimate bounds the norm of the inverse
  * from below, so R's number is never smaller than the port's.
  *
+ * @param a The matrix.
+ * @param options The arithmetic. The QR of a matrix that is not square
+ *   takes it too, so one setting covers the whole path.
  * @throws RangeError If an entry is not finite — R's "error code -5 from
  *   Lapack routine 'dgecon()'", because `dgecon` refuses a norm it cannot
  *   read.
- * @throws TypeError If `a` is not a matrix.
+ * @throws TypeError If `a` is not a matrix, or `fma` is not a boolean.
  */
-export function rcond(a: Matrix): number {
+export function rcond(a: Matrix, options: LuOptions = {}): number {
   if (!isMatrix(a)) {
     throw new TypeError("expected a Matrix");
   }
   if (a.nrow !== a.ncol) {
-    return rcond(qrR(qr(a.nrow < a.ncol ? t(a) : a)));
+    const wide = a.nrow < a.ncol;
+    return rcond(qrR(qr(wide ? t(a) : a, { fma: options.fma })), options);
   }
   const n = a.nrow;
   if (n === 0) {
@@ -387,7 +457,7 @@ export function rcond(a: Matrix): number {
   if (!Number.isFinite(anorm)) {
     throw new RangeError("error code -5 from Lapack routine 'dgecon()'");
   }
-  const factored = lu(a);
+  const factored = lu(a, options);
   if (factored.zeroPivot !== null) {
     return 0;
   }

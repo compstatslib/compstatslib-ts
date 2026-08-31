@@ -26,12 +26,14 @@ export {
 } from "./core/linalg/matrix";
 export type { Dimnames, Matrix, MatrixOptions } from "./core/linalg/matrix";
 
+export type { FmaOption } from "./core/arith";
 export {
   cbind,
   crossprod,
   diag,
   identity,
   matmul,
+  outer,
   rbind,
   t,
   tcrossprod,
@@ -61,7 +63,7 @@ export {
   rcond,
   solve,
 } from "./core/linalg/lu";
-export type { LuDecomposition, MatrixNormType, SolveOptions } from "./core/linalg/lu";
+export type { LuDecomposition, LuOptions, MatrixNormType, SolveOptions } from "./core/linalg/lu";
 
 export { lookup, namedVector } from "./core/linalg/namedVector";
 export type { NamedVector } from "./core/linalg/namedVector";
@@ -69,10 +71,14 @@ export type { NamedVector } from "./core/linalg/namedVector";
 export { modelMatrix } from "./core/linalg/modelMatrix";
 export type { ModelMatrix, ModelSpec, Term } from "./core/linalg/modelMatrix";
 
-export { lm } from "./core/linalg/lm";
+export { lm, predictLm } from "./core/linalg/lm";
 export type { FStatistic, LmFit, LmOptions } from "./core/linalg/lm";
 
 export { cor, cov, variance } from "./core/linalg/cov";
+export { scale } from "./core/linalg/scale";
+export type { Scaled, ScaleOptions } from "./core/linalg/scale";
+export { chol, chol2inv } from "./core/linalg/chol";
+export type { CholOptions } from "./core/linalg/chol";
 export { eigenSymmetric, isSymmetric } from "./core/linalg/eigen";
 export type { SymmetricEigen } from "./core/linalg/eigen";
 export { prcomp } from "./core/linalg/prcomp";
