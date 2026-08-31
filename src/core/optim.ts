@@ -48,10 +48,16 @@
  * built from central finite differences, and those objective evaluations
  * count as one gradient call, not as function calls, which is how R reports a
  * stationary start as one call of each.
+ *
+ * The inverse Hessian is a `Matrix`, and its update is written on the linalg
+ * entry's elementwise arithmetic with plain `{ fma: false }` products, because
+ * `optim` follows this port's path, not R's.
  */
 
 import { sum, zipWith } from "./arith";
-import type { Vector } from "./linalg/vector";
+import type { Matrix } from "./linalg/matrix";
+import { identity, matmul, outer } from "./linalg/ops";
+import { add, mul, sub, type Vector } from "./linalg/vector";
 
 /** R's `control` list, with the two tolerances this port adds. */
 export interface OptimControl {
@@ -121,6 +127,12 @@ const DEFAULT_STALL_GRAD_TOL = 1e-6;
 const ARMIJO_DECREASE = 1e-4;
 const MAX_HALVINGS = 60;
 
+/** The steps a line search tries in turn: 1, 1/2, 1/4, … to 2^-59. Exact doubles. */
+const HALVED_STEPS: readonly number[] = Array.from(
+  { length: MAX_HALVINGS },
+  (_, halving) => 2 ** -halving,
+);
+
 /** How many stalled iterations in a row end the run. */
 const STALL_LIMIT = 8;
 
@@ -169,18 +181,6 @@ function centralDifferences(
   });
 }
 
-/** Return an identity matrix of the given order, the first inverse Hessian. */
-function identity(order: number): number[][] {
-  return Array.from({ length: order }, (_, row) =>
-    Array.from({ length: order }, (_, column) => (row === column ? 1 : 0)),
-  );
-}
-
-/** Multiply a symmetric matrix by a vector, row by row. */
-function multiply(matrix: readonly number[][], vector: readonly number[]): number[] {
-  return matrix.map((row) => sum(zipWith(row, vector, (a, b) => a * b)));
-}
-
 /**
  * Minimize a function of several parameters, R's `optim(method = "BFGS")`.
  *
@@ -227,11 +227,11 @@ export function optim(
   };
 
   /**
-   * Halve the step until the objective falls by its Armijo share of the
-   * slope. Return the point reached, or null when no step qualifies.
-   *
-   * Written as an index loop because each pass halves the step of the pass
-   * before it, which a `map` cannot carry.
+   * Try each halved step in turn until the objective falls by its Armijo
+   * share of the slope. Return the point reached, or null when no step
+   * qualifies. A loop rather than `find`, because the search must stop at
+   * the first step that qualifies without a second call to the objective,
+   * which the counts would show.
    */
   const lineSearch = (
     from: readonly number[],
@@ -239,14 +239,12 @@ export function optim(
     direction: readonly number[],
     slope: number,
   ): { readonly par: number[]; readonly value: number } | null => {
-    let step = 1;
-    for (let halving = 0; halving < MAX_HALVINGS; halving += 1) {
+    for (const step of HALVED_STEPS) {
       const candidate = zipWith(from, direction, (start, move) => start + step * move);
       const candidateValue = objective(candidate);
       if (candidateValue <= fromValue + ARMIJO_DECREASE * step * slope) {
         return { par: candidate, value: candidateValue };
       }
-      step /= 2;
     }
     return null;
   };
@@ -254,14 +252,16 @@ export function optim(
   let x = [...par];
   let value = objective(x);
   let gradient = gradientAt(x);
-  let inverseHessian = identity(order);
+  let inverseHessian: Matrix = identity(order);
 
   let iterations = 0;
   let converged = infinityNorm(gradient) < gradTol;
   let stalled = 0;
 
   while (!converged && iterations < maxit) {
-    let direction = multiply(inverseHessian, gradient).map((element) => -element);
+    let direction = Array.from(
+      matmul(inverseHessian, gradient, { fma: false }).data,
+    ).map((element) => -element);
     let slope = sum(zipWith(direction, gradient, (a, b) => a * b));
     let steepest = false;
 
@@ -310,31 +310,18 @@ export function optim(
     const curvature = sum(zipWith(move, change, (a, b) => a * b));
 
     if (curvature > MIN_CURVATURE) {
-      // The BFGS update of the inverse Hessian,
-      // H = (I - r s yᵀ) H (I - r y sᵀ) + r s sᵀ with r = 1 / sᵀy.
-      // Written as index loops: every element of the new matrix reads four
-      // vectors and the old matrix at the same pair of indices, and a
-      // `map` over rows and columns would rebuild those reads element by
-      // element without making the algebra any clearer.
+      // The BFGS update of the inverse Hessian, in the form R's own line
+      // takes: H' = H - r (s Hyᵀ + Hy sᵀ) + (r² yᵀHy + r) s sᵀ,
+      // with r = 1 / sᵀy, s the move, and y the change in the gradient.
       const rate = 1 / curvature;
-      const hessianChange = multiply(inverseHessian, change);
-      const changeCurvature = sum(zipWith(change, hessianChange, (a, b) => a * b));
-      const updated: number[][] = Array.from({ length: order }, () =>
-        new Array<number>(order).fill(0),
+      const hessianChange = Array.from(
+        matmul(inverseHessian, change, { fma: false }).data,
       );
-      for (let row = 0; row < order; row += 1) {
-        for (let column = 0; column < order; column += 1) {
-          const moveRow = move[row] as number;
-          const moveColumn = move[column] as number;
-          (updated[row] as number[])[column] =
-            (inverseHessian[row] as number[])[column] as number -
-            rate * (moveRow * (hessianChange[column] as number) +
-              (hessianChange[row] as number) * moveColumn) +
-            rate * rate * changeCurvature * moveRow * moveColumn +
-            rate * moveRow * moveColumn;
-        }
-      }
-      inverseHessian = updated;
+      const changeCurvature = sum(zipWith(change, hessianChange, (a, b) => a * b));
+      inverseHessian = sub(
+        add(inverseHessian, mul(outer(move, move), rate * rate * changeCurvature + rate)),
+        mul(add(outer(move, hessianChange), outer(hessianChange, move)), rate),
+      );
     }
 
     x = candidate;

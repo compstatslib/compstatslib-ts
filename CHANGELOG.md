@@ -102,6 +102,17 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   1e-10 on the fixtures that give `optim` an analytic gradient. A run with
   no `gr` uses R's own central finite differences, `ndeps = 1e-3`.
 
+* `add`, `sub`, `mul`, and `div` gain overloads for two matrices, and for a
+  matrix and a scalar, R's elementwise `+`, `-`, `*`, `/`. The two matrices
+  must share extents, or the call throws `RangeError("non-conformable
+  arrays")`, R's own words. A vector beside a matrix is refused, where R
+  recycles it silently. This is a stated narrowing. The result carries the
+  first operand's dimnames when it has any, and the second's otherwise.
+  `outer(x, y)` joins them, R's outer product of two vectors, with no
+  dimnames. `optim`'s BFGS update is now written on this arithmetic as R's
+  own line: `H - r*(outer(s,Hy) + outer(Hy,s)) + (r^2*yHy + r)*outer(s,s)`,
+  with plain products in place of index loops.
+
 ### Changed
 
 * `cov(x)` and `cor(x)` of one matrix center each column once and take dot

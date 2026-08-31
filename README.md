@@ -248,14 +248,16 @@ A matrix is plain data, laid out as R lays it out — **column-major**, with `nr
 | Group | Functions |
 | --- | --- |
 | Building | `matrix`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`, `column`, `toRows`, `toColumns` |
-| Elementary operations | `t` (or `transpose`), `matmul`, `crossprod`, `tcrossprod`, `cbind`, `rbind`, `diag`, `identity` |
-| Vectors | `add`, `sub`, `mul`, `div`, `square`, `dot`, `norm`, `cosine` |
+| Elementary operations | `t` (or `transpose`), `matmul`, `crossprod`, `tcrossprod`, `outer`, `cbind`, `rbind`, `diag`, `identity` |
+| Vectors and elementwise | `add`, `sub`, `mul`, `div` (also take two matrices, or a matrix and a scalar), `square`, `dot`, `norm`, `cosine` |
 | QR | `qr`, `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`, `qrR` |
 | LU | `lu`, `solve`, `det`, `determinant`, `rcond`, `matrixNorm` |
 | Models | `modelMatrix`, `lm`, `predictLm`, `namedVector`, `lookup` |
 | Multivariate | `cov`, `cor`, `variance`, `scale`, `chol`, `chol2inv`, `eigenSymmetric`, `isSymmetric`, `prcomp` |
 
 `cov(x, y)` and `cor(x, y)` take two matrices. `x`'s columns become the result's rows, and `y`'s columns become its columns. `scale` returns `{ scaled, center, scale }`, with R's `scaled:center` and `scaled:scale` as plain fields. `chol` returns R's upper triangular factor, and `chol2inv` returns its inverse. `predictLm(fit, newdata)` rebuilds the design over a new frame and multiplies it by the fit's coefficients. A row with a missing value comes back as NaN.
+
+`add`, `sub`, `mul`, and `div` are R's elementwise `+`, `-`, `*`, `/` on matrices. Extents must agree, and dimnames follow the first operand. `outer(x, y)` is R's outer product of two vectors.
 
 ```js
 predictLm(fit, { x: [0, 1], z: [0.5, -1], w: [2, 1] });

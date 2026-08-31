@@ -1,9 +1,10 @@
 /**
  * The elementary matrix operations, named as R names them.
  *
- * `t()`, `%*%` (`matmul`), `crossprod()`, `tcrossprod()`, `cbind()`,
- * `rbind()` and `diag()`. Each takes matrices (and, where R allows it, plain
- * vectors) and returns a new matrix; nothing here modifies its input.
+ * `t()`, `%*%` (`matmul`), `crossprod()`, `tcrossprod()`, `outer()`,
+ * `cbind()`, `rbind()` and `diag()`. Each takes matrices (and, where R allows
+ * it, plain vectors) and returns a new matrix; nothing here modifies its
+ * input.
  *
  * A bare vector in a product takes the shape R gives it, which is not
  * always the one that would conform (fixtures 1g and 1h probe the rules).
@@ -180,6 +181,26 @@ export function tcrossprod(
     );
   }
   return matmul(left, t(right), options);
+}
+
+/**
+ * R's `outer(X, Y)` for two vectors, the outer product.
+ *
+ * The result is `length(x)` by `length(y)`, and entry `(i, j)` is
+ * `x[i] * y[j]`. R's `FUN` argument is out of scope: this is the default
+ * product only. It is the two-vector case of `tcrossprod` (fixture 1h) and
+ * delegates to it, which R's own `identical()` confirms.
+ *
+ * There is no `fma` option, because each entry is one multiplication:
+ * `a * b + 0` rounds the same either way.
+ *
+ * @param x The rows of the result.
+ * @param y The columns of the result.
+ * @returns The product, with no dimnames. R names the extents after the
+ *   names of `x` and `y`, and the port's `Vector` carries none.
+ */
+export function outer(x: Vector, y: Vector): Matrix {
+  return tcrossprod(x, y);
 }
 
 /**

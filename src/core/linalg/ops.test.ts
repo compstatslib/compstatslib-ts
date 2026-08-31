@@ -7,9 +7,13 @@
  * binary fractions and the operations are fixed-order arithmetic, so every
  * numeric assertion is exact (plan Q1).
  *
- * The last block covers the `fma` option of plan 004, Slice 0. The option
- * picks plain `a * b + c` in place of the fused rounding. The default keeps
- * the fused rounding, so every pinned value above stays as it is.
+ * The `fma` block covers the option of plan 004, Slice 0. The option picks
+ * plain `a * b + c` in place of the fused rounding. The default keeps the
+ * fused rounding, so every pinned value above stays as it is.
+ *
+ * The last block covers `outer()` of plan 004, Slice 7. Its values come from
+ * `linalg.R` section 9, captured in
+ * `.claude/plans/004-PLAN-seminr-utilities/linalg-fixtures.md`.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -21,6 +25,7 @@ import {
   diag,
   identity,
   matmul,
+  outer,
   rbind,
   t,
   tcrossprod,
@@ -127,15 +132,15 @@ describe("matmul()", () => {
   });
 
   test("a vector on the left is a column against a one-row matrix: the outer product — fixture 1g", () => {
-    const outer = matmul([1, 2, 3], matrix([1, 2, 3, 4], { nrow: 1 }));
-    expect([outer.nrow, outer.ncol]).toEqual([3, 4]);
-    expect(columnMajor(outer)).toEqual([1, 2, 3, 2, 4, 6, 3, 6, 9, 4, 8, 12]);
+    const product = matmul([1, 2, 3], matrix([1, 2, 3, 4], { nrow: 1 }));
+    expect([product.nrow, product.ncol]).toEqual([3, 4]);
+    expect(columnMajor(product)).toEqual([1, 2, 3, 2, 4, 6, 3, 6, 9, 4, 8, 12]);
   });
 
   test("a vector on the right is a row against a one-column matrix — fixture 1g", () => {
-    const outer = matmul(matrix([1, 2, 3], { nrow: 3 }), [10, 20]);
-    expect([outer.nrow, outer.ncol]).toEqual([3, 2]);
-    expect(columnMajor(outer)).toEqual([10, 20, 30, 20, 40, 60]);
+    const product = matmul(matrix([1, 2, 3], { nrow: 3 }), [10, 20]);
+    expect([product.nrow, product.ncol]).toEqual([3, 2]);
+    expect(columnMajor(product)).toEqual([10, 20, 30, 20, 40, 60]);
     expect(columnMajor(matmul(matrix([2], { nrow: 1 }), [1, 2, 3]))).toEqual([2, 4, 6]);
   });
 
@@ -402,5 +407,51 @@ describe("the fma option", () => {
       ["a", "b"],
       ["u", "v", "w"],
     ]);
+  });
+});
+
+describe("outer()", () => {
+  test("outer(1:3, c(0.5, 2)) is 3 x 2 with entry x[i] * y[j] — fixture 9f", () => {
+    const o = outer([1, 2, 3], [0.5, 2]);
+    expect([o.nrow, o.ncol]).toEqual([3, 2]);
+    expect(columnMajor(o)).toEqual([0.5, 1, 1.5, 2, 4, 6]);
+    expect(o.dimnames).toBeNull();
+  });
+
+  test("outer(c(-1, 2), c(3, 4, 5)) is 2 x 3 — fixture 9f", () => {
+    const o = outer([-1, 2], [3, 4, 5]);
+    expect([o.nrow, o.ncol]).toEqual([2, 3]);
+    expect(columnMajor(o)).toEqual([-3, 6, -4, 8, -5, 10]);
+    expect(o.dimnames).toBeNull();
+  });
+
+  test("outer(x, y) is tcrossprod(x, y) for two vectors — fixture 9f", () => {
+    // R's own `identical()` says so for both pairs.
+    const pairs: [number[], number[]][] = [
+      [[1, 2, 3], [0.5, 2]],
+      [[-1, 2], [3, 4, 5]],
+    ];
+    pairs.forEach(([x, y]) => {
+      const o = outer(x, y);
+      const c = tcrossprod(x, y);
+      expect([o.nrow, o.ncol]).toEqual([c.nrow, c.ncol]);
+      expect(columnMajor(o)).toEqual(columnMajor(c));
+    });
+  });
+
+  test("carries no dimnames, because a Vector carries no names — fixture 9g", () => {
+    // R's `outer(c(x = 1, y = 2), c(u = 3, v = 4, w = 5))` names the rows
+    // x, y and the columns u, v, w. The port's `Vector` is a bare array, so
+    // the values match and the names are absent.
+    const o = outer([1, 2], [3, 4, 5]);
+    expect([o.nrow, o.ncol]).toEqual([2, 3]);
+    expect(columnMajor(o)).toEqual([3, 6, 4, 8, 5, 10]);
+    expect(o.dimnames).toBeNull();
+  });
+
+  test("an empty vector gives an empty extent", () => {
+    const o = outer([], [1, 2]);
+    expect([o.nrow, o.ncol]).toEqual([0, 2]);
+    expect(columnMajor(o)).toEqual([]);
   });
 });

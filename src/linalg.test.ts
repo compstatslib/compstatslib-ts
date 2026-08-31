@@ -26,6 +26,7 @@ const EXPORTED = [
   "matmul",
   "crossprod",
   "tcrossprod",
+  "outer",
   "cbind",
   "rbind",
   "diag",

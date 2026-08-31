@@ -33,6 +33,7 @@ export {
   diag,
   identity,
   matmul,
+  outer,
   rbind,
   t,
   tcrossprod,
