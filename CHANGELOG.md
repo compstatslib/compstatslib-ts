@@ -3,7 +3,7 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
-## Unreleased
+## 0.5.0
 
 ### Added
 
@@ -25,8 +25,7 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   did. A value that is not a boolean is refused with a `TypeError`. The
   option is meant for a hot loop, such as a bootstrap, where a consumer
   composes these routines many thousands of times. The two settings can be
-  mixed in one program without a cost to either. The README's linear algebra
-  section holds the measured table. The types `FmaOption`, `LuOptions` and
+  mixed in one program without a cost to either. The types `FmaOption`, `LuOptions` and
   `CholOptions` are exported from the linalg entry, beside the existing
   `QrOptions` and `SolveOptions`, which now extend `FmaOption`.
 * `cov(x, y)` and `cor(x, y)` for two matrices, and `scale()`, in the
