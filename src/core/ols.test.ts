@@ -85,8 +85,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { leastSquares } from "./ols";
-import { linearRegression, type Point } from "./regression";
+import { leastSquares } from "./ols.js";
+import { linearRegression, type Point } from "./regression.js";
 
 /**
  * Relative tolerance for all comparisons against R.

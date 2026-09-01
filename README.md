@@ -39,6 +39,21 @@ bun add plotly.js-dist-min
 
 See [3D and Plotly](#3d-and-plotly) below.
 
+### Entry points
+
+Four, so that a page pays only for what it asks for. Sizes are the built bundles, minified by the bundler and not gzipped:
+
+| Import from | Carries | Size |
+| --- | --- | --- |
+| `@compstats/core` | everything below except the 3D plots: the statistics, the data, and the 2D plotting and interactive layers | 176 KB |
+| `@compstats/core/stats` | the statistics, the simulation helpers and the bundled data. **No DOM** — no canvas, no document, no window | 120 KB |
+| `@compstats/core/linalg` | the general linear algebra: `matrix`, `qr`, `solve`, `lm`, `eigen`, `prcomp` | 75 KB |
+| `@compstats/core/3d` | the 3D plots, which need Plotly as a peer dependency | 93 KB |
+
+`@compstats/core/stats` is for a consumer that computes and draws its own charts, or computes on a server or in a worker. Its module graph reaches no `plot/` or `interactive/` module, and a test walks the graph on every run rather than trusting the convention. The root entry re-exports every one of its names, so moving between the two is a change of specifier and nothing else.
+
+`@compstats/core/linalg` is deliberately disjoint from the others: it is a general library on its own pace, not statistics the plots need.
+
 ## Quick start
 
 Fit a model. Your data is a table of columns; the model is the outcome and a list of terms, where an array of names is an interaction:
@@ -223,7 +238,11 @@ The names say which rule was followed, for anyone checking: `quantile` is type 7
 
 `pchisq`'s noncentral branch follows R's `pnchisq.c`, `qchisq` follows R's `qgamma`, and `qnorm` follows Wichura's Algorithm AS 241. Each is verified against R at a relative tolerance of 1e-12.
 
-`optim(par, fn, { gr, method: "BFGS", control })` lands on R's optimum. On the fixtures, with an analytic gradient, `par` sits within 1e-6 and `value` within 1e-10 of R's `optim(method = "BFGS")`. Its path there is not R's path. It backtracks with an Armijo line search instead of R's line search. It stops on a gradient-norm rule, and keeps R's `reltol` only as a stall test. It resets the inverse Hessian to the identity when a search direction does not go downhill. So its `counts` differ from R's, even where `par` and `value` agree. A stationary start returns at once, with one function count and one gradient count, as R's does.
+`optim(par, fn, { gr, method: "BFGS", control })` **is** R's optimizer, not merely a routine that lands where R lands. It is `vmmin` from R's `src/main/optim.c`, R Core's arrangement of Nash's algorithm 21: the step-reduction line search, `reltol` on the objective as the sole stopping rule, the inverse-Hessian resets, and R's own accounting. So `counts` is a number to compare with R's — on the fixture cases the port reproduces `fncount` and `grcount` exactly, and reaches R's `par` and `value` bit for bit on the analytic-gradient runs.
+
+> **This changed in 0.6.0, and it moves every `optim` result.** Through 0.5.0 the routine reached R's optimum by its own path — Armijo backtracking, a gradient-norm stopping rule, and counts of its own. A caller that pinned 0.5.0's output re-pins. The controls `gradTol` and `stallGradTol` are gone with the rules they belonged to, and `abstol`, which is R's, takes their place.
+
+**Set the controls; do not inherit them.** R's defaults are R's, and they are not a hand-rolled optimizer's. `reltol` defaults to `sqrt(.Machine$double.eps)`, 1.49e-8, where a hand-written BFGS commonly uses 1e-14 — a consumer that inherited it had its fit stop 21 iterations early, at a gradient norm of 1.6e-5 instead of 1.5e-8, moving parameters by 2.5e-4 and still reporting `convergence: 0`, because stopping on `reltol` *is* convergence in R. `maxit` is the same trap: R's BFGS default is 100. Read `gradNorm` to see where a run actually stopped.
 
 The draws take a generator you pass in, so a demonstration repeats exactly:
 
@@ -247,7 +266,7 @@ A matrix is plain data, laid out as R lays it out — **column-major**, with `nr
 
 | Group | Functions |
 | --- | --- |
-| Building | `matrix`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`, `column`, `toRows`, `toColumns` |
+| Building | `matrix`, `withDim`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`, `column`, `toRows`, `toColumns`, `matrixIndex` |
 | Elementary operations | `t` (or `transpose`), `matmul`, `crossprod`, `tcrossprod`, `outer`, `cbind`, `rbind`, `diag`, `identity` |
 | Vectors and elementwise | `add`, `sub`, `mul`, `div` (also take two matrices, or a matrix and a scalar), `square`, `dot`, `norm`, `cosine` |
 | QR | `qr`, `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`, `qrR` |
@@ -279,6 +298,36 @@ solve(a, [1, 2, 3]);      // [-0.06666666666666665, 0.8, 0.3333333333333333]
 
 Each routine follows R down to the arithmetic of its LAPACK and LINPACK calls, so the factorizations, the solves and the fitted values match R's doubles exactly, and the rest is verified at a stated tolerance. Where R warns and recycles a mismatched length, or silently reads only the lower triangle of a matrix, this entry refuses and says so at the function.
 
+#### Holding your own data in this layout
+
+`Matrix.data` is a public, column-major `Float64Array`, so reading is already free — `toRows` is a convenience, not the only door out. Writing was not: every constructor copied. `withDim(data, { nrow })` is R's `dim(v) <- c(nrow, ncol)` and **adopts** the buffer instead, which is what lets a caller hold its data in this layout across a loop and stop converting at all.
+
+```js
+import { matrixIndex, withDim } from "@compstats/core/linalg";
+
+const buffer = new Float64Array(p * p);
+const paths = withDim(buffer, { nrow: p, dimnames: [names, names] });
+const index = matrixIndex(paths);
+
+for (const outcome of outcomes) {
+  const j = index.col(outcome);                  // hoisted out of the fill
+  antecedents.forEach((name, k) => {
+    buffer[j * p + index.row(name)] = betas[k];  // no setter, no per-cell call
+  });
+}
+```
+
+The buffer **aliases**: R copies on modify, JavaScript does not, and `withDim` does not pretend otherwise — a later write through your handle is visible in the matrix. That is the point, and it is why a caller who wants a snapshot writes `matrix(buffer, options)` and pays the copy knowingly. `byrow` is refused, because filling row by row is the reordering copy this constructor exists to avoid.
+
+`matrixIndex(m)` resolves dimnames to positions — `row(name)`, `col(name)`, and `offset(rowName, colName)` into `data` — built once per call. It is the matrix counterpart of `lookup` on a named vector, and it is an index rather than a getter and setter on purpose: a matrix here is written by whole-array operations, as R's is. Measured on a 24 x 24 result filled by name:
+
+| | time |
+| --- | --- |
+| fill a `number[][]` by name, then `fromRows` | 47.9 µs |
+| fill an adopted buffer through `matrixIndex` | **4.1 µs** |
+
+And at the boundary itself, on a 2000 x 24 frame: `fromRows` costs 540 to 810 µs — it varies with how polymorphic the call site has become — where `withDim` over data already in this layout costs **under a tenth of a microsecond**. It copies nothing, so it is not a faster conversion; it is no conversion.
+
 #### Throughput
 
 Every routine that multiplies rounds each product once, through a software fused multiply-add, so that a result is R's double bit for bit. That costs 10 to 25 times the time of plain arithmetic. Pass `{ fma: false }` to `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`, `determinant`, `rcond`, `lm` and `leastSquares` to use plain `a * b + c` instead, for a result a few units in the last place away. `qr` and `lu` record the setting on the decomposition, so their readers follow it. A program may mix the two settings without a penalty.
@@ -289,6 +338,41 @@ solve(xtx, crossprod(x, y, { fma: false }), { fma: false });
 ```
 
 The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `CholOptions` and `LmOptions` extend it, and all are exported from the linalg entry.
+
+**Which setting you want is decided by your acceptance bar, not by your patience.** The default is named after the guarantee it provides, and the guarantee is narrow: *R's double*, not *R's answer*. If you pin fixtures against R at 15 or 17 digits — porting a routine, reproducing published output — you need it, and the 10 to 25 times is the price of the last two or three digits. If your bar is R's answer to five decimal places, you are paying that price for a property you never assert on, and `{ fma: false }` is the right default for you.
+
+So `{ fma: false }` is **not "the fast one"**. It is a different answer. On a well-conditioned problem the difference is invisible; near a conditioning threshold it need not be, because the units in the last place a decomposition drops are amplified by the condition number on the way out. Switch deliberately, and re-pin whatever the switch moves.
+
+**Time it end to end, not per operation.** These ratios are measured through the matrix type. If your data lives in `number[][]`, `fromRows` and `toRows` sit at each end and cost more than the operation between them. Measured on a 2000 x 24 frame, median per call:
+
+| computation | a hand-written loop over `number[][]` | through `Matrix`, `{ fma: false }` | over an adopted buffer, `{ fma: false }` | over an adopted buffer, default |
+| --- | --- | --- | --- | --- |
+| OLS, 6 predictors | 142 µs | 461 µs | **148 µs** | 1.91 ms |
+| `matmul` n x 24 · 24 x 8 | 624 µs | 1.31 ms | **322 µs** | 8.14 ms |
+| `cor` 24 x 24 | 863 µs | 2.34 ms | **730 µs** | 3.67 ms |
+
+Converting at each end costs 811 µs in and 397 µs out in this benchmark's run, which is more than any operation in the table — so through `Matrix` the plain path *loses* on all three. Hold your data as a column-major `Float64Array` and open it with `withDim` (above) and it wins or ties on all three, because there is nothing to convert. The last column is what R's double costs at that boundary: 6 to 25 times the loop.
+
+#### Reusing one centering across many pairings
+
+`cov` and `cor` center their input themselves, which is wasted work for a caller that pairs many column subsets of one matrix — every block against every other. Center once with `scale` and take the crossproduct, which is R's own identity:
+
+```js
+const centered = scale(x, { scale: false }).scaled;
+// crossprod(centered) / (n - 1)  is  cov(x)
+const standardized = scale(x).scaled;
+// crossprod(standardized) / (n - 1)  is  cor(x)
+```
+
+Verified rather than asserted, because the identity is only algebraically true here: `cov` refines its column means and `scale` takes the plain `colMeans`. Measured across several shapes up to 2000 x 24, the recipe reproduces `cov(x)` and `cor(x)` to **7e-15 relative or better**. On columns dominated by a large constant offset it loses about three digits — 2.3e-11 at an offset of 1e9 — and the whole of that gap is the mean, not the crossproduct, whose `fma` setting does not move the number at all. If your columns look like that, pass the refined means as `center` and the agreement comes back:
+
+```js
+const refined = columns.map((col) => {
+  const m = col.reduce((a, b) => a + b, 0) / n;
+  return m + col.reduce((a, b) => a + (b - m), 0) / n;  // what cov() uses
+});
+scale(x, { scale: false, center: refined });
+```
 
 ### Bundled data
 

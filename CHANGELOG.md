@@ -3,6 +3,187 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Changed
+
+* **`optim` now runs R's own algorithm, and every result moves.** Through
+  0.5.0 it reached R's optimum by its own path: the quasi-Newton routine
+  written for `seminr-ts`, with Armijo backtracking, a gradient-norm stopping
+  rule, R's `reltol` expression bolted on as a stall test, and counts that
+  were its own work rather than a number to compare with R's. It is now
+  `vmmin` from R's `src/main/optim.c` — R Core's arrangement of Nash (1990)
+  algorithm 21 — followed line for line: the step-reduction line search at
+  `stepredn = 0.2` with the acceptance test at `acctol = 1e-4`, the
+  `reltest = 10` guard that ends a search when no coordinate moves, `reltol`
+  on the objective as the **sole** stopping rule, the inverse Hessian held as
+  a lower triangle and reset on an uphill direction, on a curvature
+  `D1 <= 0`, and periodically once `grcount` exceeds `ilast` by `2n`, and R's
+  accounting of `fncount` and `grcount`.
+
+  **A caller that pinned 0.5.0's `optim` output re-pins.** Every routine in
+  this package matched R's algorithm and not just R's answer; `optim` was the
+  exception, and this closes it.
+
+  What it buys: `counts` is now a value to compare with R's, and
+  `optim.test.ts` pins it exactly on every fixture case but one. On the
+  analytic-gradient runs `par` and `value` are R's **bit for bit**, where
+  before they were pinned at 1e-6 and 1e-10. The exception is fixture 3b,
+  whose function count runs one ahead of R's; the test records where that run
+  parts company with R, at one unit in the last place on the first coordinate
+  of a trial point at call 17 of 54, and why the three candidate fixes were
+  rejected — each repaired 3b and broke a section 6 case.
+
+  One thing to state plainly, because 0.5.0's docstring recorded it the other
+  way. On the logistic fit of fixture section 3 the likelihood is flat near
+  its maximum, and R's `optim` stops about 5.3e-5 short of the point `glm()`
+  reaches. The old routine went past R to `glm()`'s answer; `vmmin` stops
+  where R stops. That is correct for a package that pins R rather than the
+  truth, but it is a step away from the optimum. Use `logisticRegression`,
+  which is R's `glm`, to fit a logistic model.
+
+  A note for anyone porting this: the build of R the fixtures come from
+  contracts the line search's trial point,
+  `b[l[i]] = X[i] + steplength * t[i]`, into a single fused multiply-add, and
+  the accumulation loops around it are **not** contracted. Both halves were
+  measured against `counts` rather than assumed. Written plainly, that one
+  line costs two line-search reductions sixty iterations later and reads 194
+  where R reads 196.
+
+* `OptimControl` loses `gradTol` and `stallGradTol`, which were this port's
+  own stopping rules and now control nothing, and gains **`abstol`**, which is
+  R's and which `vmmin` reads in the same test as `reltol`. `reltol`'s
+  documentation now carries the warning it earned: R's defaults are R's, and a
+  caller migrating from a hand-rolled BFGS should set all of them explicitly.
+  Inheriting R's `reltol` of `sqrt(eps)` stopped one consumer's fit 21
+  iterations early, at a gradient norm of 1.6e-5 instead of 1.5e-8, moving
+  parameters by 2.5e-4 — and still reporting `convergence: 0`, because
+  stopping on `reltol` *is* convergence in R.
+
+* `optim` no longer imports from `core/linalg`: the inverse Hessian is a
+  lower-triangular `number[][]`, as R's is, rather than a `Matrix`. That is
+  the faithful representation and it also keeps the linear algebra out of the
+  `./stats` entry's import graph.
+
+* `optim` now throws `"initial value in 'vmmin' is not finite"` when the
+  objective at the starting parameters is not finite, and
+  `"non-finite finite-difference value [i]"` when a central difference is
+  not, both in R's own words. `maxit <= 0` returns the start with both counts
+  zero and `convergence: 0`, as R does.
+
+### Added
+
+* `withDim(data, options)` on the linear-algebra entry: R's
+  `dim(v) <- c(nrow, ncol)`, which **adopts** a `Float64Array` as a matrix's
+  storage instead of copying it. Every other constructor copies, which is
+  right for assembling a matrix once and wrong for rebuilding a result on
+  every replication of a loop, where the copy is the whole cost. Reading was
+  already free — `Matrix.data` is a public, column-major `Float64Array`, and
+  `toRows` is a convenience rather than the only door out. The buffer
+  **aliases**: R copies on modify and JavaScript does not, so a later write
+  through the caller's handle is visible in the matrix, which is the point and
+  is pinned by a test rather than warned about in prose. A caller who wants a
+  snapshot writes `matrix(buffer, options)` and pays the copy knowingly.
+  `byrow` is refused with a `RangeError`, since filling row by row is the
+  reordering copy this constructor exists to avoid, and a single value is not
+  recycled, since a scalar is not storage. Measured on a 2000 x 24 frame:
+  `fromRows` costs 540 to 810 µs depending on how polymorphic the call site
+  has become, and `withDim` under a tenth of a microsecond. It copies
+  nothing, so it is not a faster conversion; it is no conversion.
+* `matrixIndex(m)` on the same entry, returning `{ row, col, offset }` —
+  dimnames resolved to positions, built once, with `offset(rowName, colName)`
+  the index into `data`. R's `match()` against `rownames()` and `colnames()`,
+  and the matrix counterpart of `lookup` on a `NamedVector`. It is an index
+  rather than a getter and a setter on purpose: a matrix here is written by
+  whole-array operations, as R's is. `row` and `col` are separate from
+  `offset` so a caller filling a result by name hoists the outer loop's
+  lookup out of the inner one. An absent name is a `RangeError` in R's words
+  (`subscript out of bounds`), a dimension with no names says so, and a
+  repeated name resolves to its first position, as R's `match()` gives.
+  Paired with `withDim`, filling a 24 x 24 named result runs 11.8x faster
+  than building a `number[][]` by name and converting it. The type
+  `MatrixIndex` is exported beside it.
+
+* A DOM-free entry point, `@compstats/core/stats`, carrying the statistics,
+  the simulation helpers and the two bundled data sets — everything the
+  package computes and nothing it draws. The root entry was the only door to
+  `pchisq` before this, and it pulls in the canvas and interactive layers;
+  `dist/core/` ships declarations only, so there was no deep-import escape
+  hatch either. The built bundles are 120 KB for `./stats` against 176 KB for
+  the root. `src/index.ts` re-exports every name in it, so the root entry is
+  unchanged and moving between the two is a change of specifier and nothing
+  else. The DOM-free claim is asserted rather than assumed: `stats.test.ts`
+  walks the entry's module graph and fails if it reaches a `plot/` or
+  `interactive/` module, or if any module it reaches names a DOM global.
+  `@compstats/core/linalg` stays disjoint from it, as it is by design.
+
+### Documented
+
+* `pchisq`'s noncentral upper tail now says where "follows R" is
+  distributional rather than pointwise. Over a 40-point grid at df 24-300 and
+  ncp 0-300 this port is 370x better than the implementation a consumer
+  retired for it at the worst case and 40x at the median, and yet it is the
+  further of the two from R at 14 of the 40 points — so a caller reading one
+  such probability can land further from R by luck. The central case and every
+  other distribution keep the pointwise claim. The same paragraph now carries
+  the measurement that defends `lowerTail`: `pchisq(x, df, ncp, {lowerTail:
+  false})` differs from `1 - pchisq(x, df, ncp)` at 31 of 64 grid points in
+  that regime, and taking the argument improves the median error against R
+  by 5x.
+* `FmaOption` and the README's throughput section now name the default after
+  the guarantee it provides and say which consumer needs it. The guarantee is
+  *R's double*, not *R's answer*; a caller whose bar is five decimal places
+  pays 10 to 25 times for a property it never asserts on. And `{ fma: false }`
+  is **not "the fast one"** — it is a different answer, which near a
+  conditioning threshold need not be invisible.
+* `quantile` records that writing the interpolation as
+  `stats:::quantile.default` writes it, `(1 - h) * low + h * high`, is a
+  decision and not a transcription. The algebraically equal
+  `low + h * (high - low)` differs at 227 of 999 probabilities on a 500-value
+  bootstrap sample — and at **none** of the seven round bootstrap
+  probabilities, so a test probing only those reports "no change" and is
+  wrong.
+* The README documents reusing one centering across many pairings:
+  `crossprod(scale(x, {scale: false})) / (n - 1)` is `cov(x)` and
+  `crossprod(scale(x)) / (n - 1)` is `cor(x)`. Verified, not asserted — `cov`
+  refines its column means and `scale` takes the plain `colMeans`, so the
+  identity is only algebraically true. It holds to 7e-15 relative or better
+  across shapes up to 2000 x 24, and loses about three digits (2.3e-11) on
+  columns dominated by a large constant offset; passing `cov`'s refined means
+  as `scale`'s `center` restores it. `scale.test.ts` pins both the identity
+  and the caveat.
+
+* The README's throughput section now times the three benchmark computations
+  **end to end**, `number[][]` in and out, not per operation. That correction
+  is owed: through `Matrix`, converting at each end (811 µs in, 397 µs out on
+  a 2000 x 24 frame in that benchmark's run) costs more than any operation
+  between them, so the plain
+  path *loses* to a hand-written loop on all three — where the per-operation
+  table said it won on two of three. Over a buffer adopted with `withDim`
+  there is nothing to convert and it wins or ties on all three. The default
+  `{ fma: true }` at that boundary is 6 to 25 times the loop, which is what
+  R's double costs where a bootstrap author will see it.
+
+### Fixed
+
+* Every relative specifier this package publishes now carries a `.js`
+  extension, so the emitted declarations resolve under a consumer's
+  `node16`/`nodenext` module resolution. Before this, `dist/index.d.ts` and
+  `dist/linalg.d.ts` re-exported without an extension, which TypeScript
+  rejects with TS2834 on every line. The silent half was worse: under the
+  consumer's `skipLibCheck: true`, the common setting, nothing was reported
+  and **every export became `any`** — `pchisq("hello", {}, [], 1, 2, 3)`
+  compiled, and a consumer re-exporting the symbol published `any` into its
+  own declarations. Nothing about the package's runtime behavior changes;
+  Bun and `tsc` both resolve a `.js` specifier to its `.ts` file, and the
+  bundle is byte for byte the size it was. A consumer that was compiling
+  against `any` may now see real errors in code the missing types were
+  hiding. Two checks keep the rule: a test that scans `src/`, `demo/` and
+  `test/` for an extensionless relative specifier, and
+  `test/consumer/check.ts`, a `nodenext` consumer type-checked against the
+  built `dist/` in `prepublishOnly` — with both `skipLibCheck` settings,
+  because either one alone misses half the defect.
+
 ## 0.5.0
 
 ### Added

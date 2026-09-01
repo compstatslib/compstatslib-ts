@@ -31,8 +31,8 @@ import {
   sampleWithoutReplacement,
   seededRng,
   type Rng,
-} from "./rng";
-import { mean, quantiles } from "./arith";
+} from "./rng.js";
+import { mean, quantiles } from "./arith.js";
 
 /**
  * A generator that returns the given values in order, then repeats from the

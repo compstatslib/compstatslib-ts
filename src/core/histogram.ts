@@ -22,8 +22,8 @@
  *    reported edges are the unnudged ones.
  */
 
-import { extent, quantile, sum, zipWith } from "./arith";
-import { rPretty } from "./pretty";
+import { extent, quantile, sum, zipWith } from "./arith.js";
+import { rPretty } from "./pretty.js";
 
 /** R's `fuzz` argument of `hist.default`, in cell widths. */
 const FUZZ = 1e-7;

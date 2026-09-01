@@ -28,10 +28,10 @@
  * outcome `y` stands up. R's help makes the same point, twice.
  */
 
-import { moderationSurface } from "../core/moderation";
-import type { ModerationOptions, ModerationSurface } from "../core/moderation";
-import type { DataFrame } from "../core/frame";
-import { loadPlotly } from "./plotly";
+import { moderationSurface } from "../core/moderation.js";
+import type { ModerationOptions, ModerationSurface } from "../core/moderation.js";
+import type { DataFrame } from "../core/frame.js";
+import { loadPlotly } from "./plotly.js";
 import type {
   EyeCamera,
   PlotlyHTMLElement,
@@ -39,7 +39,7 @@ import type {
   PlotlyLike,
   SurfaceTrace,
   Vector3,
-} from "./plotly";
+} from "./plotly.js";
 
 /** R's `z_rot = 40`: the turn about the vertical axis, in degrees. */
 const DEFAULT_Z_ROT = 40;

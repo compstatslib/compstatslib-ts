@@ -22,7 +22,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { pnorm, qnorm } from "./norm";
+import { pnorm, qnorm } from "./norm.js";
 
 /**
  * Relative tolerance for all comparisons against R.

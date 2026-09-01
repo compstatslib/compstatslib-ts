@@ -25,7 +25,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { rPretty } from "./pretty";
+import { rPretty } from "./pretty.js";
 
 /** One R-computed call and its result. */
 interface Pin {

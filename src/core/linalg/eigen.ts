@@ -25,8 +25,8 @@
  * Index loops throughout: a rotation addresses entries by position.
  */
 
-import { make, type Matrix } from "./matrix";
-import type { Vector } from "./vector";
+import { make, type Matrix } from "./matrix.js";
+import type { Vector } from "./vector.js";
 
 /** R's `eigen()` result for a symmetric matrix. */
 export interface SymmetricEigen {

@@ -37,11 +37,11 @@ import {
   cameraFromRotations,
   moderation3dSpec,
   plotModeration3d,
-} from "./moderation3d";
-import { moderationSurface } from "../core/moderation";
-import { moderationData } from "../data/moderationData";
-import { RecordingPlotly, plotlyTarget } from "../../test/recording-plotly";
-import type { SurfaceTrace } from "./plotly";
+} from "./moderation3d.js";
+import { moderationSurface } from "../core/moderation.js";
+import { moderationData } from "../data/moderationData.js";
+import { RecordingPlotly, plotlyTarget } from "../../test/recording-plotly.js";
+import type { SurfaceTrace } from "./plotly.js";
 
 const MODEL = { outcome: "y", iv: "x", mod: "z" } as const;
 

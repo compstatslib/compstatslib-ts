@@ -14,10 +14,10 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { determinant as determinant2, invertMatrix } from "../matrix";
-import { matrix, type Matrix } from "./matrix";
-import { identity, matmul } from "./ops";
-import { det, determinant, lu, matrixNorm, rcond, solve } from "./lu";
+import { determinant as determinant2, invertMatrix } from "../matrix.js";
+import { matrix, type Matrix } from "./matrix.js";
+import { identity, matmul } from "./ops.js";
+import { det, determinant, lu, matrixNorm, rcond, solve } from "./lu.js";
 
 function columnMajor(m: Matrix): number[] {
   return Array.from(m.data);

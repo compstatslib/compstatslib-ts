@@ -118,7 +118,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { linearRegression, type Point } from "./regression";
+import { linearRegression, type Point } from "./regression.js";
 
 /**
  * Relative tolerance for all comparisons against R.

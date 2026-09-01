@@ -36,14 +36,14 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { moderationData } from "../data/moderationData";
+import { moderationData } from "../data/moderationData.js";
 import {
   frameRows,
   isNumericColumn,
   numericColumns,
   requireNumericColumn,
   type DataFrame,
-} from "./frame";
+} from "./frame.js";
 
 describe("isNumericColumn", () => {
   test("accepts a column of numbers", () => {

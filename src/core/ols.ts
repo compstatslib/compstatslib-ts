@@ -12,9 +12,9 @@
  * `ols.test.ts`.
  */
 
-import { sum, zipWith } from "./arith";
-import { make } from "./linalg/matrix";
-import { qr, qrCoef } from "./linalg/qr";
+import { sum, zipWith } from "./arith.js";
+import { make } from "./linalg/matrix.js";
+import { qr, qrCoef } from "./linalg/qr.js";
 
 /**
  * The result of a fit.

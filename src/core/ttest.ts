@@ -14,7 +14,7 @@
  * below it is beta.
  */
 
-import { dt, pt, qt } from "./tdist";
+import { dt, pt, qt } from "./tdist.js";
 
 /** The four numbers `plot_t_test()` takes, all optional as in R. */
 export interface TTestOptions {

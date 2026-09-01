@@ -23,7 +23,7 @@
  * at rather than tested.
  */
 
-import { fusedMultiplyAdd, requireCount } from "./arith";
+import { fusedMultiplyAdd, requireCount } from "./arith.js";
 
 /** R's `rounding_eps`, the slack that keeps a near-multiple from stepping. */
 const ROUNDING_EPS = 1e-10;

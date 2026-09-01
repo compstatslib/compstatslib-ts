@@ -42,10 +42,10 @@
  * standard deviation is zero" and gives NA.
  */
 
-import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
-import { isMatrix, type MatrixOrVector } from "./ops";
-import { make, type Dimnames, type Matrix } from "./matrix";
-import type { Vector } from "./vector";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith.js";
+import { isMatrix, type MatrixOrVector } from "./ops.js";
+import { make, type Dimnames, type Matrix } from "./matrix.js";
+import type { Vector } from "./vector.js";
 
 /** A column, as an R vector or as a slice of a matrix. */
 type Column = ArrayLike<number>;

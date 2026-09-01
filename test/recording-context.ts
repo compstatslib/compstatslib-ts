@@ -12,7 +12,7 @@
  * as a real context does.
  */
 
-import type { Context2D } from "../src/plot/target";
+import type { Context2D } from "../src/plot/target.js";
 
 /** The drawing style in force when a call was recorded. */
 export interface DrawStyle {

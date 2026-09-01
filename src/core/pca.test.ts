@@ -82,9 +82,9 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { pcaDegenerate } from "../data/pcaDegenerate";
-import { principalComponents, type Loadings, type PcaResult } from "./pca";
-import type { Point } from "./regression";
+import { pcaDegenerate } from "../data/pcaDegenerate.js";
+import { principalComponents, type Loadings, type PcaResult } from "./pca.js";
+import type { Point } from "./regression.js";
 
 /**
  * Relative tolerance for all comparisons against R.

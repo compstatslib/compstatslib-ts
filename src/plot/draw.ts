@@ -10,9 +10,9 @@
  * caller keeps its own world geometry and this file stays about the canvas.
  */
 
-import type { PlotArea, Scale } from "./axes";
-import type { Context2D } from "./target";
-import type { Point } from "../core/regression";
+import type { PlotArea, Scale } from "./axes.js";
+import type { Context2D } from "./target.js";
+import type { Point } from "../core/regression.js";
 
 /** R: `lty = "dotted"`. */
 export const DOTTED = [1, 3];

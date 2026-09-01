@@ -15,10 +15,10 @@
  * zero.
  */
 
-import { mean, sum, zipWith } from "./arith";
-import { leastSquares } from "./ols";
-import { completePointRows } from "./regression";
-import type { Point } from "./regression";
+import { mean, sum, zipWith } from "./arith.js";
+import { leastSquares } from "./ols.js";
+import { completePointRows } from "./regression.js";
+import type { Point } from "./regression.js";
 
 /** The convergence threshold and iteration cap of R's `glm.control()`. */
 export const DEFAULT_LOGIT_EPSILON = 1e-8;

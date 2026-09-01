@@ -30,7 +30,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { dt, pt, qt } from "./tdist";
+import { dt, pt, qt } from "./tdist.js";
 
 /**
  * Relative tolerance for all comparisons against R.

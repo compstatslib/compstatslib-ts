@@ -14,12 +14,12 @@
  * callback.
  */
 
-import type { Point } from "../core/regression";
-import { logitScale, plotLogit } from "../plot/logit";
-import type { PlotLogitOptions } from "../plot/logit";
-import { pixelInArea } from "../plot/axes";
-import { eventPixel, resolveInteractiveTarget } from "./target";
-import type { InteractiveTarget } from "./target";
+import type { Point } from "../core/regression.js";
+import { logitScale, plotLogit } from "../plot/logit.js";
+import type { PlotLogitOptions } from "../plot/logit.js";
+import { pixelInArea } from "../plot/axes.js";
+import { eventPixel, resolveInteractiveTarget } from "./target.js";
+import type { InteractiveTarget } from "./target.js";
 
 /**
  * What the component accepts.

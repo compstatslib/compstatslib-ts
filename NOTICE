@@ -42,6 +42,7 @@ described above. Each is an independent TypeScript implementation.
   src/core/tdist.ts           R's src/nmath/pnt.c
   src/core/linalg/cov.ts      R's src/library/stats/src/cov.c
   src/core/linalg/qr.ts       R's src/appl/dqrdc2.f (see section 3)
+  src/core/optim.ts           R's src/main/optim.c, the routine `vmmin`
 
 Two items deserve to be called out rather than left in the table, because
 they are R Core's own contributions and not transcriptions of published
@@ -56,6 +57,16 @@ algorithms:
     series are Ding's and Best and Roberts's (section 2), but the choice of
     where to switch between them, the tolerances, and the closing Newton
     steps taken in the log scale are R's arrangement.
+
+  * The arrangement of `vmmin` in src/core/optim.ts. The method is Nash's
+    algorithm 21 (section 4), published in full, but R Core's arrangement of
+    it is what this port follows: the accounting of `fncount` and `grcount`,
+    the conditions under which the inverse Hessian is reset -- an uphill
+    direction, a curvature `D1 <= 0`, and a periodic restart once `grcount`
+    exceeds `ilast` by twice the number of parameters -- the `reltest` guard
+    that ends a line search when no coordinate moves, and `reltol` as the
+    sole stopping rule. Those are what let this port reproduce R's counts,
+    which the published method alone would not.
 
 R's own copyright notice on these files reads, in part:
 
@@ -199,10 +210,11 @@ published descriptions.
   Jacobi rotations for the symmetric eigenproblem, in
   src/core/linalg/eigen.ts.
 
-  Nash, J. C. (1990). Compact Numerical Methods for Computers. R's `optim`
-  implements Nash's algorithm 21. The BFGS routine in src/core/optim.ts
-  reaches the same optima but does not follow Nash's line search; its
-  differences from R are stated at the function.
+  Nash, J. C. (1990). Compact Numerical Methods for Computers. Algorithm 21
+  is the quasi-Newton method R's `optim(method = "BFGS")` implements, and
+  which src/core/optim.ts follows: the step-reduction line search and the
+  BFGS update of the inverse Hessian. The method is taken from the book; the
+  arrangement around it is R Core's, and is called out in section 1.
 
 
 -------------------------------------------------------------------------

@@ -19,12 +19,12 @@
  * components, which is the same unless there are fewer rows than columns.
  */
 
-import type { DataFrame } from "../frame";
-import { sum } from "../arith";
-import { eigenSymmetric } from "./eigen";
-import { fromFrame, make, type Matrix } from "./matrix";
-import { matmul } from "./ops";
-import type { Vector } from "./vector";
+import type { DataFrame } from "../frame.js";
+import { sum } from "../arith.js";
+import { eigenSymmetric } from "./eigen.js";
+import { fromFrame, make, type Matrix } from "./matrix.js";
+import { matmul } from "./ops.js";
+import type { Vector } from "./vector.js";
 
 export interface PrcompOptions {
   /** Subtract the column means first. True by default, as R's is. */

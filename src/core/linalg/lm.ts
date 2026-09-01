@@ -22,15 +22,15 @@
  * keeps its own `predict*`, as `predictLogit()` already does.
  */
 
-import { mean, sum, zipWith, type FmaOption } from "../arith";
-import { frameRows, type DataFrame } from "../frame";
-import { pt } from "../tdist";
-import { make } from "./matrix";
-import { modelMatrix, type ModelSpec, type Term } from "./modelMatrix";
-import { namedVector, type NamedVector } from "./namedVector";
-import { matmul } from "./ops";
-import { DEFAULT_QR_TOLERANCE, qr, qrCoef, qrResid, type QrDecomposition } from "./qr";
-import type { Vector } from "./vector";
+import { mean, sum, zipWith, type FmaOption } from "../arith.js";
+import { frameRows, type DataFrame } from "../frame.js";
+import { pt } from "../tdist.js";
+import { make } from "./matrix.js";
+import { modelMatrix, type ModelSpec, type Term } from "./modelMatrix.js";
+import { namedVector, type NamedVector } from "./namedVector.js";
+import { matmul } from "./ops.js";
+import { DEFAULT_QR_TOLERANCE, qr, qrCoef, qrResid, type QrDecomposition } from "./qr.js";
+import type { Vector } from "./vector.js";
 
 /** The model, with the outcome required, and the rank tolerance. */
 export interface LmOptions extends ModelSpec {

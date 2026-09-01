@@ -33,13 +33,13 @@
  * the gadget, reported to the user, and not a second way to draw a matrix.
  */
 
-import type { Matrix2, MatrixInversion } from "../core/matrix";
-import { plotMatrixInverse } from "../plot/matrixInverse";
-import type { RenderTarget } from "../plot/target";
-import { buildSlider, startingSliderValue } from "./controls";
-import type { SliderRange } from "./controls";
-import { resolveControlTarget } from "./target";
-import type { ControlTarget } from "./target";
+import type { Matrix2, MatrixInversion } from "../core/matrix.js";
+import { plotMatrixInverse } from "../plot/matrixInverse.js";
+import type { RenderTarget } from "../plot/target.js";
+import { buildSlider, startingSliderValue } from "./controls.js";
+import type { SliderRange } from "./controls.js";
+import { resolveControlTarget } from "./target.js";
+import type { ControlTarget } from "./target.js";
 
 /**
  * Where the sliders start: R's `x1_init = 1, y1_init = 2, x2_init = 2,

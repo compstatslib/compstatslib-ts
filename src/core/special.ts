@@ -8,7 +8,7 @@
  * Every function is pure. None of them touch the DOM or hold state.
  */
 
-import { sum } from "./arith";
+import { sum } from "./arith.js";
 
 /**
  * Lanczos parameter and coefficients, g = 607/128 with 15 terms.

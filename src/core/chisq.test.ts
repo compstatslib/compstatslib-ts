@@ -23,7 +23,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { pchisq, qchisq } from "./chisq";
+import { pchisq, qchisq } from "./chisq.js";
 
 /**
  * Relative tolerance for all comparisons against R.

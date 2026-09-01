@@ -15,8 +15,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { matrix, type Matrix } from "./matrix";
-import { add, cosine, div, dot, mul, norm, square, sub, type Vector } from "./vector";
+import { matrix, type Matrix } from "./matrix.js";
+import { add, cosine, div, dot, mul, norm, square, sub, type Vector } from "./vector.js";
 
 const a = [1.5, -2, 3.25, 0.5];
 const b = [2, 4, -1, 0.25];

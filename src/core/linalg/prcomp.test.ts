@@ -10,12 +10,12 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { moderationData } from "../../data/moderationData";
-import { pcaDegenerate } from "../../data/pcaDegenerate";
-import { principalComponents } from "../pca";
-import { column, fromFrame, fromRows, matrix, type Matrix } from "./matrix";
-import { prcomp } from "./prcomp";
-import { dot, mul } from "./vector";
+import { moderationData } from "../../data/moderationData.js";
+import { pcaDegenerate } from "../../data/pcaDegenerate.js";
+import { principalComponents } from "../pca.js";
+import { column, fromFrame, fromRows, matrix, type Matrix } from "./matrix.js";
+import { prcomp } from "./prcomp.js";
+import { dot, mul } from "./vector.js";
 
 function relativelyClose(actual: readonly number[], expected: readonly number[], tolerance = 1e-12): void {
   expect(actual.length).toBe(expected.length);

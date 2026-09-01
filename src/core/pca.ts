@@ -31,9 +31,9 @@
  * one input instead of a platform's answer.
  */
 
-import { mean, sum, withoutNegativeZero, zipWith } from "./arith";
-import { completePointRows } from "./regression";
-import type { Point } from "./regression";
+import { mean, sum, withoutNegativeZero, zipWith } from "./arith.js";
+import { completePointRows } from "./regression.js";
+import type { Point } from "./regression.js";
 
 /**
  * One component's loading vector, as `[x, y]`.

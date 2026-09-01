@@ -24,9 +24,11 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { moderationData } from "../../data/moderationData";
-import { at, fromFrame, matrix, type Matrix } from "./matrix";
-import { scale } from "./scale";
+import { moderationData } from "../../data/moderationData.js";
+import { at, column, fromFrame, make, matrix, type Matrix } from "./matrix.js";
+import { crossprod } from "./ops.js";
+import { cor, cov } from "./cov.js";
+import { scale } from "./scale.js";
 
 /** The entries column by column, as the fixture prints them. */
 function columnMajor(m: Matrix): number[] {
@@ -196,5 +198,92 @@ describe("scale() refuses a vector of the wrong length — fixture 6g", () => {
     expect(() => scale(m5(), { scale: [1, 2] })).toThrow(
       "length of 'scale' must equal the number of columns of 'x'",
     );
+  });
+});
+
+/**
+ * The centering-reuse recipe the README documents.
+ *
+ * A caller that pairs many column subsets of one matrix — every block against
+ * every other — centers once and reuses the result, rather than letting
+ * `cov`/`cor` re-center inside each pairing. R's identity is that
+ * `crossprod(scale(x, scale = FALSE)) / (n - 1)` is `cov(x)` and
+ * `crossprod(scale(x)) / (n - 1)` is `cor(x)`. It is only *algebraically*
+ * true here, because `cov` refines its column means and `scale` takes the
+ * plain `colMeans`, so it is verified rather than asserted.
+ */
+describe("scale() + crossprod reproduces cov() and cor()", () => {
+  const build = (n: number, p: number, f: (i: number, j: number) => number) => {
+    const values: number[] = [];
+    for (let j = 0; j < p; j++) {
+      for (let i = 0; i < n; i++) {
+        values.push(f(i, j));
+      }
+    }
+    return matrix(values, { nrow: n, ncol: p });
+  };
+
+  const worstRelative = (a: Matrix, b: Matrix): number =>
+    Math.max(
+      ...Array.from(a.data, (value, k) => {
+        const target = b.data[k] as number;
+        return Math.abs(value - target) / Math.max(Math.abs(target), 1e-300);
+      }),
+    );
+
+  const over = (x: Matrix, m: Matrix): Matrix =>
+    make(
+      m.nrow,
+      m.ncol,
+      m.data.map((v) => v / (x.nrow - 1)),
+      m.dimnames,
+    );
+
+  const cases: [string, Matrix][] = [
+    ["well scaled", build(200, 5, (i, j) => Math.sin(i * (j + 1.3)) * (j + 1))],
+    ["a 1e6 offset", build(200, 5, (i, j) => 1e6 + Math.sin(i * (j + 1.3)))],
+    ["wide", build(2000, 24, (i, j) => Math.sin(i * 0.37 + j) * (1 + j / 10) + j)],
+  ];
+
+  test.each(cases)(
+    "crossprod(scale(x, {scale: false})) / (n - 1) is cov(x)  [%s]",
+    (_label, x) => {
+      const recipe = over(x, crossprod(scale(x, { scale: false }).scaled));
+      expect(worstRelative(recipe, cov(x))).toBeLessThan(1e-14);
+    },
+  );
+
+  test.each(cases)(
+    "crossprod(scale(x)) / (n - 1) is cor(x)  [%s]",
+    (_label, x) => {
+      const recipe = over(x, crossprod(scale(x).scaled));
+      expect(worstRelative(recipe, cor(x))).toBeLessThan(1e-14);
+    },
+  );
+
+  /**
+   * The caveat, pinned so it cannot be forgotten. On columns dominated by a
+   * large constant offset the recipe loses three digits, and every one of
+   * them is `scale()`'s plain `colMeans` against `cov()`'s refined mean
+   * (`m + mean(x - m)`) — not the `crossprod`, whose `fma` setting does not
+   * move the number at all. Handing `scale` those refined means as its
+   * `center` restores the agreement.
+   */
+  test("a large column offset costs three digits, and the mean is why", () => {
+    const x = build(500, 4, (i, j) => 1e9 + Math.cos(i * (j + 2.1)) * 3);
+    const plain = over(x, crossprod(scale(x, { scale: false }).scaled));
+    expect(worstRelative(plain, cov(x))).toBeGreaterThan(1e-12);
+    expect(worstRelative(plain, cov(x))).toBeLessThan(1e-9);
+
+    const refined = Array.from({ length: x.ncol }, (_, j) => {
+      const col = column(x, j);
+      const m = col.reduce((a, b) => a + b, 0) / x.nrow;
+      return m + col.reduce((a, b) => a + (b - m), 0) / x.nrow;
+    });
+    const fixed = over(
+      x,
+      crossprod(scale(x, { scale: false, center: refined }).scaled),
+    );
+    expect(worstRelative(fixed, cov(x))).toBeLessThan(1e-14);
   });
 });

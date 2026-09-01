@@ -18,7 +18,7 @@
  * for cryptography.
  */
 
-import { requireCount, sum } from "./arith";
+import { requireCount, sum } from "./arith.js";
 
 /** A source of uniform values in the interval [0, 1). */
 export type Rng = () => number;

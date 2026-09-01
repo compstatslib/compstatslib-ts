@@ -28,22 +28,22 @@
  * that does nothing would carry the defect forward as if it were a feature.
  */
 
-import { extent, mean } from "../core/arith";
-import { histogram } from "../core/histogram";
-import type { Histogram } from "../core/histogram";
-import { kernelDensity } from "../core/kde";
+import { extent, mean } from "../core/arith.js";
+import { histogram } from "../core/histogram.js";
+import type { Histogram } from "../core/histogram.js";
+import { kernelDensity } from "../core/kde.js";
 import type {
   KernelDensityEstimate,
   KernelDensityOptions,
-} from "../core/kde";
-import { seededRng } from "../core/rng";
-import type { Rng } from "../core/rng";
-import { drawSamples } from "../core/sampling";
-import { createScale, drawAxes } from "./axes";
-import type { Extent, Scale } from "./axes";
-import { DOTTED, clearSurface, clipToArea } from "./draw";
-import { resolveTarget } from "./target";
-import type { Context2D, PlotTarget } from "./target";
+} from "../core/kde.js";
+import { seededRng } from "../core/rng.js";
+import type { Rng } from "../core/rng.js";
+import { drawSamples } from "../core/sampling.js";
+import { createScale, drawAxes } from "./axes.js";
+import type { Extent, Scale } from "./axes.js";
+import { DOTTED, clearSurface, clipToArea } from "./draw.js";
+import { resolveTarget } from "./target.js";
+import type { Context2D, PlotTarget } from "./target.js";
 
 /** Which of the three stacked panels a scale belongs to. */
 export type SamplingPanel = "population" | "samples" | "statistic";

@@ -13,8 +13,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { matrix, type Matrix } from "./matrix";
-import { cbind, crossprod, identity, matmul } from "./ops";
+import { matrix, type Matrix } from "./matrix.js";
+import { cbind, crossprod, identity, matmul } from "./ops.js";
 import {
   qr,
   qrCoef,
@@ -25,7 +25,7 @@ import {
   qrR,
   qrResid,
   type QrOptions,
-} from "./qr";
+} from "./qr.js";
 
 function columnMajor(m: Matrix): number[] {
   return Array.from(m.data);

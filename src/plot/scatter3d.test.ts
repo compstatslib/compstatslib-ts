@@ -40,11 +40,11 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { plotScatter3d, scatter3dSpec } from "./scatter3d";
-import { moderationData } from "../data/moderationData";
-import { RecordingPlotly, plotlyTarget } from "../../test/recording-plotly";
-import type { DataFrame } from "../core/frame";
-import type { Scatter3dTrace } from "./plotly";
+import { plotScatter3d, scatter3dSpec } from "./scatter3d.js";
+import { moderationData } from "../data/moderationData.js";
+import { RecordingPlotly, plotlyTarget } from "../../test/recording-plotly.js";
+import type { DataFrame } from "../core/frame.js";
+import type { Scatter3dTrace } from "./plotly.js";
 
 const THREE: DataFrame = { a: [1, 2, 3], b: [4, 5, 6], c: [7, 8, 9] };
 

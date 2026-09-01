@@ -13,11 +13,13 @@ import {
   fromColumns,
   fromRows,
   matrix,
+  matrixIndex,
   row,
   toColumns,
   toRows,
+  withDim,
   type Matrix,
-} from "./matrix";
+} from "./matrix.js";
 
 /** R's `as.vector(m)`: the column-major data as a plain array. */
 function columnMajor(m: Matrix): number[] {
@@ -199,5 +201,162 @@ describe("accessors", () => {
       [4, 5, 6],
     ]);
     expect(columnMajor(fromRows(toRows(a)))).toEqual(columnMajor(a));
+  });
+});
+
+describe("withDim()", () => {
+  test("adopts the buffer without copying it", () => {
+    const buffer = Float64Array.from([1, 2, 3, 4, 5, 6]);
+    const m = withDim(buffer, { nrow: 3 });
+    expect(m.data).toBe(buffer);
+    expect(m.nrow).toBe(3);
+    expect(m.ncol).toBe(2);
+  });
+
+  /**
+   * The one place this departs from R. R's `dim(v) <- c(3, 2)` copies on
+   * modify, so the caller's `v` and the matrix part ways; JavaScript has no
+   * such thing, so an adopted buffer aliases. Pinning it here rather than
+   * warning about it in prose: the aliasing is the feature, and a caller who
+   * reuses one buffer across bootstrap replications depends on it.
+   */
+  test("a write through the caller's handle is visible in the matrix", () => {
+    const buffer = Float64Array.from([1, 2, 3, 4, 5, 6]);
+    const m = withDim(buffer, { nrow: 3 });
+    buffer[0] = 99;
+    buffer[5] = -1;
+    expect(at(m, 0, 0)).toBe(99);
+    expect(at(m, 2, 1)).toBe(-1);
+  });
+
+  test("fills column by column, as matrix() does", () => {
+    const m = withDim(Float64Array.from([1, 2, 3, 4, 5, 6]), { nrow: 3 });
+    expect(toRows(m)).toEqual([
+      [1, 4],
+      [2, 5],
+      [3, 6],
+    ]);
+  });
+
+  test("takes either extent, or both when they agree", () => {
+    expect(withDim(Float64Array.from([1, 2, 3, 4]), { ncol: 2 }).nrow).toBe(2);
+    expect(
+      withDim(Float64Array.from([1, 2, 3, 4]), { nrow: 2, ncol: 2 }).ncol,
+    ).toBe(2);
+  });
+
+  test("refuses extents that do not match the length", () => {
+    expect(() => withDim(Float64Array.from([1, 2, 3]), { nrow: 2 })).toThrow(
+      RangeError,
+    );
+    expect(() =>
+      withDim(Float64Array.from([1, 2, 3, 4]), { nrow: 3, ncol: 3 }),
+    ).toThrow(RangeError);
+    expect(() => withDim(Float64Array.from([1, 2]), {})).toThrow(RangeError);
+  });
+
+  /**
+   * `matrix()` recycles a single value over the whole matrix. `withDim` has
+   * no such path: adopting means the buffer *is* the storage, and a scalar is
+   * not storage for nine entries.
+   */
+  test("does not recycle a single value", () => {
+    expect(() =>
+      withDim(Float64Array.from([0]), { nrow: 3, ncol: 3 }),
+    ).toThrow(RangeError);
+  });
+
+  test("refuses byrow, which would mean a reordering copy", () => {
+    expect(() =>
+      withDim(Float64Array.from([1, 2, 3, 4]), { nrow: 2, byrow: true }),
+    ).toThrow(RangeError);
+    // `byrow: false` is the default and says nothing, so it is allowed.
+    expect(
+      withDim(Float64Array.from([1, 2, 3, 4]), { nrow: 2, byrow: false }).ncol,
+    ).toBe(2);
+  });
+
+  test("copies dimnames, so no two matrices share one", () => {
+    const rows = ["a", "b"];
+    const m = withDim(Float64Array.from([1, 2, 3, 4]), {
+      nrow: 2,
+      dimnames: [rows, ["x", "y"]],
+    });
+    rows[0] = "changed";
+    expect(m.dimnames?.[0]).toEqual(["a", "b"]);
+  });
+
+  test("validates dimnames against the extents, as make() does", () => {
+    expect(() =>
+      withDim(Float64Array.from([1, 2, 3, 4]), {
+        nrow: 2,
+        dimnames: [["a", "b", "c"], null],
+      }),
+    ).toThrow(RangeError);
+  });
+});
+
+describe("matrixIndex()", () => {
+  const m = matrix([1, 2, 3, 4, 5, 6], {
+    nrow: 3,
+    dimnames: [
+      ["r1", "r2", "r3"],
+      ["c1", "c2"],
+    ],
+  });
+
+  test("resolves a name to its position", () => {
+    const index = matrixIndex(m);
+    expect(index.row("r1")).toBe(0);
+    expect(index.row("r3")).toBe(2);
+    expect(index.col("c2")).toBe(1);
+  });
+
+  test("offset() lands on the entry at() reads", () => {
+    const index = matrixIndex(m);
+    expect(m.data[index.offset("r2", "c2")]).toBe(at(m, 1, 1));
+    expect(m.data[index.offset("r3", "c1")]).toBe(at(m, 2, 0));
+  });
+
+  /**
+   * The point of splitting `row` and `col` out of `offset`: every
+   * name-addressed fill loops the column name outside and the row name in, so
+   * the caller hoists one lookup out of the inner loop.
+   */
+  test("row() and col() compose into the same offset", () => {
+    const index = matrixIndex(m);
+    const j = index.col("c2");
+    expect(j * m.nrow + index.row("r3")).toBe(index.offset("r3", "c2"));
+  });
+
+  test("an absent name is a RangeError in R's words", () => {
+    const index = matrixIndex(m);
+    expect(() => index.row("nope")).toThrow(RangeError);
+    expect(() => index.row("nope")).toThrow(/subscript out of bounds/);
+    expect(() => index.col("nope")).toThrow(RangeError);
+    expect(() => index.offset("r1", "nope")).toThrow(RangeError);
+  });
+
+  test("a matrix with no dimnames reports as such, per dimension", () => {
+    const bare = matrix([1, 2, 3, 4], { nrow: 2 });
+    const index = matrixIndex(bare);
+    expect(() => index.row("a")).toThrow(/no rownames/);
+    expect(() => index.col("a")).toThrow(/no colnames/);
+
+    const rowsOnly = matrix([1, 2, 3, 4], {
+      nrow: 2,
+      dimnames: [["a", "b"], null],
+    });
+    const partial = matrixIndex(rowsOnly);
+    expect(partial.row("b")).toBe(1);
+    expect(() => partial.col("x")).toThrow(/no colnames/);
+  });
+
+  test("with a repeated name, the first, as R's match() gives", () => {
+    const dup = matrix([1, 2, 3, 4], {
+      nrow: 2,
+      dimnames: [["a", "a"], ["x", "y"]],
+    });
+    expect(matrixIndex(dup).row("a")).toBe(0);
   });
 });

@@ -10,12 +10,12 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { moderationData } from "../../data/moderationData";
-import { cov } from "./cov";
-import { eigenSymmetric } from "./eigen";
-import { column, fromFrame, matrix, type Matrix } from "./matrix";
-import { matmul } from "./ops";
-import { dot, mul, norm, sub } from "./vector";
+import { moderationData } from "../../data/moderationData.js";
+import { cov } from "./cov.js";
+import { eigenSymmetric } from "./eigen.js";
+import { column, fromFrame, matrix, type Matrix } from "./matrix.js";
+import { matmul } from "./ops.js";
+import { dot, mul, norm, sub } from "./vector.js";
 
 function relativelyClose(actual: readonly number[], expected: readonly number[], tolerance = 1e-12): void {
   expect(actual.length).toBe(expected.length);

@@ -17,8 +17,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { moderationData } from "../../data/moderationData";
-import { fromFrame, matrix, type Matrix } from "./matrix";
+import { moderationData } from "../../data/moderationData.js";
+import { fromFrame, matrix, type Matrix } from "./matrix.js";
 import {
   cbind,
   crossprod,
@@ -30,7 +30,7 @@ import {
   t,
   tcrossprod,
   transpose,
-} from "./ops";
+} from "./ops.js";
 
 function columnMajor(m: Matrix): number[] {
   return Array.from(m.data);

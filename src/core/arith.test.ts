@@ -13,7 +13,7 @@ import {
   sum,
   withoutNegativeZero,
   zipWith,
-} from "./arith";
+} from "./arith.js";
 
 /**
  * Assert agreement with R, relative 1e-12 scaled by max(1, |expected|), the

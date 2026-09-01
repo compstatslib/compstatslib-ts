@@ -9,10 +9,10 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { moderationData } from "../../data/moderationData";
-import { sum } from "../arith";
-import { column, row, type Matrix } from "./matrix";
-import { modelMatrix } from "./modelMatrix";
+import { moderationData } from "../../data/moderationData.js";
+import { sum } from "../arith.js";
+import { column, row, type Matrix } from "./matrix.js";
+import { modelMatrix } from "./modelMatrix.js";
 
 function columnSums(m: Matrix): number[] {
   return Array.from({ length: m.ncol }, (_, j) => sum(column(m, j)));
