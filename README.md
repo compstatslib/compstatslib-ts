@@ -326,7 +326,7 @@ The buffer **aliases**: R copies on modify, JavaScript does not, and `withDim` d
 | fill a `number[][]` by name, then `fromRows` | 47.9 µs |
 | fill an adopted buffer through `matrixIndex` | **4.1 µs** |
 
-And at the boundary itself, on a 2000 x 24 frame: `fromRows` costs 786 µs where `withDim` over data already in this layout costs **0.18 µs**.
+And at the boundary itself, on a 2000 x 24 frame: `fromRows` costs 540 to 810 µs — it varies with how polymorphic the call site has become — where `withDim` over data already in this layout costs **under a tenth of a microsecond**. It copies nothing, so it is not a faster conversion; it is no conversion.
 
 #### Throughput
 
@@ -351,7 +351,7 @@ So `{ fma: false }` is **not "the fast one"**. It is a different answer. On a we
 | `matmul` n x 24 · 24 x 8 | 624 µs | 1.31 ms | **322 µs** | 8.14 ms |
 | `cor` 24 x 24 | 863 µs | 2.34 ms | **730 µs** | 3.67 ms |
 
-Converting at each end costs 811 µs in and 397 µs out on that frame, which is more than any operation in the table — so through `Matrix` the plain path *loses* on all three. Hold your data as a column-major `Float64Array` and open it with `withDim` (above) and it wins or ties on all three, because there is nothing to convert. The last column is what R's double costs at that boundary: 6 to 25 times the loop.
+Converting at each end costs 811 µs in and 397 µs out in this benchmark's run, which is more than any operation in the table — so through `Matrix` the plain path *loses* on all three. Hold your data as a column-major `Float64Array` and open it with `withDim` (above) and it wins or ties on all three, because there is nothing to convert. The last column is what R's double costs at that boundary: 6 to 25 times the loop.
 
 #### Reusing one centering across many pairings
 

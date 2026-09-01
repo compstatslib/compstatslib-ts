@@ -87,7 +87,9 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   `byrow` is refused with a `RangeError`, since filling row by row is the
   reordering copy this constructor exists to avoid, and a single value is not
   recycled, since a scalar is not storage. Measured on a 2000 x 24 frame:
-  `fromRows` 786 µs, `withDim` over data already in this layout 0.18 µs.
+  `fromRows` costs 540 to 810 µs depending on how polymorphic the call site
+  has become, and `withDim` under a tenth of a microsecond. It copies
+  nothing, so it is not a faster conversion; it is no conversion.
 * `matrixIndex(m)` on the same entry, returning `{ row, col, offset }` —
   dimnames resolved to positions, built once, with `offset(rowName, colName)`
   the index into `data`. R's `match()` against `rownames()` and `colnames()`,
@@ -107,7 +109,7 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   package computes and nothing it draws. The root entry was the only door to
   `pchisq` before this, and it pulls in the canvas and interactive layers;
   `dist/core/` ships declarations only, so there was no deep-import escape
-  hatch either. The built bundles are 121 KB for `./stats` against 178 KB for
+  hatch either. The built bundles are 120 KB for `./stats` against 176 KB for
   the root. `src/index.ts` re-exports every name in it, so the root entry is
   unchanged and moving between the two is a change of specifier and nothing
   else. The DOM-free claim is asserted rather than assumed: `stats.test.ts`
@@ -154,7 +156,8 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
 * The README's throughput section now times the three benchmark computations
   **end to end**, `number[][]` in and out, not per operation. That correction
   is owed: through `Matrix`, converting at each end (811 µs in, 397 µs out on
-  a 2000 x 24 frame) costs more than any operation between them, so the plain
+  a 2000 x 24 frame in that benchmark's run) costs more than any operation
+  between them, so the plain
   path *loses* to a hand-written loop on all three — where the per-operation
   table said it won on two of three. Over a buffer adopted with `withDim`
   there is nothing to convert and it wins or ties on all three. The default
