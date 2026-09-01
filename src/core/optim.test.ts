@@ -377,6 +377,19 @@ describe("the finite-difference points the docstring quotes", () => {
     expect(-1.201).toBe(-1.2010000000000001);
   });
 
+  /**
+   * The assertions above are parse-time: they pin which double each spelling
+   * denotes. They do **not** pin which spelling the runtime prints, and that
+   * is what the docstring actually promises a reader who runs this and looks
+   * at the output. If an engine ever changed its shortest-round-trip form,
+   * every assertion above would still pass while the prose became wrong.
+   */
+  test("the docstring leads with the spelling the runtime prints", () => {
+    expect(String(v - eps)).toBe("-1.2009999999999998");
+    expect(String((v + eps) - 2 * eps)).toBe("-1.201");
+    expect(String((v + eps) - 2 * eps + eps)).toBe("-1.2000000000000002");
+  });
+
   test("the walk does not restore the original", () => {
     expect(((v + eps) - 2 * eps) + eps).toBe(-1.2000000000000002);
     expect(((v + eps) - 2 * eps) + eps).not.toBe(v);
