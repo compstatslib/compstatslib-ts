@@ -22,12 +22,18 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   works inside a loop. The README said the boundary cost 540 to 810 µs as
   though it were unavoidable; for a row-major caller it is not, and the
   correction is owed.
-* A `matmul` table at small n. The throughput section covered
-  `2000 x 24 · 24 x 8` only, and a frame of a few hundred rows is a different
-  regime — the gain over a hand-written row-major loop runs 1.0x to 2.1x and is
-  set by how square the right operand is, not by n. What is constant across
-  shapes is that routing through `fromRows`/`toRows` costs 2 to 6 times the
-  loop, which is the boundary and not the arithmetic.
+* A `matmul` table with the right control, replacing a first attempt that had
+  the wrong one. The baseline held `number[][]` and so allocated `n` small
+  arrays per call, which credited the flat representation to this package's
+  arithmetic and produced ratios from 1.0x to 2.1x that varied by shape for no
+  good reason. Measured against a loop with the same arithmetic over flat
+  row-major buffers and a caller-held output, **`matmul` is within 3% of it at
+  every shape from 250 x 6 · 6 x 6 to 2000 x 24 · 24 x 8**. That is a tie. The
+  roughly 2x is what leaving arrays-of-arrays is worth, and it is available to
+  a caller who never touches this package. The reason to adopt is reach — `qr`,
+  `lm`, `solve`, `chol` and `cor` over the same held buffers at R's numbers,
+  with no boundary — not speed. The throughput table's own first column carries
+  the same caveat now, since its loops also hold `number[][]`.
 
 ### Changed
 

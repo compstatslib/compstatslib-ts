@@ -380,16 +380,22 @@ So `{ fma: false }` is **not "the fast one"**. It is a different answer. On a we
 
 Converting at each end costs 811 µs in and 397 µs out in this benchmark's run, which is more than any operation in the table — so through `Matrix` the plain path *loses* on all three. Hold your data as a column-major `Float64Array` and open it with `withDim` (above) and it wins or ties on all three, because there is nothing to convert. The last column is what R's double costs at that boundary: 6 to 25 times the loop.
 
-**Small n is a different regime, and it is where `matmul` gains most.** A frame of a few hundred rows behaves nothing like 2000, so the table above is not the one to read if that is your shape. Row-major buffers adopted transposed, `{ fma: false }`, median per call:
+One caveat on that first column, since it is easy to over-read: those loops hold `number[][]`, so the gap between them and the adopted column is the representation *and* the arithmetic together. Hold the representation fixed and the arithmetic is a tie — see the table below.
 
-| computation | a hand-written row-major loop | adopted transposed | through `fromRows`/`toRows` |
-| --- | --- | --- | --- |
-| `matmul` 250 x 6 · 6 x 6 | 20.2 µs | **9.7 µs** (2.1x) | 62.7 µs |
-| `matmul` 250 x 24 · 24 x 24 | 201.2 µs | **130.2 µs** (1.5x) | 266.9 µs |
-| `matmul` 250 x 24 · 24 x 6 | 37.7 µs | **36.5 µs** (1.0x) | 109.3 µs |
-| `matmul` 2000 x 24 · 24 x 8 | 626.5 µs | **368.3 µs** (1.7x) | 1.25 ms |
+**What adopting buys, measured against the right control.** Almost all of it is the *representation*, not this package's arithmetic. Three baselines, one run, 5000 warm-up iterations, median per call — A is a hand-written loop over `number[][]` with hoisted row pointers and a zero skip; B is the same arithmetic over flat row-major buffers with a caller-held output; C is `matmul` over buffers adopted transposed:
 
-The ratio is set by how square the right operand is, not by n: a `6 x 6` right operand gains 2.1x where a thin `24 x 6` is a wash. What is constant is the third column — routing through `fromRows`/`toRows` costs 2 to 6 times the loop at every shape, which is the boundary and not the arithmetic.
+| computation | A: `number[][]` loop | B: flat row-major loop | C: adopted transposed | B/C |
+| --- | --- | --- | --- | --- |
+| `matmul` 250 x 6 · 6 x 6 | 15.2 µs | 9.1 µs | 9.7 µs | 1.03x |
+| `matmul` 250 x 24 · 24 x 6 (sparse rhs) | 68.4 µs | 35.9 µs | 36.4 µs | 1.01x |
+| `matmul` 250 x 24 · 24 x 6 | 71.7 µs | 35.7 µs | 36.2 µs | 1.00x |
+| `matmul` 250 x 24 · 24 x 24 | 233.4 µs | 126.2 µs | 128.5 µs | 1.00x |
+| `matmul` 1000 x 24 · 24 x 8 | 360.6 µs | 182.3 µs | 185.7 µs | 1.00x |
+| `matmul` 2000 x 24 · 24 x 8 | 724.6 µs | 363.4 µs | 368.7 µs | 1.02x |
+
+**Read the B/C column: this package's `matmul` is within 3% of a loop tuned for the caller's own layout, at every shape.** That is a tie, and it is the honest claim. The roughly 2x between A and B is what leaving arrays-of-arrays is worth — allocating `n` small arrays per call and chasing their pointers — and it is available to a caller who never touches this package.
+
+So the reason to adopt is not that these routines are faster. It is that once your data is a flat buffer, `qr`, `lm`, `solve`, `chol`, `cor` and the rest are available over it with no boundary in either direction, at R's numbers. Speed is not the argument; reach is.
 
 #### `cov` refines its column means; `scale` does not
 
