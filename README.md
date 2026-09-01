@@ -1,5 +1,6 @@
 # @compstats/core
 
+[![npm](https://img.shields.io/npm/v/@compstats/core)](https://www.npmjs.com/package/@compstats/core)
 [![CI](https://github.com/compstatslib/compstatslib-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/compstatslib/compstatslib-ts/actions/workflows/ci.yml)
 
 **Statistical routines for TypeScript, checked against R.**

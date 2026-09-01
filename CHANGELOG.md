@@ -3,6 +3,14 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Documented
+
+* An npm version badge in the README, above the existing CI one. It reads the
+  registry through shields.io rather than hardcoding a number, so it cannot go
+  stale between releases the way a written version would.
+
 ## 0.6.1
 
 ### Documented
