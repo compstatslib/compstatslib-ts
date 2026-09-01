@@ -41,9 +41,9 @@
  * that sees both multiply-adds goes polymorphic and loses its inlining.
  */
 
-import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
-import { make, type Dimnames, type Matrix } from "./matrix";
-import type { Vector } from "./vector";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith.js";
+import { make, type Dimnames, type Matrix } from "./matrix.js";
+import type { Vector } from "./vector.js";
 
 /** A matrix, or a vector R would treat as a one-column matrix. */
 export type MatrixOrVector = Matrix | Vector;

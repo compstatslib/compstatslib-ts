@@ -16,13 +16,13 @@
  * back to the handle for the values it just asked about.
  */
 
-import { DEFAULT_T_TEST_OPTIONS } from "../core/ttest";
-import type { TTestStats } from "../core/ttest";
-import { plotTTest } from "../plot/tTest";
-import type { PlotTTestOptions } from "../plot/tTest";
-import { buildSlider } from "./controls";
-import { resolveControlTarget } from "./target";
-import type { ControlTarget } from "./target";
+import { DEFAULT_T_TEST_OPTIONS } from "../core/ttest.js";
+import type { TTestStats } from "../core/ttest.js";
+import { plotTTest } from "../plot/tTest.js";
+import type { PlotTTestOptions } from "../plot/tTest.js";
+import { buildSlider } from "./controls.js";
+import { resolveControlTarget } from "./target.js";
+import type { ControlTarget } from "./target.js";
 
 /** Everything the panel of controls holds. */
 export interface TTestValues {

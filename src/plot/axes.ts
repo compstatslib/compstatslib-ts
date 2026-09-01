@@ -9,7 +9,7 @@
  * `drawAxes` touches a context, and it receives that context as an argument.
  */
 
-import type { Context2D } from "./target";
+import type { Context2D } from "./target.js";
 
 /** A closed range of world values. */
 export interface Extent {

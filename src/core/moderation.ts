@@ -41,9 +41,9 @@
  * `moderationSurface` itself.
  */
 
-import { extent, mean, sum, zipWith } from "./arith";
-import { frameRows, requireNumericColumn, type DataFrame } from "./frame";
-import { lm } from "./linalg/lm";
+import { extent, mean, sum, zipWith } from "./arith.js";
+import { frameRows, requireNumericColumn, type DataFrame } from "./frame.js";
+import { lm } from "./linalg/lm.js";
 
 /**
  * The number of steps along each axis of the grid. R's

@@ -33,7 +33,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { bwNrd0, kernelDensity } from "./kde";
+import { bwNrd0, kernelDensity } from "./kde.js";
 
 /** Relative tolerance for all comparisons against R, as in the other slices. */
 const RELATIVE_TOLERANCE = 1e-12;

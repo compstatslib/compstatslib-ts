@@ -11,11 +11,11 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { tTestStats } from "../core/ttest";
-import { RecordingContext } from "../../test/recording-context";
-import type { DrawCall } from "../../test/recording-context";
-import { plotTTest, tTestScale } from "./tTest";
-import type { PlotTTestOptions } from "./tTest";
+import { tTestStats } from "../core/ttest.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import type { DrawCall } from "../../test/recording-context.js";
+import { plotTTest, tTestScale } from "./tTest.js";
+import type { PlotTTestOptions } from "./tTest.js";
 
 const WIDTH = 640;
 const HEIGHT = 400;

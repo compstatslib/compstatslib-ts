@@ -24,7 +24,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { histogram, nclassSturges } from "./histogram";
+import { histogram, nclassSturges } from "./histogram.js";
 
 /** Section 2b: seven sampling statistics. */
 const th7 = [49.8, 50.1, 50.4, 49.6, 50.0, 50.9, 49.2] as const;

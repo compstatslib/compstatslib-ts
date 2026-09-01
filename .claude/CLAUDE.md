@@ -23,9 +23,14 @@ function rather than guessing at behavior.
 
 This package is a library. Its primary consumer is the browser app at
 `../compstats-webapp/` (`compstats`), which builds a client-side statistics
-workbench on top of it and currently consumes it as a Bun link to this
-checkout, not from npm. Apps of that shape — static, client-side, Bun +
-bundler — are the expected audience for this package, so weigh API decisions
+workbench on top of it. It consumes the **published package from npm**, not a
+link to this checkout — verified 2026-09-01, when it held a real installed
+`@compstats/core@0.5.0`. (An earlier version of this file said it was a Bun
+link; that was stale, and the difference matters: nothing downstream sees a
+change here until it is released.) A second consumer, `seminr-ts` at
+`../../sem-in-r/seminr-ts/`, likewise installs from npm and delegates four
+modules under `src/math/` to this package. Apps of that shape — static,
+client-side, Bun + bundler — are the expected audience, so weigh API decisions
 from a consuming app's point of view, not only the demo site's.
 
 What this means when working here:
@@ -43,17 +48,54 @@ What this means when working here:
   UI belongs here. If the webapp needs something the library cannot express,
   the fix is a general option or a returned value the app composes — never a
   special case named after the app.
-- **The link setup makes breakage immediate.** A rename or signature change
-  here breaks the app's next `bun run typecheck`. Check the app for callers
-  before renaming an exported symbol, and note the change in `CHANGELOG.md`.
+- **Nothing downstream breaks until you publish, which cuts both ways.** The
+  consumers install from npm, so a rename or signature change here is invisible
+  to them until a release — and then arrives all at once. Check both consumers
+  for callers before renaming an exported symbol, note the change in
+  `CHANGELOG.md`, and prefer validating a risky release against a real tarball
+  (`npm pack`, then `bun add ./the-tarball.tgz` in the consumer) over
+  publishing and finding out. npm versions are immutable.
+
+- **Verify a claim about a consumer before acting on it.** This file has
+  carried a wrong one. Read the consumer's `package.json` and
+  `node_modules/@compstats/core/package.json` rather than trusting a
+  description of the setup, including this one.
 
 ## Status
 
 The port is complete. All 9 function families from the R package are
 implemented across the three layers, with both bundled datasets exported from
 R and a demo page per family. The full test suite asserts core math against
-R-computed conformance fixtures. Published to npm as `@compstats/core`. The
-`/linalg` entry adds the general linear algebra base R provides for free.
+R-computed conformance fixtures. Published to npm as `@compstats/core`, at
+0.5.0. The `/linalg` entry adds the general linear algebra base R provides
+for free. 0.5.0 added the base-R primitives a consuming library needs of its
+own — two-matrix `cov`/`cor`, `scale`, `chol`/`chol2inv`, `predictLm`,
+`pchisq`, `qchisq`, `pnorm`, `qnorm`, `optim(method = "BFGS")`, elementwise
+matrix arithmetic and `outer` — and an `fma` option that trades the pinned
+last bits for 10 to 25 times the speed where a caller wants throughput.
+`NOTICE` records the provenance of every algorithm the package reimplements.
+
+**0.6.0 is prepared on `ray/seminr-feedback` and not yet published** (PR #3
+against `develop`). It acts on `seminr-ts`'s adoption report. Two parts of it
+change what a caller sees:
+
+- Every relative specifier the package publishes now carries a `.js`
+  extension. Without it, a `node16`/`nodenext` consumer got **TS2834** with
+  `skipLibCheck: false` and, under the far commoner `skipLibCheck: true`,
+  silently got `any` for every export — which then propagated into that
+  consumer's own published declarations. Two checks keep it fixed:
+  `test/specifiers.test.ts` at the source, and `test/consumer/check.ts`, a
+  real `nodenext` consumer type-checked against the built `dist/` in
+  `prepublishOnly` under **both** `skipLibCheck` settings, because either
+  alone misses half the defect.
+- `optim` is now R's own `vmmin` (`src/main/optim.c`) rather than a routine
+  that reached R's optimum by its own path. **This moves every `optim`
+  result**, `counts` is now a value to compare with R's, and `OptimControl`
+  loses `gradTol` and `stallGradTol` and gains R's `abstol`.
+
+It also adds `withDim` (R's `dim<-`, adopting a `Float64Array` without
+copying) and `matrixIndex` on the linalg entry, and a DOM-free `./stats`
+entry carrying `core/` and `data/` at 120 KB against the root's 176 KB.
 
 ## Architecture
 
@@ -310,7 +352,8 @@ folder uses the full path from the repository root.
 001-PLAN-port/              the port (closed); also holds the fixture docs
 002-PLAN-initial-release/   the first npm publish (closed)
 003-PLAN-linalg/            the linear algebra entry point (closed)
-004-PLAN-seminr-utilities/  active
+004-PLAN-seminr-utilities/  the base-R primitives and the fma option (closed)
+005-PLAN-seminr-feedback/   acting on seminr-ts's adoption report (0.6.0)
 ```
 
 Source comments cite fixture documents by full path, e.g.

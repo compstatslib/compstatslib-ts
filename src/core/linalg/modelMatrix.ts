@@ -22,8 +22,8 @@
  * scope.
  */
 
-import { frameRows, requireNumericColumn, type DataFrame } from "../frame";
-import { make, type Matrix } from "./matrix";
+import { frameRows, requireNumericColumn, type DataFrame } from "../frame.js";
+import { make, type Matrix } from "./matrix.js";
 
 /**
  * One term of a model: a column name for a main effect, or the column names

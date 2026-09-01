@@ -18,7 +18,7 @@ import {
   plotSampleCi,
   rnorm,
   seededRng,
-} from "../src/index";
+} from "../src/index.js";
 import type {
   InteractiveLogitHandle,
   InteractiveMatrixInverseHandle,
@@ -28,7 +28,7 @@ import type {
   InteractiveTTestHandle,
   Matrix2,
   Point,
-} from "../src/index";
+} from "../src/index.js";
 // Types only: a value import of the 3D entry would make the page bundler
 // inline all of Plotly (it cannot split dynamic imports). The values arrive
 // at runtime from /3d-lib.js, which the server bundles with Plotly external.
@@ -36,7 +36,7 @@ import type {
   InteractiveModeration3dHandle,
   InteractiveScatter3dHandle,
   PlotlyLike,
-} from "../src/3d";
+} from "../src/3d.js";
 
 declare global {
   interface Window {
@@ -94,9 +94,9 @@ async function ensurePlotly(): Promise<PlotlyLike> {
  * Import the 3D library the server bundles from live source. The specifier
  * is computed so the page bundler leaves the import to the browser.
  */
-async function load3dLib(): Promise<typeof import("../src/3d")> {
+async function load3dLib(): Promise<typeof import("../src/3d.js")> {
   const path = "/3d-lib.js";
-  return (await import(path)) as typeof import("../src/3d");
+  return (await import(path)) as typeof import("../src/3d.js");
 }
 
 /** Load a fragment into `#demo`. */

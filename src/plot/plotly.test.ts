@@ -9,9 +9,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { loadPlotly } from "./plotly";
-import { RecordingPlotly, plotlyTarget } from "../../test/recording-plotly";
-import type { PlotlyLayout, PlotlyTrace } from "./plotly";
+import { loadPlotly } from "./plotly.js";
+import { RecordingPlotly, plotlyTarget } from "../../test/recording-plotly.js";
+import type { PlotlyLayout, PlotlyTrace } from "./plotly.js";
 
 const SOURCE = await Bun.file(
   new URL("./plotly.ts", import.meta.url).pathname,

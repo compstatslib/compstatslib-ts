@@ -37,7 +37,7 @@
  * that is invertible on paper but too ill-conditioned to invert in doubles.
  */
 
-import { fusedMultiplyAdd, sum, withoutNegativeZero } from "./arith";
+import { fusedMultiplyAdd, sum, withoutNegativeZero } from "./arith.js";
 
 /**
  * The smallest normal double, LAPACK's `dlamch("S")`.

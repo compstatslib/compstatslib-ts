@@ -53,14 +53,14 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { RecordingContext } from "../../test/recording-context";
-import { invertMatrix } from "../core/matrix";
-import type { Matrix2 } from "../core/matrix";
+import { RecordingContext } from "../../test/recording-context.js";
+import { invertMatrix } from "../core/matrix.js";
+import type { Matrix2 } from "../core/matrix.js";
 import {
   DEFAULT_MATRIX_INVERSE_VALUES,
   interactiveMatrixInverse,
-} from "./matrixInverse";
-import type { InteractiveMatrixInverseOptions } from "./matrixInverse";
+} from "./matrixInverse.js";
+import type { InteractiveMatrixInverseOptions } from "./matrixInverse.js";
 
 const WIDTH = 640;
 const HEIGHT = 400;

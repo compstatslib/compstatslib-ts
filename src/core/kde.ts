@@ -27,7 +27,7 @@
  * runs the FFT over the reported window gives a visibly narrower curve.
  */
 
-import { extent, quantiles, sd } from "./arith";
+import { extent, quantiles, sd } from "./arith.js";
 
 /** Points in the reported grid. R's `density(n = 512)` default. */
 const GRID_SIZE = 512;

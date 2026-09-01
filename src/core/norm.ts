@@ -15,7 +15,7 @@
  * NOTICE. Verified against R in `norm.test.ts`.
  */
 
-import { normalCdf } from "./special";
+import { normalCdf } from "./special.js";
 
 /**
  * R's `mean`, `sd`, and `lower.tail` arguments.

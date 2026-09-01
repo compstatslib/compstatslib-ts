@@ -24,10 +24,10 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { seededRng } from "../core/rng";
-import { RecordingContext } from "../../test/recording-context";
-import { plotSampleCi, sampleCiScale } from "./sampleCi";
-import type { RenderTarget } from "./target";
+import { seededRng } from "../core/rng.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import { plotSampleCi, sampleCiScale } from "./sampleCi.js";
+import type { RenderTarget } from "./target.js";
 
 const WIDTH = 600;
 const HEIGHT = 500;

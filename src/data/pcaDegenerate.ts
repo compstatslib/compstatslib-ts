@@ -13,7 +13,7 @@
  * Source of the printed values: `.claude/plans/001-PLAN-port/pca-fixtures.md`, section F1.
  */
 
-import type { Point } from "../core/regression";
+import type { Point } from "../core/regression.js";
 
 /** The 16 rows of the R `pca_degenerate` data frame, in file order. */
 export const pcaDegenerate: readonly Point[] = [

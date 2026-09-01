@@ -8,15 +8,15 @@
  * statistics of its own.
  */
 
-import { mean } from "../core/arith";
-import { linearRegression } from "../core/regression";
-import type { Point, RegressionFit } from "../core/regression";
-import { createScale, drawAxes, extentOf } from "./axes";
-import { formatStat } from "./format";
-import type { Extent, Scale } from "./axes";
-import { DOTTED, clearSurface, clipToArea, drawDots } from "./draw";
-import { resolveTarget } from "./target";
-import type { Context2D, PlotTarget } from "./target";
+import { mean } from "../core/arith.js";
+import { linearRegression } from "../core/regression.js";
+import type { Point, RegressionFit } from "../core/regression.js";
+import { createScale, drawAxes, extentOf } from "./axes.js";
+import { formatStat } from "./format.js";
+import type { Extent, Scale } from "./axes.js";
+import { DOTTED, clearSurface, clipToArea, drawDots } from "./draw.js";
+import { resolveTarget } from "./target.js";
+import type { Context2D, PlotTarget } from "./target.js";
 
 /** What to show, and where. The toggles default to true, as in R. */
 export interface PlotRegressionOptions {

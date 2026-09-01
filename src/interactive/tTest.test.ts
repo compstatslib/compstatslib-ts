@@ -11,10 +11,10 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { RecordingContext } from "../../test/recording-context";
-import { tTestStats } from "../core/ttest";
-import { interactiveTTest } from "./tTest";
-import type { InteractiveTTestOptions } from "./tTest";
+import { RecordingContext } from "../../test/recording-context.js";
+import { tTestStats } from "../core/ttest.js";
+import { interactiveTTest } from "./tTest.js";
+import type { InteractiveTTestOptions } from "./tTest.js";
 
 const WIDTH = 640;
 const HEIGHT = 400;

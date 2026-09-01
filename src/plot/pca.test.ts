@@ -56,15 +56,15 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { principalComponents } from "../core/pca";
-import type { PcaResult } from "../core/pca";
-import type { Point } from "../core/regression";
-import { RecordingContext } from "../../test/recording-context";
-import type { DrawCall, DrawStyle } from "../../test/recording-context";
-import { createScale } from "./axes";
-import type { Scale } from "./axes";
-import { pcaScale, plotPca } from "./pca";
-import type { RenderTarget } from "./target";
+import { principalComponents } from "../core/pca.js";
+import type { PcaResult } from "../core/pca.js";
+import type { Point } from "../core/regression.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import type { DrawCall, DrawStyle } from "../../test/recording-context.js";
+import { createScale } from "./axes.js";
+import type { Scale } from "./axes.js";
+import { pcaScale, plotPca } from "./pca.js";
+import type { RenderTarget } from "./target.js";
 
 /** A surface whose plot area is exactly square, so `asp = 1` widens neither
  * axis and the expected pixels are the plain ones. Default margins are 52 and

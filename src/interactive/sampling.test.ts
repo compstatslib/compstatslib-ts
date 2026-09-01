@@ -24,10 +24,10 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { RecordingContext } from "../../test/recording-context";
-import type { Rng } from "../core/rng";
-import { interactiveSampling } from "./sampling";
-import type { InteractiveSamplingOptions } from "./sampling";
+import { RecordingContext } from "../../test/recording-context.js";
+import type { Rng } from "../core/rng.js";
+import { interactiveSampling } from "./sampling.js";
+import type { InteractiveSamplingOptions } from "./sampling.js";
 
 const WIDTH = 640;
 const HEIGHT = 600;

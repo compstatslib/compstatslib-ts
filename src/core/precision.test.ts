@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { machinePrecision } from "./precision";
+import { machinePrecision } from "./precision.js";
 
 describe("machinePrecision", () => {
   test("returns the JS double epsilon", () => {

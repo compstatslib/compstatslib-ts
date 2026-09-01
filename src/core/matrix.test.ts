@@ -95,7 +95,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { determinant, invertMatrix, type Matrix2 } from "./matrix";
+import { determinant, invertMatrix, type Matrix2 } from "./matrix.js";
 
 /**
  * Build a matrix from the four entries in R's printing order — row 1 first.

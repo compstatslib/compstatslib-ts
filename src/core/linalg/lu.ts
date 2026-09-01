@@ -44,11 +44,11 @@
  * position, and this one follows `dgetf2` and `dtrsm` as written.
  */
 
-import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
-import { make, type Dimnames, type Matrix } from "./matrix";
-import { isMatrix, t, type MatrixOrVector } from "./ops";
-import { qr, qrR } from "./qr";
-import type { Vector } from "./vector";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith.js";
+import { make, type Dimnames, type Matrix } from "./matrix.js";
+import { isMatrix, t, type MatrixOrVector } from "./ops.js";
+import { qr, qrR } from "./qr.js";
+import type { Vector } from "./vector.js";
 
 /**
  * The smallest normal double, LAPACK's `dlamch("S")`.

@@ -18,11 +18,11 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { moderationData } from "../../data/moderationData";
-import { chol, chol2inv } from "./chol";
-import { cor } from "./cov";
-import { fromFrame, matrix, type Matrix } from "./matrix";
-import { crossprod } from "./ops";
+import { moderationData } from "../../data/moderationData.js";
+import { chol, chol2inv } from "./chol.js";
+import { cor } from "./cov.js";
+import { fromFrame, matrix, type Matrix } from "./matrix.js";
+import { crossprod } from "./ops.js";
 
 function columnMajor(m: Matrix): number[] {
   return Array.from(m.data);

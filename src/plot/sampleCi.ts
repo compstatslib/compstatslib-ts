@@ -28,19 +28,19 @@
  * this module computes none of its own.
  */
 
-import type { Rng } from "../core/rng";
-import { seededRng } from "../core/rng";
-import { simulateSampleCi } from "../core/sampling";
+import type { Rng } from "../core/rng.js";
+import { seededRng } from "../core/rng.js";
+import { simulateSampleCi } from "../core/sampling.js";
 import type {
   SampleCiOptions,
   SampleCiSimulation,
   SampleInterval,
-} from "../core/sampling";
-import { createScale, drawAxes } from "./axes";
-import type { Scale } from "./axes";
-import { clearSurface, clipToArea } from "./draw";
-import { resolveTarget } from "./target";
-import type { Context2D, PlotTarget } from "./target";
+} from "../core/sampling.js";
+import { createScale, drawAxes } from "./axes.js";
+import type { Scale } from "./axes.js";
+import { clearSurface, clipToArea } from "./draw.js";
+import { resolveTarget } from "./target.js";
+import type { Context2D, PlotTarget } from "./target.js";
 
 /** What to draw. R's `plot_sample_ci()` arguments, plus the generator. */
 export interface PlotSampleCiOptions extends SampleCiOptions {

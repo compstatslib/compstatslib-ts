@@ -67,8 +67,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { logisticRegression, predictLogit } from "./logit";
-import type { Point } from "./regression";
+import { logisticRegression, predictLogit } from "./logit.js";
+import type { Point } from "./regression.js";
 
 /**
  * Relative tolerance for comparisons against R.

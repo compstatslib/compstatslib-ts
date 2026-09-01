@@ -26,15 +26,15 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { mean, sd } from "../core/arith";
-import { histogram } from "../core/histogram";
-import { seededRng, type Rng } from "../core/rng";
-import { RecordingContext } from "../../test/recording-context";
-import type { DrawStyle } from "../../test/recording-context";
-import { plotSampling, samplingScale } from "./sampling";
-import type { SamplingPanel, SamplingState } from "./sampling";
-import type { Extent } from "./axes";
-import type { RenderTarget } from "./target";
+import { mean, sd } from "../core/arith.js";
+import { histogram } from "../core/histogram.js";
+import { seededRng, type Rng } from "../core/rng.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import type { DrawStyle } from "../../test/recording-context.js";
+import { plotSampling, samplingScale } from "./sampling.js";
+import type { SamplingPanel, SamplingState } from "./sampling.js";
+import type { Extent } from "./axes.js";
+import type { RenderTarget } from "./target.js";
 
 const WIDTH = 600;
 const HEIGHT = 600;

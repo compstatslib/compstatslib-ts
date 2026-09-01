@@ -27,9 +27,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { moderationData } from "../../data/moderationData";
-import { cor, cov, variance } from "./cov";
-import { fromFrame, fromRows, matrix, type Matrix } from "./matrix";
+import { moderationData } from "../../data/moderationData.js";
+import { cor, cov, variance } from "./cov.js";
+import { fromFrame, fromRows, matrix, type Matrix } from "./matrix.js";
 
 function columnMajor(m: Matrix): number[] {
   return Array.from(m.data);

@@ -10,15 +10,15 @@
  * `src/core/tdist.ts`; this module computes no statistics of its own.
  */
 
-import { dt } from "../core/tdist";
-import { tTestStats } from "../core/ttest";
-import type { TTestOptions, TTestStats } from "../core/ttest";
-import { createScale, drawAxes } from "./axes";
-import type { Extent, Scale } from "./axes";
-import { clearSurface, clipToArea } from "./draw";
-import { formatNumber, formatStat } from "./format";
-import { resolveTarget } from "./target";
-import type { Context2D, PlotTarget } from "./target";
+import { dt } from "../core/tdist.js";
+import { tTestStats } from "../core/ttest.js";
+import type { TTestOptions, TTestStats } from "../core/ttest.js";
+import { createScale, drawAxes } from "./axes.js";
+import type { Extent, Scale } from "./axes.js";
+import { clearSurface, clipToArea } from "./draw.js";
+import { formatNumber, formatStat } from "./format.js";
+import { resolveTarget } from "./target.js";
+import type { Context2D, PlotTarget } from "./target.js";
 
 /**
  * What to draw. The four test parameters pass straight through to

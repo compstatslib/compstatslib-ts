@@ -8,15 +8,15 @@
  * statistics of its own.
  */
 
-import { logisticRegression, predictLogit } from "../core/logit";
-import type { LogitFit } from "../core/logit";
-import type { Point } from "../core/regression";
-import { createScale, drawAxes } from "./axes";
-import type { Extent, Scale } from "./axes";
-import { DOTTED, clearSurface, clipToArea, drawDots } from "./draw";
-import { formatStat } from "./format";
-import { resolveTarget } from "./target";
-import type { Context2D, PlotTarget } from "./target";
+import { logisticRegression, predictLogit } from "../core/logit.js";
+import type { LogitFit } from "../core/logit.js";
+import type { Point } from "../core/regression.js";
+import { createScale, drawAxes } from "./axes.js";
+import type { Extent, Scale } from "./axes.js";
+import { DOTTED, clearSurface, clipToArea, drawDots } from "./draw.js";
+import { formatStat } from "./format.js";
+import { resolveTarget } from "./target.js";
+import type { Context2D, PlotTarget } from "./target.js";
 
 /**
  * Which corner of the plot area the statistics block sits in.

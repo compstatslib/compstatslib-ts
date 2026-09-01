@@ -46,9 +46,9 @@
  * `dtrmv`, `dlauu2` and `dgemv` step for step.
  */
 
-import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
-import { make, type Matrix } from "./matrix";
-import { isMatrix } from "./ops";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith.js";
+import { make, type Matrix } from "./matrix.js";
+import { isMatrix } from "./ops.js";
 
 /** The arithmetic option of `chol()` and `chol2inv()`. */
 export interface CholOptions extends FmaOption {}

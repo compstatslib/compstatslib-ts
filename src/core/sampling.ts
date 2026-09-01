@@ -26,8 +26,8 @@
  * seeded JavaScript generator does not reproduce R's Mersenne Twister.
  */
 
-import { mean, requireCount, sd } from "./arith";
-import { rnorm, sampleWithoutReplacement, type Rng } from "./rng";
+import { mean, requireCount, sd } from "./arith.js";
+import { rnorm, sampleWithoutReplacement, type Rng } from "./rng.js";
 
 /** R's hardcoded 95% multiplier in `plot_sample_ci()`. Not `qnorm(0.975)`. */
 const CI95_MULTIPLIER = 1.96;

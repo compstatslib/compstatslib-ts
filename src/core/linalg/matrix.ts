@@ -30,8 +30,8 @@ import {
   numericColumns,
   requireNumericColumn,
   type DataFrame,
-} from "../frame";
-import type { Vector } from "./vector";
+} from "../frame.js";
+import type { Vector } from "./vector.js";
 
 /** Row names and column names, either of which R may leave `NULL`. */
 export type Dimnames = readonly [
@@ -167,7 +167,9 @@ function requireExtent(value: number, name: string): void {
  * matrices share one. The data is taken as is, not copied.
  *
  * @internal Not part of the entry point. The other linalg modules build
- *   their results through it.
+ *   their results through it, and `withDim` is its public face: the same
+ *   no-copy adoption, with R's `dim<-` signature and the extent checking
+ *   `matrix()` does.
  */
 export function make(
   nrow: number,
@@ -198,6 +200,145 @@ export function make(
         : [rows === null ? null : [...rows], columns === null ? null : [...columns]];
   }
   return { nrow, ncol, data, dimnames };
+}
+
+/**
+ * Adopt a buffer as a matrix's storage. R's `dim(v) <- c(nrow, ncol)`.
+ *
+ * Every other constructor here copies: `matrix` runs `Float64Array.from`,
+ * `fromColumns` and `fromFrame` `set` into a new buffer. That is right for a
+ * caller assembling a matrix once, and wrong for one rebuilding a result on
+ * every bootstrap replication, where the copy is the whole cost. `withDim`
+ * takes the buffer as it stands, so a caller can hold its data in this
+ * package's layout and stop converting.
+ *
+ * The read direction was already free: `Matrix.data` is a public,
+ * column-major `Float64Array`, and `toRows` is a convenience rather than the
+ * only door out.
+ *
+ * **The buffer aliases.** R copies on modify, so R's `v` and the matrix part
+ * ways after the assignment; JavaScript has no such thing, and this function
+ * does not pretend otherwise. A later write through the caller's handle is
+ * visible in the matrix. That is the point — it is what lets one buffer be
+ * refilled and re-read across replications — but it means a caller who wants
+ * a snapshot writes `matrix(buffer, options)` instead, and pays the copy
+ * knowingly.
+ *
+ * Two things R's `dim<-` does that this does not. It does not recycle: a
+ * single value is not storage for nine entries, so `withDim` refuses where
+ * `matrix([0], {nrow: 3, ncol: 3})` fills. And `byrow` is refused rather than
+ * honored, because filling row by row is a reordering copy, which is the one
+ * thing this constructor exists to avoid.
+ *
+ * @param data The entries in column-major order. **Taken as is, not copied.**
+ * @param options `nrow` or `ncol` (or both, in which case they must multiply
+ *   to the length) and `dimnames`, which are copied as everywhere else.
+ * @returns The matrix, over the caller's buffer.
+ * @throws RangeError If neither extent is given, an extent is not a
+ *   non-negative integer, the extents do not account for the length, a
+ *   dimnames entry has the wrong length, or `byrow` is true.
+ */
+export function withDim(data: Float64Array, options: MatrixOptions): Matrix {
+  if (options.byrow === true) {
+    throw new RangeError(
+      "withDim() cannot fill byrow: reordering the data is a copy, which is " +
+        "what this constructor exists to avoid. Use matrix(data, {byrow: true}).",
+    );
+  }
+  const [nrow, ncol] = extents(data.length, options);
+  // `extents` lets a length of one stand for any extents, because `matrix()`
+  // recycles a scalar. Adopting cannot: the buffer is the storage.
+  if (nrow * ncol !== data.length) {
+    throw new RangeError(
+      `data length [${data.length}] is not nrow * ncol [${nrow} * ${ncol}]`,
+    );
+  }
+  return make(nrow, ncol, data, options.dimnames ?? null);
+}
+
+/**
+ * Row and column names resolved to positions, built once.
+ *
+ * `offset` is the flat index into `Matrix.data`; `row` and `col` are the two
+ * halves, kept separate so that a caller filling a result by name hoists the
+ * outer loop's lookup out of the inner one.
+ */
+export interface MatrixIndex {
+  /** The row a name sits at. */
+  readonly row: (name: string) => number;
+  /** The column a name sits at. */
+  readonly col: (name: string) => number;
+  /** The index into `data` of the entry those two names address. */
+  readonly offset: (rowName: string, colName: string) => number;
+}
+
+/**
+ * Resolve a matrix's dimnames to positions. R's `match()` against
+ * `rownames()` and `colnames()`.
+ *
+ * This is the matrix counterpart of `lookup` on a `NamedVector`, and it is
+ * deliberately an *index* rather than a getter and a setter. A matrix here is
+ * written by whole-array operations, as R's is, and a per-cell setter would
+ * invite the loop that rule exists to prevent. What a caller building a
+ * named result actually needs is the position, once:
+ *
+ * ```ts
+ * const index = matrixIndex(result);
+ * for (const outcome of outcomes) {
+ *   const j = index.col(outcome);                    // hoisted
+ *   antecedents.forEach((name, k) => {
+ *     result.data[j * result.nrow + index.row(name)] = betas[k];
+ *   });
+ * }
+ * ```
+ *
+ * Paired with `withDim`, that fills a result at raw `Float64Array` speed with
+ * no per-cell call and no conversion at either end.
+ *
+ * The lookups are built once, when this is called, so a caller that keeps the
+ * index pays one pass over the names however many entries it goes on to
+ * address. A repeated name resolves to its first position, as R's `match()`
+ * does.
+ *
+ * @param m The matrix, whose dimnames are read but not held.
+ * @returns The three lookups.
+ */
+export function matrixIndex(m: Matrix): MatrixIndex {
+  const resolve = (
+    names: readonly string[] | null,
+    kind: "rownames" | "colnames",
+  ): ((name: string) => number) => {
+    if (names === null) {
+      return (name: string) => {
+        throw new RangeError(
+          `subscript out of bounds: the matrix has no ${kind}, so "${name}" addresses nothing`,
+        );
+      };
+    }
+    // First position wins, as R's `match()` gives.
+    const positions = new Map<string, number>();
+    names.forEach((name, i) => {
+      if (!positions.has(name)) {
+        positions.set(name, i);
+      }
+    });
+    return (name: string) => {
+      const i = positions.get(name);
+      if (i === undefined) {
+        throw new RangeError(`subscript out of bounds: no ${kind} "${name}"`);
+      }
+      return i;
+    };
+  };
+
+  const [rownames, colnames] = m.dimnames ?? [null, null];
+  const row = resolve(rownames, "rownames");
+  const col = resolve(colnames, "colnames");
+  return {
+    row,
+    col,
+    offset: (rowName, colName) => col(colName) * m.nrow + row(rowName),
+  };
 }
 
 /**

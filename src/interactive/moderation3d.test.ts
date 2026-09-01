@@ -30,21 +30,21 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { RecordingPlotly, asPlotlyElement } from "../../test/recording-plotly";
-import type { RecordedListeners } from "../../test/recording-plotly";
-import { moderationSurface } from "../core/moderation";
-import { moderationData } from "../data/moderationData";
-import { cameraFromRotations, moderation3dSpec } from "../plot/moderation3d";
+import { RecordingPlotly, asPlotlyElement } from "../../test/recording-plotly.js";
+import type { RecordedListeners } from "../../test/recording-plotly.js";
+import { moderationSurface } from "../core/moderation.js";
+import { moderationData } from "../data/moderationData.js";
+import { cameraFromRotations, moderation3dSpec } from "../plot/moderation3d.js";
 import type {
   PlotlyCamera,
   PlotlyRelayoutEvent,
   SurfaceTrace,
-} from "../plot/plotly";
-import { interactiveModeration3d } from "./moderation3d";
+} from "../plot/plotly.js";
+import { interactiveModeration3d } from "./moderation3d.js";
 import type {
   InteractiveModeration3dOptions,
   Moderation3dValues,
-} from "./moderation3d";
+} from "./moderation3d.js";
 
 const MODEL = { outcome: "y", iv: "x", mod: "z" } as const;
 

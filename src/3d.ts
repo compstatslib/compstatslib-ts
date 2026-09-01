@@ -13,7 +13,7 @@
  * here, so that one import covers a 3D page.
  */
 
-export { loadPlotly } from "./plot/plotly";
+export { loadPlotly } from "./plot/plotly.js";
 export type {
   EyeCamera,
   PlotlyAxis,
@@ -30,14 +30,14 @@ export type {
   Scatter3dTrace,
   SurfaceTrace,
   Vector3,
-} from "./plot/plotly";
+} from "./plot/plotly.js";
 
 export {
   DEFAULT_SCATTER3D_STYLE,
   plotScatter3d,
   scatter3dSpec,
   validateScatter3dStyle,
-} from "./plot/scatter3d";
+} from "./plot/scatter3d.js";
 export type {
   PlotScatter3dOptions,
   Scatter3dHandle,
@@ -45,47 +45,47 @@ export type {
   Scatter3dSpecOptions,
   Scatter3dStyle,
   Scatter3dTitles,
-} from "./plot/scatter3d";
+} from "./plot/scatter3d.js";
 
-export { interactiveScatter3d } from "./interactive/scatter3d";
+export { interactiveScatter3d } from "./interactive/scatter3d.js";
 export type {
   InteractiveScatter3dHandle,
   InteractiveScatter3dOptions,
   Scatter3dValues,
-} from "./interactive/scatter3d";
+} from "./interactive/scatter3d.js";
 
-export { interactiveModeration3d } from "./interactive/moderation3d";
+export { interactiveModeration3d } from "./interactive/moderation3d.js";
 export type {
   InteractiveModeration3dHandle,
   InteractiveModeration3dOptions,
   Moderation3dValues,
-} from "./interactive/moderation3d";
+} from "./interactive/moderation3d.js";
 
-export { resolvePlot3dTarget } from "./interactive/target";
+export { resolvePlot3dTarget } from "./interactive/target.js";
 export type {
   Plot3dPanel,
   Plot3dTarget,
   ResolvedPlot3dPanel,
-} from "./interactive/target";
+} from "./interactive/target.js";
 
 export {
   cameraFromRotations,
   moderation3dSpec,
   plotModeration3d,
-} from "./plot/moderation3d";
+} from "./plot/moderation3d.js";
 export type {
   Moderation3dHandle,
   Moderation3dSpec,
   Moderation3dViewOptions,
   PlotModeration3dOptions,
-} from "./plot/moderation3d";
+} from "./plot/moderation3d.js";
 
-export { moderationSurface } from "./core/moderation";
+export { moderationSurface } from "./core/moderation.js";
 export type {
   ModerationOptions,
   ModerationSurface,
   ModerationTerm,
-} from "./core/moderation";
+} from "./core/moderation.js";
 
 export {
   frameRows,
@@ -93,8 +93,8 @@ export {
   numericColumns,
   requireNumericColumn,
   requireThreeNumericColumns,
-} from "./core/frame";
-export type { Column, DataFrame } from "./core/frame";
+} from "./core/frame.js";
+export type { Column, DataFrame } from "./core/frame.js";
 
-export { moderationData } from "./data/moderationData";
-export type { ModerationData } from "./data/moderationData";
+export { moderationData } from "./data/moderationData.js";
+export type { ModerationData } from "./data/moderationData.js";

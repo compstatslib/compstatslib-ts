@@ -6,7 +6,7 @@
  * in `regression.test.ts`.
  */
 
-import { mean, sum, zipWith } from "./arith";
+import { mean, sum, zipWith } from "./arith.js";
 
 /** One observation. R holds these as rows of a data frame. */
 export interface Point {

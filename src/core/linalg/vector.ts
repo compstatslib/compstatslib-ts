@@ -17,9 +17,9 @@
  * (plan 004, Slice 7). `mul` is R's `*` there too, and not `%*%`.
  */
 
-import { sum, zipWith } from "../arith";
-import { make, type Dimnames, type Matrix } from "./matrix";
-import { isMatrix } from "./ops";
+import { sum, zipWith } from "../arith.js";
+import { make, type Dimnames, type Matrix } from "./matrix.js";
+import { isMatrix } from "./ops.js";
 
 /**
  * A numeric vector: R's atomic double vector, which here is a plain array of

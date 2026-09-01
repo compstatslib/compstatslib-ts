@@ -27,16 +27,16 @@
  * blank and the window is set again from the population.
  */
 
-import { seededRng } from "../core/rng";
-import { plotSampling } from "../plot/sampling";
+import { seededRng } from "../core/rng.js";
+import { plotSampling } from "../plot/sampling.js";
 import type {
   PlotSamplingOptions,
   PlotSamplingResult,
   SamplingState,
-} from "../plot/sampling";
-import { buildSelect } from "./controls";
-import { resolveControlTarget } from "./target";
-import type { ControlTarget } from "./target";
+} from "../plot/sampling.js";
+import { buildSelect } from "./controls.js";
+import { resolveControlTarget } from "./target.js";
+import type { ControlTarget } from "./target.js";
 
 /** Everything the panel of controls holds. */
 export interface SamplingValues {

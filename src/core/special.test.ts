@@ -18,7 +18,7 @@ import {
   logBeta,
   logGamma,
   normalCdf,
-} from "./special";
+} from "./special.js";
 
 /** log Γ(n) for a whole n, summed straight from the factorial. */
 function logFactorialReference(n: number): number {

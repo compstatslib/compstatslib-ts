@@ -44,25 +44,25 @@
  * `rendered()`, so a caller that wants to hear about it must await.
  */
 
-import type { DataFrame } from "../core/frame";
-import type { ModerationOptions, ModerationSurface } from "../core/moderation";
-import { plotModeration3d } from "../plot/moderation3d";
+import type { DataFrame } from "../core/frame.js";
+import type { ModerationOptions, ModerationSurface } from "../core/moderation.js";
+import { plotModeration3d } from "../plot/moderation3d.js";
 import type {
   Moderation3dSpec,
   Moderation3dViewOptions,
   PlotModeration3dOptions,
-} from "../plot/moderation3d";
-import { sameCamera } from "../plot/plotly";
+} from "../plot/moderation3d.js";
+import { sameCamera } from "../plot/plotly.js";
 import type {
   PlotlyCamera,
   PlotlyHTMLElement,
   PlotlyLike,
   PlotlyRelayoutEvent,
-} from "../plot/plotly";
-import { buildNote, buildSlider, startingSliderValue } from "./controls";
-import type { SliderRange } from "./controls";
-import { resolvePlot3dTarget } from "./target";
-import type { Plot3dTarget } from "./target";
+} from "../plot/plotly.js";
+import { buildNote, buildSlider, startingSliderValue } from "./controls.js";
+import type { SliderRange } from "./controls.js";
+import { resolvePlot3dTarget } from "./target.js";
+import type { Plot3dTarget } from "./target.js";
 
 /**
  * Everything the panel holds: the two rotations, and the model behind the

@@ -46,33 +46,33 @@
  * choice is visible in the pickers instead.
  */
 
-import { numericColumns, requireThreeNumericColumns } from "../core/frame";
-import type { DataFrame } from "../core/frame";
+import { numericColumns, requireThreeNumericColumns } from "../core/frame.js";
+import type { DataFrame } from "../core/frame.js";
 import {
   DEFAULT_SCATTER3D_STYLE,
   plotScatter3d,
   validateScatter3dStyle,
-} from "../plot/scatter3d";
+} from "../plot/scatter3d.js";
 import type {
   PlotScatter3dOptions,
   Scatter3dSpec,
   Scatter3dSpecOptions,
-} from "../plot/scatter3d";
-import { sameCamera } from "../plot/plotly";
+} from "../plot/scatter3d.js";
+import { sameCamera } from "../plot/plotly.js";
 import type {
   PlotlyHTMLElement,
   PlotlyLike,
   PlotlyRelayoutEvent,
-} from "../plot/plotly";
+} from "../plot/plotly.js";
 import {
   buildNote,
   buildSelect,
   buildSlider,
   startingSliderValue,
-} from "./controls";
-import type { SliderRange } from "./controls";
-import { resolvePlot3dTarget } from "./target";
-import type { Plot3dTarget } from "./target";
+} from "./controls.js";
+import type { SliderRange } from "./controls.js";
+import { resolvePlot3dTarget } from "./target.js";
+import type { Plot3dTarget } from "./target.js";
 
 /**
  * Everything the panel holds, and everything that reproduces the picture.
