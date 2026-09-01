@@ -218,11 +218,19 @@ function resolveSteps(ndeps: number | Vector | undefined, length: number): numbe
  * tempting alternative — walk one working copy, `x[i] += eps`, then
  * `x[i] -= 2 * eps`, then `x[i] += eps` to restore it — is a different
  * calculation in doubles, and the difference is visible on the third
- * objective evaluation of a run: at `par[0] = -1.2` with `eps = 1e-3`, R
- * evaluates at -1.2009999999999998 where the walk reaches -1.201, and the
- * walk leaves -1.2000000000000002 behind instead of -1.2. Sixty iterations
- * later that costs two line-search reductions and the counts no longer match
- * R's. Form the points from `par`.
+ * objective evaluation of a run. At `par[0] = -1.2` with `eps = 1e-3`:
+ *
+ * - R's form, `v - eps`, gives `-1.2009999999999998`.
+ * - The walk, `(v + eps) - 2 * eps`, gives `-1.201` — the same double that
+ *   prints as `-1.2010000000000001` at 17 significant digits, which is worth
+ *   saying because a reader checking this at full precision will otherwise
+ *   think one of the two spellings is a typo. They are one value.
+ * - Restoring, `((v + eps) - 2 * eps) + eps`, leaves `-1.2000000000000002`
+ *   rather than `-1.2`, so the drift persists into the next coordinate.
+ *
+ * Sixty iterations later that costs two line-search reductions and the counts
+ * no longer match R's. Form the points from `par`. All three values are pinned
+ * in `optim.test.ts`, so this paragraph cannot drift from the arithmetic.
  *
  * @throws Error If a difference is not finite, in R's own words.
  */

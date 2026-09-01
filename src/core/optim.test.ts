@@ -347,6 +347,55 @@ describe("optim from a stationary start (fixture section 4)", () => {
  * `grcount - ilast` exceeds `2n`. A port that gets any of those wrong misses
  * the count even when it lands on the same optimum.
  */
+/**
+ * The three doubles quoted in `centralDifferences`'s docstring.
+ *
+ * They are the reason this port forms its finite-difference points from `par`
+ * rather than by walking a working copy, and the difference decides whether
+ * `counts` matches R. A docstring number that is a double can be pinned, so
+ * it is: if the arithmetic ever stops behaving this way, or someone edits the
+ * paragraph, this fails rather than the claim quietly becoming false.
+ */
+describe("the finite-difference points the docstring quotes", () => {
+  const v = -1.2;
+  const eps = 1e-3;
+
+  test("R's form and the walk reach different doubles", () => {
+    expect(v - eps).toBe(-1.2009999999999998);
+    expect((v + eps) - 2 * eps).toBe(-1.201);
+    expect(v - eps).not.toBe((v + eps) - 2 * eps);
+  });
+
+  /**
+   * `-1.201` and `-1.2010000000000001` are one value: the first is the
+   * shortest round-tripping spelling, the second the 17-digit expansion.
+   * Pinned because the docstring quotes both and a reader will meet the
+   * second while checking the first.
+   */
+  test("the two spellings of the walk's value are the same double", () => {
+    expect((v + eps) - 2 * eps).toBe(-1.2010000000000001);
+    expect(-1.201).toBe(-1.2010000000000001);
+  });
+
+  /**
+   * The assertions above are parse-time: they pin which double each spelling
+   * denotes. They do **not** pin which spelling the runtime prints, and that
+   * is what the docstring actually promises a reader who runs this and looks
+   * at the output. If an engine ever changed its shortest-round-trip form,
+   * every assertion above would still pass while the prose became wrong.
+   */
+  test("the docstring leads with the spelling the runtime prints", () => {
+    expect(String(v - eps)).toBe("-1.2009999999999998");
+    expect(String((v + eps) - 2 * eps)).toBe("-1.201");
+    expect(String((v + eps) - 2 * eps + eps)).toBe("-1.2000000000000002");
+  });
+
+  test("the walk does not restore the original", () => {
+    expect(((v + eps) - 2 * eps) + eps).toBe(-1.2000000000000002);
+    expect(((v + eps) - 2 * eps) + eps).not.toBe(v);
+  });
+});
+
 describe("section 6 — the vmmin path", () => {
   /** The extended Rosenbrock: four coupled banana valleys, minimum 0 at 1s. */
   const fr5 = (x: readonly number[]): number =>

@@ -67,7 +67,7 @@ The port is complete. All 9 function families from the R package are
 implemented across the three layers, with both bundled datasets exported from
 R and a demo page per family. The full test suite asserts core math against
 R-computed conformance fixtures. Published to npm as `@compstats/core`, at
-0.5.0. The `/linalg` entry adds the general linear algebra base R provides
+**0.6.0**. The `/linalg` entry adds the general linear algebra base R provides
 for free. 0.5.0 added the base-R primitives a consuming library needs of its
 own — two-matrix `cov`/`cor`, `scale`, `chol`/`chol2inv`, `predictLm`,
 `pchisq`, `qchisq`, `pnorm`, `qnorm`, `optim(method = "BFGS")`, elementwise
@@ -75,9 +75,9 @@ matrix arithmetic and `outer` — and an `fma` option that trades the pinned
 last bits for 10 to 25 times the speed where a caller wants throughput.
 `NOTICE` records the provenance of every algorithm the package reimplements.
 
-**0.6.0 is prepared on `ray/seminr-feedback` and not yet published** (PR #3
-against `develop`). It acts on `seminr-ts`'s adoption report. Two parts of it
-change what a caller sees:
+**0.6.0 acted on `seminr-ts`'s adoption report** (plan 005). Two parts of it
+change what a caller sees, and a consumer upgrading from 0.5.0 should read
+both:
 
 - Every relative specifier the package publishes now carries a `.js`
   extension. Without it, a `node16`/`nodenext` consumer got **TS2834** with

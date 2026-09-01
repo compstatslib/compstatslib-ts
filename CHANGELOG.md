@@ -3,6 +3,79 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## 0.6.1
+
+### Documented
+
+* The three doubles quoted in `optim`'s finite-difference docstring are now
+  pinned in `optim.test.ts`. They are the reason the port forms its evaluation
+  points from `par` rather than by walking a working copy, and the difference
+  decides whether `counts` matches R — but nothing asserted them, so the
+  paragraph could have drifted from the arithmetic silently. The docstring
+  also now says explicitly that `-1.201` and `-1.2010000000000001` are **one
+  double**, the shortest round-tripping spelling and the 17-digit expansion of
+  the same value, because a reader checking the claim at full precision would
+  otherwise conclude one of them was a typo and have no way to tell whether
+  the code or the docs were wrong.
+
+* **A row-major caller never has to cross the conversion boundary.** An
+  `n x k` row-major buffer holds element `(i, j)` at `i * k + j`, which read
+  column-major with `nrow = k` is element `(j, i)` — so
+  `withDim(buf, {nrow: k, ncol: n})` *is* that matrix transposed, with nothing
+  reordered. Since `A · B = (Bᵀ · Aᵀ)ᵀ`, adopting both operands transposed and
+  multiplying in reverse hands back `(A · B)ᵀ` in column-major, whose buffer is
+  `A · B` in row-major. No conversion at either end. Verified bit-identical
+  against the ordinary `fromRows` route with `Object.is` on seven shapes from
+  `1 x 5 · 5 x 1` to `2000 x 24 · 24 x 8`, at **both `fma` settings**: the
+  accumulation order survives the reversal, because both routes sum over the
+  same inner index in the same order and each product's operands merely swap.
+  Re-viewing with `withDim` on every call costs nothing measurable, so this
+  works inside a loop. The README said the boundary cost 540 to 810 µs as
+  though it were unavoidable; for a row-major caller it is not, and the
+  correction is owed.
+* A `matmul` table with the right control, replacing a first attempt that had
+  the wrong one. The baseline held `number[][]` and so allocated `n` small
+  arrays per call, which credited the flat representation to this package's
+  arithmetic and produced ratios from 1.0x to 2.1x that varied by shape for no
+  good reason. Measured against a loop with the same arithmetic over flat
+  row-major buffers and a caller-held output, **`matmul` is within 3% of it at
+  every shape from 250 x 6 · 6 x 6 to 2000 x 24 · 24 x 8**. That is a tie. The
+  roughly 2x is what leaving arrays-of-arrays is worth, and it is available to
+  a caller who never touches this package. The reason to adopt is reach — `qr`,
+  `lm`, `solve`, `chol` and `cor` over the same held buffers at R's numbers,
+  with no boundary — not speed. The throughput table's own first column carries
+  the same caveat now, since its loops also hold `number[][]`.
+
+* **A table of which routines take the `fma` option and what they default to.**
+  The rule is more uniform than the one example suggested: *every* routine that
+  accepts `fma` defaults to `true`, with no exceptions. What varies is whether
+  the option exists. `cov` does not take one in any form, because R's `cov.c`
+  accumulates plainly and following R means not offering the choice. Nor does
+  the one-matrix `cor(x)`, which reads its spreads off the covariance diagonal
+  and inherits that plain sum — while the two-argument `cor(x, y)` walks each
+  column again, takes the option, and defaults to FMA. Two forms of one
+  function, one of which accepts the argument. The consequence worth stating:
+  `cov(x, y, { fma: false })` is a **compile error**, not a silent no-op, so a
+  blanket "pass `{ fma: false }` everywhere" rule will not typecheck. `cov`'s
+  docstring now says why it is the exception in the same breath as saying that
+  it is.
+* **`crossprod` and `cov` default to different arithmetic, and composing them
+  costs 8.7x if you do not say so.** `cov(x, y)` is a plain sum, as R's
+  `cov.c` is; `crossprod` defaults to the software fused multiply-add. A
+  caller centering once and taking crossproducts — the recipe below — pays
+  84.2 µs against `cov`'s 9.7 µs on the same 250 x 4 operands unless it passes
+  `{ fma: false }`, which turns a 1.5x win into a 7x loss and lands on
+  different last bits besides. The two routines default differently because
+  they follow different R sources. Now documented at the recipe.
+* The README's `scale` + `crossprod` recipe for reusing one centering across
+  many pairings now carries the measurement that justifies it: **1.5x over
+  `cov` per pairing at 15 pairings, 1.7x at 45**, on a 250 x 24 matrix in
+  blocks of four. It was briefly removed on the grounds that it "only cost a
+  caller digits"; that was wrong — it is a real saving for the many-pairings
+  case, and the check that seemed to refute it had compared `crossprod`'s
+  default FMA against `cov`'s plain sum. The accuracy caveat and its fix stay,
+  and `scale.test.ts` keeps pinning both.
+
 ## 0.6.0
 
 ### Changed

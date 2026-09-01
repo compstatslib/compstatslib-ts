@@ -19,6 +19,16 @@
  * runs inside a bootstrap. (CLAUDE.md allows an index loop with a stated
  * reason; that is the reason.)
  *
+ * **`cov` takes no `fma` option, and that is deliberate rather than an
+ * oversight.** R's `src/library/stats/src/cov.c` accumulates plainly, so
+ * following R here means not offering the choice: every form of `cov` is a
+ * plain sum and pins against R bit for bit. Every routine in this entry that
+ * *does* take the option defaults to `true`, so `cov` reads as the exception
+ * to a uniform rule — it is the exception to *having* the option, not to the
+ * default. A caller writing a blanket `{ fma: false }` across call sites will
+ * find `cov(x, y, { fma: false })` is a compile error, and should leave `cov`
+ * alone; it is already what that setting asks for.
+ *
  * Where R takes the spread differs between its two paths, and the port
  * follows each one:
  *
