@@ -6,6 +6,10 @@
 
 The package brings statistical primitives and visualization tools to the TypeScript/JavaScript ecosystem. In both sets of features, this package seeks to attain reasonable parity with equivalent functions from the [R platform](https://www.r-project.org) where statistical routines are well vetted. The routines are largely ported from R implementations and the test suite compares each routine against equivalent procedures run in R on the same input and pins the answer to R's output, given a tolerance. The long-term vision of this package is to bring more of R's statistical judgment and rigor into TypeScript/JavaScript.
 
+**Vision.** This package aims to bring more of R's core algorithms to TypeScript/JavaScript. The statistical routines currently support the visualization tools and demonstrations. As of now, there is no general framework for generalized linear models beyond logistic regression, and no singular value decomposition. But such features will likely be added in the future based on demand.
+
+## Features
+
 **For statistical tasks**, this package: (1) provides types for vector, dataframe, and matrix representations; and (2) fits linear models, factors matrices, finds principal components, and evaluates distributions. The statistical routines can run browser-side or server-side, and can be used in both TypeScript and JavaScript.
 
 - **Matrices and linear algebra.** A plain matrix type with multiplication, transpose, inverse, determinant, condition number, and the two workhorse factorizations (QR and LU) that every solver and model fit is built on, plus covariance and correlation matrices, symmetric eigendecomposition and principal components.
@@ -13,11 +17,16 @@ The package brings statistical primitives and visualization tools to the TypeScr
 - **Distributions and random draws.** The Student t distribution — density, cumulative probability and quantiles — and reproducible draws from the uniform, normal, t, log-normal and Cauchy distributions, all from a seeded generator you pass in, so a demonstration or a test repeats exactly.
 - **Summaries and shaping.** Means, medians, standard deviations and quantiles that follow the same definitions R uses; kernel density estimation with its bandwidth rule; histogram binning with its bin-count rule; and the algorithm that picks readable axis tick marks.
 
-**For visualization tasks** this package ports functions from its R sibling [`compstatslib`](https://github.com/compstatslib/compstatslib). Explore any table as a rotatable 3D point cloud. Fit a moderated (interaction) regression and turn its surface to watch the interaction twist it away from a plane. Click points onto a canvas and see a regression line, a logistic curve or a principal-component axis follow your mouse. Other components simulate a concept rather than your data — sampling distributions, confidence intervals, t-tests, matrix inversion — for class demonstrations, homework and self-study. Those demonstrations are also what the statistics were built for, and they are the standing proof that the statistics work.
+**For visualization tasks**, this package ports functions from its R sibling [`compstatslib`](https://github.com/compstatslib/compstatslib).
+
+- **3D point clouds.** Explore any table as a rotatable 3D point cloud.
+- **Moderation surfaces.** Fit a moderated (interaction) regression and turn its surface to watch the interaction twist it away from a plane.
+- **Click-to-fit canvases.** Click points onto a canvas and see a regression line, a logistic curve or a principal-component axis follow your mouse.
+- **Concept simulations.** Other components simulate a concept rather than your data — sampling distributions, confidence intervals, t-tests, matrix inversion — for class demonstrations, homework and self-study.
+
+Those demonstrations are also what the statistics were built for, and they are the standing proof that the statistics work.
 
 The 2D plots draw on a plain Canvas 2D context. The 3D plots draw through Plotly.
-
-**Vision.** This package aims to bring more of R's core algorithms to TypeScript/JavaScript. The statistical routines currently support the visualization tools and demonstrations. As of now, there is no general framework for generalized linear models beyond logistic regression, and no singular value decomposition. But such features will likely be added in the future based on demand.
 
 ## Install
 
@@ -328,6 +337,24 @@ The buffer **aliases**: R copies on modify, JavaScript does not, and `withDim` d
 
 And at the boundary itself, on a 2000 x 24 frame: `fromRows` costs 540 to 810 µs — it varies with how polymorphic the call site has become — where `withDim` over data already in this layout costs **under a tenth of a microsecond**. It copies nothing, so it is not a faster conversion; it is no conversion.
 
+#### If your data is row-major, adopt it transposed
+
+The paragraph above assumes you can hold your data column-major. **You do not have to.** A row-major buffer is already a column-major matrix — its transpose — so a row-major caller can cross the boundary in both directions for free:
+
+An `n x k` row-major buffer holds element `(i, j)` at `i * k + j`. Read column-major with `nrow = k`, that same index is element `(j, i)`. So `withDim(buf, { nrow: k, ncol: n })` **is** Aᵀ, with nothing reordered. Since `A · B = (Bᵀ · Aᵀ)ᵀ`, multiply in reverse:
+
+```js
+// A is n x k and B is k x m, both row-major in flat Float64Arrays
+const At = withDim(aBuf, { nrow: k, ncol: n });   // A-transpose, free
+const Bt = withDim(bBuf, { nrow: m, ncol: k });   // B-transpose, free
+const product = matmul(Bt, At);                   // (A · B)-transpose
+// product.data is A · B in ROW-major, n x m, directly usable
+```
+
+The result is `(A · B)ᵀ` in column-major, and the buffer of `(A · B)ᵀ` column-major *is* `A · B` row-major — element `(c, r)` sits at `c * m + r` either way. So there is no conversion at either end.
+
+**The accumulation order survives the reversal**, which is the part worth checking rather than assuming: both routes sum over the same inner index in the same order, and each product's operands merely swap, which IEEE multiplication is exact under. Verified bit-identical against the ordinary `fromRows` route with `Object.is` on seven shapes from `1 x 5 · 5 x 1` to `2000 x 24 · 24 x 8`, at **both `fma` settings**. Re-viewing with `withDim` on every call costs nothing measurable, so the identity is usable inside a loop and not merely true on paper. `matmul` never writes to its inputs, and passing the same buffer as both operands is safe.
+
 #### Throughput
 
 Every routine that multiplies rounds each product once, through a software fused multiply-add, so that a result is R's double bit for bit. That costs 10 to 25 times the time of plain arithmetic. Pass `{ fma: false }` to `matmul`, `crossprod`, `tcrossprod`, `qr`, `lu`, `solve`, `det`, `determinant`, `rcond`, `lm` and `leastSquares` to use plain `a * b + c` instead, for a result a few units in the last place away. `qr` and `lu` record the setting on the decomposition, so their readers follow it. A program may mix the two settings without a penalty.
@@ -353,18 +380,20 @@ So `{ fma: false }` is **not "the fast one"**. It is a different answer. On a we
 
 Converting at each end costs 811 µs in and 397 µs out in this benchmark's run, which is more than any operation in the table — so through `Matrix` the plain path *loses* on all three. Hold your data as a column-major `Float64Array` and open it with `withDim` (above) and it wins or ties on all three, because there is nothing to convert. The last column is what R's double costs at that boundary: 6 to 25 times the loop.
 
-#### Reusing one centering across many pairings
+**Small n is a different regime, and it is where `matmul` gains most.** A frame of a few hundred rows behaves nothing like 2000, so the table above is not the one to read if that is your shape. Row-major buffers adopted transposed, `{ fma: false }`, median per call:
 
-`cov` and `cor` center their input themselves, which is wasted work for a caller that pairs many column subsets of one matrix — every block against every other. Center once with `scale` and take the crossproduct, which is R's own identity:
+| computation | a hand-written row-major loop | adopted transposed | through `fromRows`/`toRows` |
+| --- | --- | --- | --- |
+| `matmul` 250 x 6 · 6 x 6 | 20.2 µs | **9.7 µs** (2.1x) | 62.7 µs |
+| `matmul` 250 x 24 · 24 x 24 | 201.2 µs | **130.2 µs** (1.5x) | 266.9 µs |
+| `matmul` 250 x 24 · 24 x 6 | 37.7 µs | **36.5 µs** (1.0x) | 109.3 µs |
+| `matmul` 2000 x 24 · 24 x 8 | 626.5 µs | **368.3 µs** (1.7x) | 1.25 ms |
 
-```js
-const centered = scale(x, { scale: false }).scaled;
-// crossprod(centered) / (n - 1)  is  cov(x)
-const standardized = scale(x).scaled;
-// crossprod(standardized) / (n - 1)  is  cor(x)
-```
+The ratio is set by how square the right operand is, not by n: a `6 x 6` right operand gains 2.1x where a thin `24 x 6` is a wash. What is constant is the third column — routing through `fromRows`/`toRows` costs 2 to 6 times the loop at every shape, which is the boundary and not the arithmetic.
 
-Verified rather than asserted, because the identity is only algebraically true here: `cov` refines its column means and `scale` takes the plain `colMeans`. Measured across several shapes up to 2000 x 24, the recipe reproduces `cov(x)` and `cor(x)` to **7e-15 relative or better**. On columns dominated by a large constant offset it loses about three digits — 2.3e-11 at an offset of 1e9 — and the whole of that gap is the mean, not the crossproduct, whose `fma` setting does not move the number at all. If your columns look like that, pass the refined means as `center` and the agreement comes back:
+#### `cov` refines its column means; `scale` does not
+
+Worth knowing if you compare the two, or center once yourself and take a crossproduct instead of calling `cov`. R's `cov()` refines each column mean (`m + mean(x - m)`) where `scale()` takes the plain `colMeans`, so the two paths agree to about 7e-15 relative on ordinary data and lose roughly three digits — 2.3e-11 at a column offset of 1e9 — on columns dominated by a large constant. The whole of that gap is the mean, not the crossproduct, whose `fma` setting does not move the number at all. Passing `cov`'s refined means as `scale`'s `center` closes it:
 
 ```js
 const refined = columns.map((col) => {
@@ -373,6 +402,8 @@ const refined = columns.map((col) => {
 });
 scale(x, { scale: false, center: refined });
 ```
+
+`scale.test.ts` pins both the agreement and the gap. If you want `cov(x)` or `cor(x)`, call them — they are bit-pinned to R directly and centering yourself only costs you digits.
 
 ### Bundled data
 

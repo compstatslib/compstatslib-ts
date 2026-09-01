@@ -3,6 +3,43 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Documented
+
+* **A row-major caller never has to cross the conversion boundary.** An
+  `n x k` row-major buffer holds element `(i, j)` at `i * k + j`, which read
+  column-major with `nrow = k` is element `(j, i)` — so
+  `withDim(buf, {nrow: k, ncol: n})` *is* that matrix transposed, with nothing
+  reordered. Since `A · B = (Bᵀ · Aᵀ)ᵀ`, adopting both operands transposed and
+  multiplying in reverse hands back `(A · B)ᵀ` in column-major, whose buffer is
+  `A · B` in row-major. No conversion at either end. Verified bit-identical
+  against the ordinary `fromRows` route with `Object.is` on seven shapes from
+  `1 x 5 · 5 x 1` to `2000 x 24 · 24 x 8`, at **both `fma` settings**: the
+  accumulation order survives the reversal, because both routes sum over the
+  same inner index in the same order and each product's operands merely swap.
+  Re-viewing with `withDim` on every call costs nothing measurable, so this
+  works inside a loop. The README said the boundary cost 540 to 810 µs as
+  though it were unavoidable; for a row-major caller it is not, and the
+  correction is owed.
+* A `matmul` table at small n. The throughput section covered
+  `2000 x 24 · 24 x 8` only, and a frame of a few hundred rows is a different
+  regime — the gain over a hand-written row-major loop runs 1.0x to 2.1x and is
+  set by how square the right operand is, not by n. What is constant across
+  shapes is that routing through `fromRows`/`toRows` costs 2 to 6 times the
+  loop, which is the boundary and not the arithmetic.
+
+### Changed
+
+* The README's `scale` + `crossprod` recipe for `cov`/`cor` is replaced by the
+  fact underneath it: `cov` refines each column mean where `scale` takes the
+  plain `colMeans`, so the two agree to about 7e-15 and lose three digits on
+  columns with a large constant offset. The recipe was written for a consumer
+  that turned out to already have the optimization, and as general advice it
+  only ever cost a caller digits — `cov(x)` and `cor(x)` are bit-pinned to R
+  directly. `scale.test.ts` keeps pinning both the agreement and the gap, which
+  is a real property of the mean refinement and worth asserting on its own.
+
 ## 0.6.0
 
 ### Changed
