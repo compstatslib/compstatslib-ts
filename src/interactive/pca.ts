@@ -24,12 +24,12 @@
  * counting towards the components.
  */
 
-import type { PcaResult } from "../core/pca";
-import type { Point } from "../core/regression";
-import { pcaScale, plotPca } from "../plot/pca";
-import type { PlotPcaOptions } from "../plot/pca";
-import { eventPixel, resolveInteractiveTarget } from "./target";
-import type { InteractiveTarget } from "./target";
+import type { PcaResult } from "../core/pca.js";
+import type { Point } from "../core/regression.js";
+import { pcaScale, plotPca } from "../plot/pca.js";
+import type { PlotPcaOptions } from "../plot/pca.js";
+import { eventPixel, resolveInteractiveTarget } from "./target.js";
+import type { InteractiveTarget } from "./target.js";
 
 /**
  * What `done()` hands over: R's `list(points = ..., pca = ...)`.

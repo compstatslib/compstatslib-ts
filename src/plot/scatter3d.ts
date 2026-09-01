@@ -43,9 +43,9 @@ import {
   isNumericColumn,
   numericColumns,
   requireThreeNumericColumns,
-} from "../core/frame";
-import type { Column, DataFrame } from "../core/frame";
-import { loadPlotly } from "./plotly";
+} from "../core/frame.js";
+import type { Column, DataFrame } from "../core/frame.js";
+import { loadPlotly } from "./plotly.js";
 import type {
   PlotlyCamera,
   PlotlyHTMLElement,
@@ -53,7 +53,7 @@ import type {
   PlotlyLike,
   Scatter3dMarker,
   Scatter3dTrace,
-} from "./plotly";
+} from "./plotly.js";
 
 /**
  * The name Plotly keeps the view under. R sets the same literal string, in

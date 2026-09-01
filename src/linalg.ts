@@ -23,10 +23,10 @@ export {
   row,
   toColumns,
   toRows,
-} from "./core/linalg/matrix";
-export type { Dimnames, Matrix, MatrixOptions } from "./core/linalg/matrix";
+} from "./core/linalg/matrix.js";
+export type { Dimnames, Matrix, MatrixOptions } from "./core/linalg/matrix.js";
 
-export type { FmaOption } from "./core/arith";
+export type { FmaOption } from "./core/arith.js";
 export {
   cbind,
   crossprod,
@@ -38,8 +38,8 @@ export {
   t,
   tcrossprod,
   transpose,
-} from "./core/linalg/ops";
-export type { MatrixOrVector } from "./core/linalg/ops";
+} from "./core/linalg/ops.js";
+export type { MatrixOrVector } from "./core/linalg/ops.js";
 
 export {
   DEFAULT_QR_TOLERANCE,
@@ -51,8 +51,8 @@ export {
   qrQy,
   qrR,
   qrResid,
-} from "./core/linalg/qr";
-export type { QrDecomposition, QrOptions } from "./core/linalg/qr";
+} from "./core/linalg/qr.js";
+export type { QrDecomposition, QrOptions } from "./core/linalg/qr.js";
 
 export {
   DEFAULT_SOLVE_TOLERANCE,
@@ -62,27 +62,27 @@ export {
   matrixNorm,
   rcond,
   solve,
-} from "./core/linalg/lu";
-export type { LuDecomposition, LuOptions, MatrixNormType, SolveOptions } from "./core/linalg/lu";
+} from "./core/linalg/lu.js";
+export type { LuDecomposition, LuOptions, MatrixNormType, SolveOptions } from "./core/linalg/lu.js";
 
-export { lookup, namedVector } from "./core/linalg/namedVector";
-export type { NamedVector } from "./core/linalg/namedVector";
+export { lookup, namedVector } from "./core/linalg/namedVector.js";
+export type { NamedVector } from "./core/linalg/namedVector.js";
 
-export { modelMatrix } from "./core/linalg/modelMatrix";
-export type { ModelMatrix, ModelSpec, Term } from "./core/linalg/modelMatrix";
+export { modelMatrix } from "./core/linalg/modelMatrix.js";
+export type { ModelMatrix, ModelSpec, Term } from "./core/linalg/modelMatrix.js";
 
-export { lm, predictLm } from "./core/linalg/lm";
-export type { FStatistic, LmFit, LmOptions } from "./core/linalg/lm";
+export { lm, predictLm } from "./core/linalg/lm.js";
+export type { FStatistic, LmFit, LmOptions } from "./core/linalg/lm.js";
 
-export { cor, cov, variance } from "./core/linalg/cov";
-export { scale } from "./core/linalg/scale";
-export type { Scaled, ScaleOptions } from "./core/linalg/scale";
-export { chol, chol2inv } from "./core/linalg/chol";
-export type { CholOptions } from "./core/linalg/chol";
-export { eigenSymmetric, isSymmetric } from "./core/linalg/eigen";
-export type { SymmetricEigen } from "./core/linalg/eigen";
-export { prcomp } from "./core/linalg/prcomp";
-export type { Prcomp, PrcompOptions } from "./core/linalg/prcomp";
+export { cor, cov, variance } from "./core/linalg/cov.js";
+export { scale } from "./core/linalg/scale.js";
+export type { Scaled, ScaleOptions } from "./core/linalg/scale.js";
+export { chol, chol2inv } from "./core/linalg/chol.js";
+export type { CholOptions } from "./core/linalg/chol.js";
+export { eigenSymmetric, isSymmetric } from "./core/linalg/eigen.js";
+export type { SymmetricEigen } from "./core/linalg/eigen.js";
+export { prcomp } from "./core/linalg/prcomp.js";
+export type { Prcomp, PrcompOptions } from "./core/linalg/prcomp.js";
 
 export {
   add,
@@ -93,5 +93,5 @@ export {
   norm,
   square,
   sub,
-} from "./core/linalg/vector";
-export type { Vector, VectorOrScalar } from "./core/linalg/vector";
+} from "./core/linalg/vector.js";
+export type { Vector, VectorOrScalar } from "./core/linalg/vector.js";

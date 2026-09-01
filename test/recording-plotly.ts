@@ -18,7 +18,7 @@ import type {
   PlotlyRelayoutEvent,
   PlotlyRelayoutUpdate,
   PlotlyTrace,
-} from "../src/plot/plotly";
+} from "../src/plot/plotly.js";
 
 /** One recorded call to `react`. */
 export interface ReactCall {

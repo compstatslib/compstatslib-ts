@@ -23,14 +23,14 @@
  * R plots `points`, not `mc_points`.
  */
 
-import { principalComponents } from "../core/pca";
-import type { PcaResult } from "../core/pca";
-import type { Point } from "../core/regression";
-import { DEFAULT_MARGINS, createScale, drawAxes, extentOf } from "./axes";
-import type { Extent, Scale } from "./axes";
-import { DOTTED, clearSurface, clipToArea, drawArrow, drawDots } from "./draw";
-import { resolveTarget } from "./target";
-import type { Context2D, PlotTarget } from "./target";
+import { principalComponents } from "../core/pca.js";
+import type { PcaResult } from "../core/pca.js";
+import type { Point } from "../core/regression.js";
+import { DEFAULT_MARGINS, createScale, drawAxes, extentOf } from "./axes.js";
+import type { Extent, Scale } from "./axes.js";
+import { DOTTED, clearSurface, clipToArea, drawArrow, drawDots } from "./draw.js";
+import { resolveTarget } from "./target.js";
+import type { Context2D, PlotTarget } from "./target.js";
 
 /** R's `plot_pca()` arguments, less the points. */
 export interface PlotPcaOptions {

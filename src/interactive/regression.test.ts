@@ -15,11 +15,11 @@
 
 import { describe, expect, test } from "bun:test";
 
-import type { Point } from "../core/regression";
-import { RecordingContext } from "../../test/recording-context";
-import type { DrawCall } from "../../test/recording-context";
-import { createScale } from "../plot/axes";
-import { interactiveRegression } from "./regression";
+import type { Point } from "../core/regression.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import type { DrawCall } from "../../test/recording-context.js";
+import { createScale } from "../plot/axes.js";
+import { interactiveRegression } from "./regression.js";
 
 const WIDTH = 600;
 const HEIGHT = 600;

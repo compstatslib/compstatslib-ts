@@ -24,9 +24,9 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { moderationData } from "../../data/moderationData";
-import { at, fromFrame, matrix, type Matrix } from "./matrix";
-import { scale } from "./scale";
+import { moderationData } from "../../data/moderationData.js";
+import { at, fromFrame, matrix, type Matrix } from "./matrix.js";
+import { scale } from "./scale.js";
 
 /** The entries column by column, as the fixture prints them. */
 function columnMajor(m: Matrix): number[] {

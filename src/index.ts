@@ -1,4 +1,4 @@
-export { machinePrecision } from "./core/precision";
+export { machinePrecision } from "./core/precision.js";
 export {
   mean,
   meanAbsoluteDeviation,
@@ -6,21 +6,21 @@ export {
   quantile,
   quantiles,
   sd,
-} from "./core/arith";
-export { bwNrd0, kernelDensity } from "./core/kde";
+} from "./core/arith.js";
+export { bwNrd0, kernelDensity } from "./core/kde.js";
 export type {
   KernelDensityEstimate,
   KernelDensityOptions,
-} from "./core/kde";
-export { histogram, nclassSturges } from "./core/histogram";
-export type { Histogram, HistogramOptions } from "./core/histogram";
-export { rPretty } from "./core/pretty";
-export type { RPrettyOptions } from "./core/pretty";
+} from "./core/kde.js";
+export { histogram, nclassSturges } from "./core/histogram.js";
+export type { Histogram, HistogramOptions } from "./core/histogram.js";
+export { rPretty } from "./core/pretty.js";
+export type { RPrettyOptions } from "./core/pretty.js";
 export {
   drawSamples,
   sampleConfidenceIntervals,
   simulateSampleCi,
-} from "./core/sampling";
+} from "./core/sampling.js";
 export type {
   DistributionFn,
   DrawSamplesOptions,
@@ -29,35 +29,35 @@ export type {
   SampleCiSimulation,
   SampleDraw,
   SampleInterval,
-} from "./core/sampling";
+} from "./core/sampling.js";
 export {
   frameRows,
   isNumericColumn,
   numericColumns,
   requireNumericColumn,
-} from "./core/frame";
-export type { Column, DataFrame } from "./core/frame";
-export { moderationSurface } from "./core/moderation";
+} from "./core/frame.js";
+export type { Column, DataFrame } from "./core/frame.js";
+export { moderationSurface } from "./core/moderation.js";
 export type {
   ModerationOptions,
   ModerationSurface,
   ModerationTerm,
-} from "./core/moderation";
-export { linearRegression } from "./core/regression";
-export type { Point, RegressionFit } from "./core/regression";
-export { determinant, invertMatrix } from "./core/matrix";
-export type { Matrix2, MatrixInversion, Singularity } from "./core/matrix";
-export { principalComponents } from "./core/pca";
-export type { Loadings, PcaResult } from "./core/pca";
+} from "./core/moderation.js";
+export { linearRegression } from "./core/regression.js";
+export type { Point, RegressionFit } from "./core/regression.js";
+export { determinant, invertMatrix } from "./core/matrix.js";
+export type { Matrix2, MatrixInversion, Singularity } from "./core/matrix.js";
+export { principalComponents } from "./core/pca.js";
+export type { Loadings, PcaResult } from "./core/pca.js";
 export {
   DEFAULT_LOGIT_EPSILON,
   DEFAULT_LOGIT_MAX_ITERATIONS,
   logisticRegression,
   predictLogit,
-} from "./core/logit";
-export type { LogitFit, LogitOptions } from "./core/logit";
-export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols";
-export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols";
+} from "./core/logit.js";
+export type { LogitFit, LogitOptions } from "./core/logit.js";
+export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols.js";
+export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols.js";
 export {
   rcauchy,
   rlnorm,
@@ -66,28 +66,28 @@ export {
   runif,
   sampleWithoutReplacement,
   seededRng,
-} from "./core/rng";
+} from "./core/rng.js";
 export type {
   Rng,
   RcauchyOptions,
   RlnormOptions,
   RnormOptions,
   RunifOptions,
-} from "./core/rng";
-export { dt, pt, qt } from "./core/tdist";
-export { pchisq, qchisq } from "./core/chisq";
-export type { TailOptions } from "./core/chisq";
-export { pnorm, qnorm } from "./core/norm";
-export type { NormalOptions } from "./core/norm";
-export { optim } from "./core/optim";
-export type { OptimControl, OptimOptions, OptimResult } from "./core/optim";
-export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest";
+} from "./core/rng.js";
+export { dt, pt, qt } from "./core/tdist.js";
+export { pchisq, qchisq } from "./core/chisq.js";
+export type { TailOptions } from "./core/chisq.js";
+export { pnorm, qnorm } from "./core/norm.js";
+export type { NormalOptions } from "./core/norm.js";
+export { optim } from "./core/optim.js";
+export type { OptimControl, OptimOptions, OptimResult } from "./core/optim.js";
+export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest.js";
 export type {
   FillRange,
   TTestErrorMatrix,
   TTestOptions,
   TTestStats,
-} from "./core/ttest";
+} from "./core/ttest.js";
 export {
   incompleteBeta,
   incompleteBetaSplit,
@@ -99,21 +99,21 @@ export {
   normalCdf,
   regularizedGammaP,
   regularizedGammaQ,
-} from "./core/special";
+} from "./core/special.js";
 
-export { moderationData } from "./data/moderationData";
-export type { ModerationData } from "./data/moderationData";
-export { pcaDegenerate } from "./data/pcaDegenerate";
+export { moderationData } from "./data/moderationData.js";
+export type { ModerationData } from "./data/moderationData.js";
+export { pcaDegenerate } from "./data/pcaDegenerate.js";
 
-export { resolveTarget } from "./plot/target";
-export type { Context2D, PlotTarget, RenderTarget } from "./plot/target";
+export { resolveTarget } from "./plot/target.js";
+export type { Context2D, PlotTarget, RenderTarget } from "./plot/target.js";
 export {
   DEFAULT_MARGINS,
   createScale,
   drawAxes,
   pixelInArea,
   prettyTicks,
-} from "./plot/axes";
+} from "./plot/axes.js";
 export type {
   AxesOptions,
   Extent,
@@ -121,13 +121,13 @@ export type {
   PlotArea,
   Scale,
   ScaleOptions,
-} from "./plot/axes";
-export { matrixInverseScale, plotMatrixInverse } from "./plot/matrixInverse";
-export { logitScale, plotLogit } from "./plot/logit";
-export type { LegendLocation, PlotLogitOptions } from "./plot/logit";
-export { plotSampleCi, sampleCiScale } from "./plot/sampleCi";
-export type { PlotSampleCiOptions } from "./plot/sampleCi";
-export { plotSampling, samplingScale } from "./plot/sampling";
+} from "./plot/axes.js";
+export { matrixInverseScale, plotMatrixInverse } from "./plot/matrixInverse.js";
+export { logitScale, plotLogit } from "./plot/logit.js";
+export type { LegendLocation, PlotLogitOptions } from "./plot/logit.js";
+export { plotSampleCi, sampleCiScale } from "./plot/sampleCi.js";
+export type { PlotSampleCiOptions } from "./plot/sampleCi.js";
+export { plotSampling, samplingScale } from "./plot/sampling.js";
 export type {
   PlotSamplingOptions,
   PlotSamplingResult,
@@ -135,20 +135,20 @@ export type {
   SamplingMarks,
   SamplingPanel,
   SamplingState,
-} from "./plot/sampling";
-export { pcaScale, plotPca } from "./plot/pca";
-export type { PlotPcaOptions } from "./plot/pca";
-export { plotRegression, regressionScale } from "./plot/regression";
-export type { PlotRegressionOptions } from "./plot/regression";
-export { formatNumber, formatStat } from "./plot/format";
-export { plotTTest, tTestScale } from "./plot/tTest";
-export type { PlotTTestOptions } from "./plot/tTest";
+} from "./plot/sampling.js";
+export { pcaScale, plotPca } from "./plot/pca.js";
+export type { PlotPcaOptions } from "./plot/pca.js";
+export { plotRegression, regressionScale } from "./plot/regression.js";
+export type { PlotRegressionOptions } from "./plot/regression.js";
+export { formatNumber, formatStat } from "./plot/format.js";
+export { plotTTest, tTestScale } from "./plot/tTest.js";
+export type { PlotTTestOptions } from "./plot/tTest.js";
 
 export {
   eventPixel,
   resolveControlTarget,
   resolveInteractiveTarget,
-} from "./interactive/target";
+} from "./interactive/target.js";
 export type {
   ClickSource,
   ControlTarget,
@@ -156,40 +156,40 @@ export type {
   PanelTarget,
   ResolvedPanel,
   SplitTarget,
-} from "./interactive/target";
+} from "./interactive/target.js";
 export {
   DEFAULT_MATRIX_INVERSE_VALUES,
   interactiveMatrixInverse,
-} from "./interactive/matrixInverse";
+} from "./interactive/matrixInverse.js";
 export type {
   InteractiveMatrixInverseHandle,
   InteractiveMatrixInverseOptions,
-} from "./interactive/matrixInverse";
-export { interactiveSampling } from "./interactive/sampling";
+} from "./interactive/matrixInverse.js";
+export { interactiveSampling } from "./interactive/sampling.js";
 export type {
   InteractiveSamplingHandle,
   InteractiveSamplingOptions,
   SamplingValues,
-} from "./interactive/sampling";
-export { interactiveTTest } from "./interactive/tTest";
+} from "./interactive/sampling.js";
+export { interactiveTTest } from "./interactive/tTest.js";
 export type {
   InteractiveTTestHandle,
   InteractiveTTestOptions,
   TTestValues,
-} from "./interactive/tTest";
-export { interactiveLogit } from "./interactive/logit";
+} from "./interactive/tTest.js";
+export { interactiveLogit } from "./interactive/logit.js";
 export type {
   InteractiveLogitHandle,
   InteractiveLogitOptions,
-} from "./interactive/logit";
-export { interactivePca } from "./interactive/pca";
+} from "./interactive/logit.js";
+export { interactivePca } from "./interactive/pca.js";
 export type {
   InteractivePcaHandle,
   InteractivePcaOptions,
   InteractivePcaResult,
-} from "./interactive/pca";
-export { interactiveRegression } from "./interactive/regression";
+} from "./interactive/pca.js";
+export { interactiveRegression } from "./interactive/regression.js";
 export type {
   InteractiveRegressionHandle,
   InteractiveRegressionOptions,
-} from "./interactive/regression";
+} from "./interactive/regression.js";

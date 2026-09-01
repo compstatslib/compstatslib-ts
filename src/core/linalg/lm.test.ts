@@ -23,11 +23,11 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { moderationData } from "../../data/moderationData";
-import { moderationSurface } from "../moderation";
-import { linearRegression } from "../regression";
-import { lm, predictLm } from "./lm";
-import { lookup, namedVector, type NamedVector } from "./namedVector";
+import { moderationData } from "../../data/moderationData.js";
+import { moderationSurface } from "../moderation.js";
+import { linearRegression } from "../regression.js";
+import { lm, predictLm } from "./lm.js";
+import { lookup, namedVector, type NamedVector } from "./namedVector.js";
 
 /** Compare at a relative tolerance, the way plan Q1 asks for values above 1. */
 function relativelyClose(actual: number, expected: number, tolerance = 1e-12): void {

@@ -59,14 +59,14 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { invertMatrix } from "../core/matrix";
-import type { Matrix2 } from "../core/matrix";
-import { RecordingContext } from "../../test/recording-context";
-import type { DrawCall, DrawStyle } from "../../test/recording-context";
-import { createScale, DEFAULT_MARGINS } from "./axes";
-import type { Scale } from "./axes";
-import { matrixInverseScale, plotMatrixInverse } from "./matrixInverse";
-import type { RenderTarget } from "./target";
+import { invertMatrix } from "../core/matrix.js";
+import type { Matrix2 } from "../core/matrix.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import type { DrawCall, DrawStyle } from "../../test/recording-context.js";
+import { createScale, DEFAULT_MARGINS } from "./axes.js";
+import type { Scale } from "./axes.js";
+import { matrixInverseScale, plotMatrixInverse } from "./matrixInverse.js";
+import type { RenderTarget } from "./target.js";
 
 const WIDTH = 520;
 const HEIGHT = 440;

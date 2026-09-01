@@ -3,6 +3,28 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## Unreleased
+
+### Fixed
+
+* Every relative specifier this package publishes now carries a `.js`
+  extension, so the emitted declarations resolve under a consumer's
+  `node16`/`nodenext` module resolution. Before this, `dist/index.d.ts` and
+  `dist/linalg.d.ts` re-exported without an extension, which TypeScript
+  rejects with TS2834 on every line. The silent half was worse: under the
+  consumer's `skipLibCheck: true`, the common setting, nothing was reported
+  and **every export became `any`** — `pchisq("hello", {}, [], 1, 2, 3)`
+  compiled, and a consumer re-exporting the symbol published `any` into its
+  own declarations. Nothing about the package's runtime behavior changes;
+  Bun and `tsc` both resolve a `.js` specifier to its `.ts` file, and the
+  bundle is byte for byte the size it was. A consumer that was compiling
+  against `any` may now see real errors in code the missing types were
+  hiding. Two checks keep the rule: a test that scans `src/`, `demo/` and
+  `test/` for an extensionless relative specifier, and
+  `test/consumer/check.ts`, a `nodenext` consumer type-checked against the
+  built `dist/` in `prepublishOnly` — with both `skipLibCheck` settings,
+  because either one alone misses half the defect.
+
 ## 0.5.0
 
 ### Added

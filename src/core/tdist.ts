@@ -28,7 +28,7 @@ import {
   inverseIncompleteBeta,
   logBeta,
   normalCdf,
-} from "./special";
+} from "./special.js";
 
 /** True when a non-centrality was given and is not the central case. */
 function isNonCentral(ncp: number | undefined): ncp is number {

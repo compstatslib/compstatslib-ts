@@ -30,13 +30,13 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { mean, quantile } from "./arith";
-import { seededRng, type Rng } from "./rng";
+import { mean, quantile } from "./arith.js";
+import { seededRng, type Rng } from "./rng.js";
 import {
   drawSamples,
   sampleConfidenceIntervals,
   simulateSampleCi,
-} from "./sampling";
+} from "./sampling.js";
 
 /** Relative tolerance for comparisons against R, as in the other slices. */
 const RELATIVE_TOLERANCE = 1e-12;

@@ -78,9 +78,9 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { moderationData } from "../data/moderationData";
-import type { DataFrame } from "./frame";
-import { moderationSurface } from "./moderation";
+import { moderationData } from "../data/moderationData.js";
+import type { DataFrame } from "./frame.js";
+import { moderationSurface } from "./moderation.js";
 
 /** Relative tolerance for values R accumulates in a different order. */
 const RELATIVE_TOLERANCE = 1e-12;

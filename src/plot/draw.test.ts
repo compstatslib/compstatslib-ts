@@ -10,10 +10,10 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { RecordingContext } from "../../test/recording-context";
-import { createScale } from "./axes";
-import type { Scale } from "./axes";
-import { DOTTED, clearSurface, clipToArea, drawArrow, drawDots } from "./draw";
+import { RecordingContext } from "../../test/recording-context.js";
+import { createScale } from "./axes.js";
+import type { Scale } from "./axes.js";
+import { DOTTED, clearSurface, clipToArea, drawArrow, drawDots } from "./draw.js";
 
 /** A plain scale over a 200 x 100 surface, world 0 to 10 on both axes. */
 function testScale(): Scale {

@@ -11,8 +11,8 @@
  * split is the pattern for every module in `src/interactive/`.
  */
 
-import { resolveTarget } from "../plot/target";
-import type { RenderTarget } from "../plot/target";
+import { resolveTarget } from "../plot/target.js";
+import type { RenderTarget } from "../plot/target.js";
 
 /** The part of an element that an interactive component listens to. */
 export type ClickSource = Pick<

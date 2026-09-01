@@ -17,8 +17,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { RecordingContext } from "../../test/recording-context";
-import { DEFAULT_MARGINS, createScale, drawAxes, prettyTicks } from "./axes";
+import { RecordingContext } from "../../test/recording-context.js";
+import { DEFAULT_MARGINS, createScale, drawAxes, prettyTicks } from "./axes.js";
 
 const MARGINS = { top: 20, right: 20, bottom: 40, left: 50 };
 

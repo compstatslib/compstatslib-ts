@@ -51,13 +51,13 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { principalComponents } from "../core/pca";
-import type { PcaResult } from "../core/pca";
-import type { Point } from "../core/regression";
-import { RecordingContext } from "../../test/recording-context";
-import type { DrawCall } from "../../test/recording-context";
-import { pcaScale } from "../plot/pca";
-import { interactivePca } from "./pca";
+import { principalComponents } from "../core/pca.js";
+import type { PcaResult } from "../core/pca.js";
+import type { Point } from "../core/regression.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import type { DrawCall } from "../../test/recording-context.js";
+import { pcaScale } from "../plot/pca.js";
+import { interactivePca } from "./pca.js";
 
 /** A square plot area, so the `asp = 1` window is R's plain -50 to 50. */
 const WIDTH = 472;

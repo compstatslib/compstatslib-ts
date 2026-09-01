@@ -63,7 +63,7 @@
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
     "dev": "bun run demo/server.ts",
-    "prepublishOnly": "bun test && bun run typecheck && bun run build"
+    "prepublishOnly": "bun test && bun run typecheck && bun run build && bun run test/consumer/check.ts"
   },
   "peerDependencies": {
     "plotly.js-dist-min": "^3.0.0"

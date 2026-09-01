@@ -30,8 +30,8 @@ import {
   numericColumns,
   requireNumericColumn,
   type DataFrame,
-} from "../frame";
-import type { Vector } from "./vector";
+} from "../frame.js";
+import type { Vector } from "./vector.js";
 
 /** Row names and column names, either of which R may leave `NULL`. */
 export type Dimnames = readonly [

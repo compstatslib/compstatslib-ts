@@ -20,10 +20,10 @@
 
 import { describe, expect, test } from "bun:test";
 
-import type { Point } from "../core/regression";
-import { RecordingContext } from "../../test/recording-context";
-import { logitScale, plotLogit } from "./logit";
-import type { RenderTarget } from "./target";
+import type { Point } from "../core/regression.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import { logitScale, plotLogit } from "./logit.js";
+import type { RenderTarget } from "./target.js";
 
 const WIDTH = 600;
 const HEIGHT = 400;

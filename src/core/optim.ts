@@ -54,10 +54,10 @@
  * `optim` follows this port's path, not R's.
  */
 
-import { sum, zipWith } from "./arith";
-import type { Matrix } from "./linalg/matrix";
-import { identity, matmul, outer } from "./linalg/ops";
-import { add, mul, sub, type Vector } from "./linalg/vector";
+import { sum, zipWith } from "./arith.js";
+import type { Matrix } from "./linalg/matrix.js";
+import { identity, matmul, outer } from "./linalg/ops.js";
+import { add, mul, sub, type Vector } from "./linalg/vector.js";
 
 /** R's `control` list, with the two tolerances this port adds. */
 export interface OptimControl {

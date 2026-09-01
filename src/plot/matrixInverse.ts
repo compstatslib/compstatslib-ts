@@ -29,13 +29,13 @@
  * enough loses its arrow altogether: see `MIN_ARROW_PIXELS` in `draw.ts`.
  */
 
-import { invertMatrix } from "../core/matrix";
-import type { Matrix2, MatrixInversion } from "../core/matrix";
-import { createScale, drawAxes } from "./axes";
-import type { Extent, Scale } from "./axes";
-import { clearSurface, clipToArea, drawArrow } from "./draw";
-import { resolveTarget } from "./target";
-import type { Context2D, PlotTarget } from "./target";
+import { invertMatrix } from "../core/matrix.js";
+import type { Matrix2, MatrixInversion } from "../core/matrix.js";
+import { createScale, drawAxes } from "./axes.js";
+import type { Extent, Scale } from "./axes.js";
+import { clearSurface, clipToArea, drawArrow } from "./draw.js";
+import { resolveTarget } from "./target.js";
+import type { Context2D, PlotTarget } from "./target.js";
 
 /** R: `xlim = c(-3, 3)` and `ylim = c(-3, 3)`, fixed in the function body. */
 const WORLD: Extent = { min: -3, max: 3 };

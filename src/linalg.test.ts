@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import * as linalg from "./linalg";
+import * as linalg from "./linalg.js";
 
 const EXPORTED = [
   // matrix

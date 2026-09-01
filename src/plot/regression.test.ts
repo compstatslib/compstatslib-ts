@@ -14,11 +14,11 @@
 
 import { describe, expect, test } from "bun:test";
 
-import type { Point } from "../core/regression";
-import { RecordingContext } from "../../test/recording-context";
-import { createScale } from "./axes";
-import { plotRegression, regressionScale } from "./regression";
-import type { RenderTarget } from "./target";
+import type { Point } from "../core/regression.js";
+import { RecordingContext } from "../../test/recording-context.js";
+import { createScale } from "./axes.js";
+import { plotRegression, regressionScale } from "./regression.js";
+import type { RenderTarget } from "./target.js";
 
 const WIDTH = 600;
 const HEIGHT = 600;

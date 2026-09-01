@@ -30,8 +30,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { sum } from "./arith";
-import { optim } from "./optim";
+import { sum } from "./arith.js";
+import { optim } from "./optim.js";
 
 /** Assert that a value agrees with R to a relative tolerance. */
 function expectCloseToR(actual: number, expected: number, tolerance: number): void {

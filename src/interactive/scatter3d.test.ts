@@ -54,10 +54,10 @@ import {
   RecordingPlotly,
   asPlotlyElement,
   type RecordedListeners,
-} from "../../test/recording-plotly";
-import type { DataFrame } from "../core/frame";
-import { scatter3dSpec } from "../plot/scatter3d";
-import type { Scatter3dTrace } from "../plot/plotly";
+} from "../../test/recording-plotly.js";
+import type { DataFrame } from "../core/frame.js";
+import { scatter3dSpec } from "../plot/scatter3d.js";
+import type { Scatter3dTrace } from "../plot/plotly.js";
 import type {
   PlotlyCamera,
   PlotlyConfig,
@@ -67,12 +67,12 @@ import type {
   PlotlyRelayoutEvent,
   PlotlyRelayoutUpdate,
   PlotlyTrace,
-} from "../plot/plotly";
-import { interactiveScatter3d } from "./scatter3d";
+} from "../plot/plotly.js";
+import { interactiveScatter3d } from "./scatter3d.js";
 import type {
   InteractiveScatter3dOptions,
   Scatter3dValues,
-} from "./scatter3d";
+} from "./scatter3d.js";
 
 /** Four numeric columns, so that a fourth is left over, plus a categorical. */
 const FRAME: DataFrame = {

@@ -33,8 +33,8 @@ import {
   logRegularizedGammaQ,
   regularizedGammaP,
   regularizedGammaQ,
-} from "./special";
-import { qnorm } from "./norm";
+} from "./special.js";
+import { qnorm } from "./norm.js";
 
 /** R's `lower.tail` argument, shared by both functions here. */
 export interface TailOptions {

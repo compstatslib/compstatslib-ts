@@ -32,8 +32,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { mean, sd, sum } from "../core/arith";
-import { moderationData } from "./moderationData";
+import { mean, sd, sum } from "../core/arith.js";
+import { moderationData } from "./moderationData.js";
 
 /** Relative tolerance for the accumulated checksums. */
 const RELATIVE_TOLERANCE = 1e-12;

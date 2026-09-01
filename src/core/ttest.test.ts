@@ -28,7 +28,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./ttest";
+import { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./ttest.js";
 
 /** Relative tolerance for all comparisons against R. */
 const RELATIVE_TOLERANCE = 1e-12;

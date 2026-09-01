@@ -36,10 +36,10 @@
  * both settings, and the engine stops inlining it from then on.
  */
 
-import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith";
-import { make, type Dimnames, type Matrix } from "./matrix";
-import { isMatrix, type MatrixOrVector } from "./ops";
-import type { Vector } from "./vector";
+import { fusedMultiplyAdd, resolveFma, type FmaOption } from "../arith.js";
+import { make, type Dimnames, type Matrix } from "./matrix.js";
+import { isMatrix, type MatrixOrVector } from "./ops.js";
+import type { Vector } from "./vector.js";
 
 /** R's `qr()` result. */
 export interface QrDecomposition {

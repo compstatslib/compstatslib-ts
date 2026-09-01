@@ -17,7 +17,7 @@ import {
   toColumns,
   toRows,
   type Matrix,
-} from "./matrix";
+} from "./matrix.js";
 
 /** R's `as.vector(m)`: the column-major data as a plain array. */
 function columnMajor(m: Matrix): number[] {

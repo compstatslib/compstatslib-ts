@@ -14,12 +14,12 @@
  * callback.
  */
 
-import type { Point } from "../core/regression";
-import { pixelInArea } from "../plot/axes";
-import { plotRegression, regressionScale } from "../plot/regression";
-import type { PlotRegressionOptions } from "../plot/regression";
-import { eventPixel, resolveInteractiveTarget } from "./target";
-import type { InteractiveTarget } from "./target";
+import type { Point } from "../core/regression.js";
+import { pixelInArea } from "../plot/axes.js";
+import { plotRegression, regressionScale } from "../plot/regression.js";
+import type { PlotRegressionOptions } from "../plot/regression.js";
+import { eventPixel, resolveInteractiveTarget } from "./target.js";
+import type { InteractiveTarget } from "./target.js";
 
 /**
  * What the component accepts.

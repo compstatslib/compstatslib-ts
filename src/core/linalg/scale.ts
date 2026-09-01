@@ -32,8 +32,8 @@
  * (`.claude/plans/004-PLAN-seminr-utilities/linalg-fixtures.md`, section 6).
  */
 
-import { make, type Matrix } from "./matrix";
-import type { Vector } from "./vector";
+import { make, type Matrix } from "./matrix.js";
+import type { Vector } from "./vector.js";
 
 /** The named arguments of R's `scale()`. Both default to `true`. */
 export interface ScaleOptions {
