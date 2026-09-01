@@ -5,6 +5,72 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
 
 ## Unreleased
 
+### Changed
+
+* **`optim` now runs R's own algorithm, and every result moves.** Through
+  0.5.0 it reached R's optimum by its own path: the quasi-Newton routine
+  written for `seminr-ts`, with Armijo backtracking, a gradient-norm stopping
+  rule, R's `reltol` expression bolted on as a stall test, and counts that
+  were its own work rather than a number to compare with R's. It is now
+  `vmmin` from R's `src/main/optim.c` — R Core's arrangement of Nash (1990)
+  algorithm 21 — followed line for line: the step-reduction line search at
+  `stepredn = 0.2` with the acceptance test at `acctol = 1e-4`, the
+  `reltest = 10` guard that ends a search when no coordinate moves, `reltol`
+  on the objective as the **sole** stopping rule, the inverse Hessian held as
+  a lower triangle and reset on an uphill direction, on a curvature
+  `D1 <= 0`, and periodically once `grcount` exceeds `ilast` by `2n`, and R's
+  accounting of `fncount` and `grcount`.
+
+  **A caller that pinned 0.5.0's `optim` output re-pins.** Every routine in
+  this package matched R's algorithm and not just R's answer; `optim` was the
+  exception, and this closes it.
+
+  What it buys: `counts` is now a value to compare with R's, and
+  `optim.test.ts` pins it exactly on every fixture case but one. On the
+  analytic-gradient runs `par` and `value` are R's **bit for bit**, where
+  before they were pinned at 1e-6 and 1e-10. The exception is fixture 3b,
+  whose function count runs one ahead of R's; the test records where that run
+  parts company with R, at one unit in the last place on the first coordinate
+  of a trial point at call 17 of 54, and why the three candidate fixes were
+  rejected — each repaired 3b and broke a section 6 case.
+
+  One thing to state plainly, because 0.5.0's docstring recorded it the other
+  way. On the logistic fit of fixture section 3 the likelihood is flat near
+  its maximum, and R's `optim` stops about 5.3e-5 short of the point `glm()`
+  reaches. The old routine went past R to `glm()`'s answer; `vmmin` stops
+  where R stops. That is correct for a package that pins R rather than the
+  truth, but it is a step away from the optimum. Use `logisticRegression`,
+  which is R's `glm`, to fit a logistic model.
+
+  A note for anyone porting this: the build of R the fixtures come from
+  contracts the line search's trial point,
+  `b[l[i]] = X[i] + steplength * t[i]`, into a single fused multiply-add, and
+  the accumulation loops around it are **not** contracted. Both halves were
+  measured against `counts` rather than assumed. Written plainly, that one
+  line costs two line-search reductions sixty iterations later and reads 194
+  where R reads 196.
+
+* `OptimControl` loses `gradTol` and `stallGradTol`, which were this port's
+  own stopping rules and now control nothing, and gains **`abstol`**, which is
+  R's and which `vmmin` reads in the same test as `reltol`. `reltol`'s
+  documentation now carries the warning it earned: R's defaults are R's, and a
+  caller migrating from a hand-rolled BFGS should set all of them explicitly.
+  Inheriting R's `reltol` of `sqrt(eps)` stopped one consumer's fit 21
+  iterations early, at a gradient norm of 1.6e-5 instead of 1.5e-8, moving
+  parameters by 2.5e-4 — and still reporting `convergence: 0`, because
+  stopping on `reltol` *is* convergence in R.
+
+* `optim` no longer imports from `core/linalg`: the inverse Hessian is a
+  lower-triangular `number[][]`, as R's is, rather than a `Matrix`. That is
+  the faithful representation and it also keeps the linear algebra out of the
+  `./stats` entry's import graph.
+
+* `optim` now throws `"initial value in 'vmmin' is not finite"` when the
+  objective at the starting parameters is not finite, and
+  `"non-finite finite-difference value [i]"` when a central difference is
+  not, both in R's own words. `maxit <= 0` returns the start with both counts
+  zero and `convergence: 0`, as R does.
+
 ### Added
 
 * `withDim(data, options)` on the linear-algebra entry: R's

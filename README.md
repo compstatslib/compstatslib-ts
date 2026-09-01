@@ -45,8 +45,8 @@ Four, so that a page pays only for what it asks for. Sizes are the built bundles
 
 | Import from | Carries | Size |
 | --- | --- | --- |
-| `@compstats/core` | everything below except the 3D plots: the statistics, the data, and the 2D plotting and interactive layers | 178 KB |
-| `@compstats/core/stats` | the statistics, the simulation helpers and the bundled data. **No DOM** — no canvas, no document, no window | 121 KB |
+| `@compstats/core` | everything below except the 3D plots: the statistics, the data, and the 2D plotting and interactive layers | 176 KB |
+| `@compstats/core/stats` | the statistics, the simulation helpers and the bundled data. **No DOM** — no canvas, no document, no window | 120 KB |
 | `@compstats/core/linalg` | the general linear algebra: `matrix`, `qr`, `solve`, `lm`, `eigen`, `prcomp` | 75 KB |
 | `@compstats/core/3d` | the 3D plots, which need Plotly as a peer dependency | 93 KB |
 
@@ -238,7 +238,11 @@ The names say which rule was followed, for anyone checking: `quantile` is type 7
 
 `pchisq`'s noncentral branch follows R's `pnchisq.c`, `qchisq` follows R's `qgamma`, and `qnorm` follows Wichura's Algorithm AS 241. Each is verified against R at a relative tolerance of 1e-12.
 
-`optim(par, fn, { gr, method: "BFGS", control })` lands on R's optimum. On the fixtures, with an analytic gradient, `par` sits within 1e-6 and `value` within 1e-10 of R's `optim(method = "BFGS")`. Its path there is not R's path. It backtracks with an Armijo line search instead of R's line search. It stops on a gradient-norm rule, and keeps R's `reltol` only as a stall test. It resets the inverse Hessian to the identity when a search direction does not go downhill. So its `counts` differ from R's, even where `par` and `value` agree. A stationary start returns at once, with one function count and one gradient count, as R's does.
+`optim(par, fn, { gr, method: "BFGS", control })` **is** R's optimizer, not merely a routine that lands where R lands. It is `vmmin` from R's `src/main/optim.c`, R Core's arrangement of Nash's algorithm 21: the step-reduction line search, `reltol` on the objective as the sole stopping rule, the inverse-Hessian resets, and R's own accounting. So `counts` is a number to compare with R's — on the fixture cases the port reproduces `fncount` and `grcount` exactly, and reaches R's `par` and `value` bit for bit on the analytic-gradient runs.
+
+> **This changed in 0.6.0, and it moves every `optim` result.** Through 0.5.0 the routine reached R's optimum by its own path — Armijo backtracking, a gradient-norm stopping rule, and counts of its own. A caller that pinned 0.5.0's output re-pins. The controls `gradTol` and `stallGradTol` are gone with the rules they belonged to, and `abstol`, which is R's, takes their place.
+
+**Set the controls; do not inherit them.** R's defaults are R's, and they are not a hand-rolled optimizer's. `reltol` defaults to `sqrt(.Machine$double.eps)`, 1.49e-8, where a hand-written BFGS commonly uses 1e-14 — a consumer that inherited it had its fit stop 21 iterations early, at a gradient norm of 1.6e-5 instead of 1.5e-8, moving parameters by 2.5e-4 and still reporting `convergence: 0`, because stopping on `reltol` *is* convergence in R. `maxit` is the same trap: R's BFGS default is 100. Read `gradNorm` to see where a run actually stopped.
 
 The draws take a generator you pass in, so a demonstration repeats exactly:
 
