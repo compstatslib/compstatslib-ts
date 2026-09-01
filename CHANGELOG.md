@@ -85,6 +85,16 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   as `scale`'s `center` restores it. `scale.test.ts` pins both the identity
   and the caveat.
 
+* The README's throughput section now times the three benchmark computations
+  **end to end**, `number[][]` in and out, not per operation. That correction
+  is owed: through `Matrix`, converting at each end (811 µs in, 397 µs out on
+  a 2000 x 24 frame) costs more than any operation between them, so the plain
+  path *loses* to a hand-written loop on all three — where the per-operation
+  table said it won on two of three. Over a buffer adopted with `withDim`
+  there is nothing to convert and it wins or ties on all three. The default
+  `{ fma: true }` at that boundary is 6 to 25 times the loop, which is what
+  R's double costs where a bootstrap author will see it.
+
 ### Fixed
 
 * Every relative specifier this package publishes now carries a `.js`

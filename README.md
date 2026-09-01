@@ -339,6 +339,16 @@ The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `Cho
 
 So `{ fma: false }` is **not "the fast one"**. It is a different answer. On a well-conditioned problem the difference is invisible; near a conditioning threshold it need not be, because the units in the last place a decomposition drops are amplified by the condition number on the way out. Switch deliberately, and re-pin whatever the switch moves.
 
+**Time it end to end, not per operation.** These ratios are measured through the matrix type. If your data lives in `number[][]`, `fromRows` and `toRows` sit at each end and cost more than the operation between them. Measured on a 2000 x 24 frame, median per call:
+
+| computation | a hand-written loop over `number[][]` | through `Matrix`, `{ fma: false }` | over an adopted buffer, `{ fma: false }` | over an adopted buffer, default |
+| --- | --- | --- | --- | --- |
+| OLS, 6 predictors | 142 µs | 461 µs | **148 µs** | 1.91 ms |
+| `matmul` n x 24 · 24 x 8 | 624 µs | 1.31 ms | **322 µs** | 8.14 ms |
+| `cor` 24 x 24 | 863 µs | 2.34 ms | **730 µs** | 3.67 ms |
+
+Converting at each end costs 811 µs in and 397 µs out on that frame, which is more than any operation in the table — so through `Matrix` the plain path *loses* on all three. Hold your data as a column-major `Float64Array` and open it with `withDim` (above) and it wins or ties on all three, because there is nothing to convert. The last column is what R's double costs at that boundary: 6 to 25 times the loop.
+
 #### Reusing one centering across many pairings
 
 `cov` and `cor` center their input themselves, which is wasted work for a caller that pairs many column subsets of one matrix — every block against every other. Center once with `scale` and take the crossproduct, which is R's own identity:
