@@ -366,6 +366,22 @@ solve(xtx, crossprod(x, y, { fma: false }), { fma: false });
 
 The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `CholOptions` and `LmOptions` extend it, and all are exported from the linalg entry.
 
+**Which routines take the option, and what they default to.** Every routine that accepts `fma` defaults to `true` — that part is uniform, with no exceptions. What varies is whether the option exists at all, and that is where a caller gets caught:
+
+| routine | `fma` option | arithmetic |
+| --- | --- | --- |
+| `matmul`, `crossprod`, `tcrossprod` | yes | FMA by default |
+| `qr`, `lu`, `solve`, `det`, `determinant`, `rcond` | yes | FMA by default |
+| `chol`, `chol2inv` | yes | FMA by default |
+| `lm`, `leastSquares` | yes | FMA by default |
+| `cor(x, y)` — two arguments | yes | FMA by default |
+| `cor(x)` — one matrix | **no option** | always plain |
+| `cov` — every form | **no option** | always plain |
+
+`cov` is a plain sum in every form because R's `src/library/stats/src/cov.c` is a plain sum, so following R here means not offering the choice — its values pin against R bit for bit either way. `cor(x)` reads its spreads off the diagonal of the covariance matrix it has just built, so it inherits that plain sum; `cor(x, y)` walks each column again, and the build the fixtures come from contracts *that* loop, so it takes the option and defaults to FMA. Two forms of one function, and only one of them accepts the argument.
+
+**The consequence for a caller composing them**: `cov(x, y, { fma: false })` is a compile error (TS2554), not a silent no-op, so a blanket "pass `{ fma: false }` everywhere" rule will not typecheck. Pass it to the routines above that take it, and leave `cov` alone — it is already plain.
+
 **Which setting you want is decided by your acceptance bar, not by your patience.** The default is named after the guarantee it provides, and the guarantee is narrow: *R's double*, not *R's answer*. If you pin fixtures against R at 15 or 17 digits — porting a routine, reproducing published output — you need it, and the 10 to 25 times is the price of the last two or three digits. If your bar is R's answer to five decimal places, you are paying that price for a property you never assert on, and `{ fma: false }` is the right default for you.
 
 So `{ fma: false }` is **not "the fast one"**. It is a different answer. On a well-conditioned problem the difference is invisible; near a conditioning threshold it need not be, because the units in the last place a decomposition drops are amplified by the condition number on the way out. Switch deliberately, and re-pin whatever the switch moves.
@@ -410,7 +426,7 @@ const centered = scale(x, { scale: false }).scaled;
 
 Measured on a 250 x 24 matrix in blocks of four columns: **1.5x over `cov` per pairing at 15 pairings, 1.7x at 45**, and 1.5x at n = 500. The saving grows with the number of pairings, which is the case it is for — a single pairing should just call `cov`.
 
-**Pass `{ fma: false }`, and read this before you don't.** `cov(x, y)` is a plain sum, as R's `cov.c` is, but `crossprod` defaults to the software fused multiply-add. Take the default and you pay **8.7x on the crossproduct** — 84.2 µs against `cov`'s 9.7 µs on the same 250 x 4 operands — which turns the whole recipe from a 1.5x win into a 7x loss, and lands on different last bits than `cov` besides. This is the `FmaOption` warning in its most concrete form: the two routines default differently because they follow different R sources, and matching them is the caller's job here.
+**Pass `{ fma: false }` to `crossprod`, and read this before you don't.** `cov(x, y)` is a plain sum, as R's `cov.c` is, and takes no `fma` option at all; `crossprod` takes one and defaults to the software fused multiply-add. Take the default and you pay **8.7x on the crossproduct** — 84.2 µs against `cov`'s 9.7 µs on the same 250 x 4 operands — which turns the whole recipe from a 1.5x win into a 7x loss, and lands on different last bits than `cov` besides. This is the `FmaOption` warning in its most concrete form: the two routines default differently because they follow different R sources, and matching them is the caller's job here.
 
 The accuracy caveat is small and worth stating. `cov` refines each column mean (`m + mean(x - m)`) where `scale` takes the plain `colMeans`, so the two agree to about 7e-15 relative on ordinary data and lose roughly three digits — 2.3e-11 at a column offset of 1e9 — on columns dominated by a large constant. The whole of that gap is the mean, not the crossproduct. Passing `cov`'s refined means as `scale`'s `center` closes it:
 

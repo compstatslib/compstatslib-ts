@@ -35,6 +35,19 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   with no boundary — not speed. The throughput table's own first column carries
   the same caveat now, since its loops also hold `number[][]`.
 
+* **A table of which routines take the `fma` option and what they default to.**
+  The rule is more uniform than the one example suggested: *every* routine that
+  accepts `fma` defaults to `true`, with no exceptions. What varies is whether
+  the option exists. `cov` does not take one in any form, because R's `cov.c`
+  accumulates plainly and following R means not offering the choice. Nor does
+  the one-matrix `cor(x)`, which reads its spreads off the covariance diagonal
+  and inherits that plain sum — while the two-argument `cor(x, y)` walks each
+  column again, takes the option, and defaults to FMA. Two forms of one
+  function, one of which accepts the argument. The consequence worth stating:
+  `cov(x, y, { fma: false })` is a **compile error**, not a silent no-op, so a
+  blanket "pass `{ fma: false }` everywhere" rule will not typecheck. `cov`'s
+  docstring now says why it is the exception in the same breath as saying that
+  it is.
 * **`crossprod` and `cov` default to different arithmetic, and composing them
   costs 8.7x if you do not say so.** `cov(x, y)` is a plain sum, as R's
   `cov.c` is; `crossprod` defaults to the software fused multiply-add. A
