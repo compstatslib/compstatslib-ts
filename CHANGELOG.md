@@ -35,16 +35,22 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   with no boundary — not speed. The throughput table's own first column carries
   the same caveat now, since its loops also hold `number[][]`.
 
-### Changed
-
-* The README's `scale` + `crossprod` recipe for `cov`/`cor` is replaced by the
-  fact underneath it: `cov` refines each column mean where `scale` takes the
-  plain `colMeans`, so the two agree to about 7e-15 and lose three digits on
-  columns with a large constant offset. The recipe was written for a consumer
-  that turned out to already have the optimization, and as general advice it
-  only ever cost a caller digits — `cov(x)` and `cor(x)` are bit-pinned to R
-  directly. `scale.test.ts` keeps pinning both the agreement and the gap, which
-  is a real property of the mean refinement and worth asserting on its own.
+* **`crossprod` and `cov` default to different arithmetic, and composing them
+  costs 8.7x if you do not say so.** `cov(x, y)` is a plain sum, as R's
+  `cov.c` is; `crossprod` defaults to the software fused multiply-add. A
+  caller centering once and taking crossproducts — the recipe below — pays
+  84.2 µs against `cov`'s 9.7 µs on the same 250 x 4 operands unless it passes
+  `{ fma: false }`, which turns a 1.5x win into a 7x loss and lands on
+  different last bits besides. The two routines default differently because
+  they follow different R sources. Now documented at the recipe.
+* The README's `scale` + `crossprod` recipe for reusing one centering across
+  many pairings now carries the measurement that justifies it: **1.5x over
+  `cov` per pairing at 15 pairings, 1.7x at 45**, on a 250 x 24 matrix in
+  blocks of four. It was briefly removed on the grounds that it "only cost a
+  caller digits"; that was wrong — it is a real saving for the many-pairings
+  case, and the check that seemed to refute it had compared `crossprod`'s
+  default FMA against `cov`'s plain sum. The accuracy caveat and its fix stay,
+  and `scale.test.ts` keeps pinning both.
 
 ## 0.6.0
 

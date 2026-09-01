@@ -384,22 +384,35 @@ One caveat on that first column, since it is easy to over-read: those loops hold
 
 **What adopting buys, measured against the right control.** Almost all of it is the *representation*, not this package's arithmetic. Three baselines, one run, 5000 warm-up iterations, median per call — A is a hand-written loop over `number[][]` with hoisted row pointers and a zero skip; B is the same arithmetic over flat row-major buffers with a caller-held output; C is `matmul` over buffers adopted transposed:
 
-| computation | A: `number[][]` loop | B: flat row-major loop | C: adopted transposed | B/C |
+| computation | A: `number[][]` loop | B: flat loop | C: adopted transposed | B/C |
 | --- | --- | --- | --- | --- |
-| `matmul` 250 x 6 · 6 x 6 | 15.2 µs | 9.1 µs | 9.7 µs | 1.03x |
-| `matmul` 250 x 24 · 24 x 6 (sparse rhs) | 68.4 µs | 35.9 µs | 36.4 µs | 1.01x |
-| `matmul` 250 x 24 · 24 x 6 | 71.7 µs | 35.7 µs | 36.2 µs | 1.00x |
-| `matmul` 250 x 24 · 24 x 24 | 233.4 µs | 126.2 µs | 128.5 µs | 1.00x |
-| `matmul` 1000 x 24 · 24 x 8 | 360.6 µs | 182.3 µs | 185.7 µs | 1.00x |
-| `matmul` 2000 x 24 · 24 x 8 | 724.6 µs | 363.4 µs | 368.7 µs | 1.02x |
+| `matmul` 250 x 6 · 6 x 6 | 15.2 µs | 9.9 µs | 9.7 µs | 1.02x |
+| `matmul` 250 x 24 · 24 x 6 (sparse rhs) | 68.4 µs | 36.6 µs | 36.4 µs | 1.01x |
+| `matmul` 250 x 24 · 24 x 6 | 71.7 µs | 36.4 µs | 36.2 µs | 1.01x |
+| `matmul` 250 x 24 · 24 x 24 | 233.4 µs | 128.2 µs | 128.5 µs | 1.00x |
+| `matmul` 1000 x 24 · 24 x 8 | 360.6 µs | 186.5 µs | 185.7 µs | 1.00x |
+| `matmul` 2000 x 24 · 24 x 8 | 724.6 µs | 376.6 µs | 368.7 µs | 1.02x |
+
+B allocates its output, as C does, so the two are comparable. Letting B write into a buffer the caller already holds — which C cannot do — takes another 2 to 3% off it.
 
 **Read the B/C column: this package's `matmul` is within 3% of a loop tuned for the caller's own layout, at every shape.** That is a tie, and it is the honest claim. The roughly 2x between A and B is what leaving arrays-of-arrays is worth — allocating `n` small arrays per call and chasing their pointers — and it is available to a caller who never touches this package.
 
 So the reason to adopt is not that these routines are faster. It is that once your data is a flat buffer, `qr`, `lm`, `solve`, `chol`, `cor` and the rest are available over it with no boundary in either direction, at R's numbers. Speed is not the argument; reach is.
 
-#### `cov` refines its column means; `scale` does not
+#### Reusing one centering across many pairings
 
-Worth knowing if you compare the two, or center once yourself and take a crossproduct instead of calling `cov`. R's `cov()` refines each column mean (`m + mean(x - m)`) where `scale()` takes the plain `colMeans`, so the two paths agree to about 7e-15 relative on ordinary data and lose roughly three digits — 2.3e-11 at a column offset of 1e9 — on columns dominated by a large constant. The whole of that gap is the mean, not the crossproduct, whose `fma` setting does not move the number at all. Passing `cov`'s refined means as `scale`'s `center` closes it:
+`cov(a, b)` and `cor(a, b)` center both operands on every call, so pairing the blocks of one matrix against each other re-centers the same columns once per pairing. Center once with `scale` and take crossproducts of the slices instead:
+
+```js
+const centered = scale(x, { scale: false }).scaled;
+// crossprod(slice_a, slice_b, { fma: false }) / (n - 1)  is  cov(slice_a, slice_b)
+```
+
+Measured on a 250 x 24 matrix in blocks of four columns: **1.5x over `cov` per pairing at 15 pairings, 1.7x at 45**, and 1.5x at n = 500. The saving grows with the number of pairings, which is the case it is for — a single pairing should just call `cov`.
+
+**Pass `{ fma: false }`, and read this before you don't.** `cov(x, y)` is a plain sum, as R's `cov.c` is, but `crossprod` defaults to the software fused multiply-add. Take the default and you pay **8.7x on the crossproduct** — 84.2 µs against `cov`'s 9.7 µs on the same 250 x 4 operands — which turns the whole recipe from a 1.5x win into a 7x loss, and lands on different last bits than `cov` besides. This is the `FmaOption` warning in its most concrete form: the two routines default differently because they follow different R sources, and matching them is the caller's job here.
+
+The accuracy caveat is small and worth stating. `cov` refines each column mean (`m + mean(x - m)`) where `scale` takes the plain `colMeans`, so the two agree to about 7e-15 relative on ordinary data and lose roughly three digits — 2.3e-11 at a column offset of 1e9 — on columns dominated by a large constant. The whole of that gap is the mean, not the crossproduct. Passing `cov`'s refined means as `scale`'s `center` closes it:
 
 ```js
 const refined = columns.map((col) => {
@@ -409,7 +422,7 @@ const refined = columns.map((col) => {
 scale(x, { scale: false, center: refined });
 ```
 
-`scale.test.ts` pins both the agreement and the gap. If you want `cov(x)` or `cor(x)`, call them — they are bit-pinned to R directly and centering yourself only costs you digits.
+`scale.test.ts` pins both the agreement and the gap.
 
 ### Bundled data
 
