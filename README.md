@@ -247,7 +247,7 @@ A matrix is plain data, laid out as R lays it out — **column-major**, with `nr
 
 | Group | Functions |
 | --- | --- |
-| Building | `matrix`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`, `column`, `toRows`, `toColumns` |
+| Building | `matrix`, `withDim`, `fromRows`, `fromColumns`, `fromFrame`, `at`, `row`, `column`, `toRows`, `toColumns`, `matrixIndex` |
 | Elementary operations | `t` (or `transpose`), `matmul`, `crossprod`, `tcrossprod`, `outer`, `cbind`, `rbind`, `diag`, `identity` |
 | Vectors and elementwise | `add`, `sub`, `mul`, `div` (also take two matrices, or a matrix and a scalar), `square`, `dot`, `norm`, `cosine` |
 | QR | `qr`, `qrCoef`, `qrFitted`, `qrResid`, `qrQty`, `qrQy`, `qrQ`, `qrR` |
@@ -278,6 +278,36 @@ solve(a, [1, 2, 3]);      // [-0.06666666666666665, 0.8, 0.3333333333333333]
 ```
 
 Each routine follows R down to the arithmetic of its LAPACK and LINPACK calls, so the factorizations, the solves and the fitted values match R's doubles exactly, and the rest is verified at a stated tolerance. Where R warns and recycles a mismatched length, or silently reads only the lower triangle of a matrix, this entry refuses and says so at the function.
+
+#### Holding your own data in this layout
+
+`Matrix.data` is a public, column-major `Float64Array`, so reading is already free — `toRows` is a convenience, not the only door out. Writing was not: every constructor copied. `withDim(data, { nrow })` is R's `dim(v) <- c(nrow, ncol)` and **adopts** the buffer instead, which is what lets a caller hold its data in this layout across a loop and stop converting at all.
+
+```js
+import { matrixIndex, withDim } from "@compstats/core/linalg";
+
+const buffer = new Float64Array(p * p);
+const paths = withDim(buffer, { nrow: p, dimnames: [names, names] });
+const index = matrixIndex(paths);
+
+for (const outcome of outcomes) {
+  const j = index.col(outcome);                  // hoisted out of the fill
+  antecedents.forEach((name, k) => {
+    buffer[j * p + index.row(name)] = betas[k];  // no setter, no per-cell call
+  });
+}
+```
+
+The buffer **aliases**: R copies on modify, JavaScript does not, and `withDim` does not pretend otherwise — a later write through your handle is visible in the matrix. That is the point, and it is why a caller who wants a snapshot writes `matrix(buffer, options)` and pays the copy knowingly. `byrow` is refused, because filling row by row is the reordering copy this constructor exists to avoid.
+
+`matrixIndex(m)` resolves dimnames to positions — `row(name)`, `col(name)`, and `offset(rowName, colName)` into `data` — built once per call. It is the matrix counterpart of `lookup` on a named vector, and it is an index rather than a getter and setter on purpose: a matrix here is written by whole-array operations, as R's is. Measured on a 24 x 24 result filled by name:
+
+| | time |
+| --- | --- |
+| fill a `number[][]` by name, then `fromRows` | 47.9 µs |
+| fill an adopted buffer through `matrixIndex` | **4.1 µs** |
+
+And at the boundary itself, on a 2000 x 24 frame: `fromRows` costs 786 µs where `withDim` over data already in this layout costs **0.18 µs**.
 
 #### Throughput
 

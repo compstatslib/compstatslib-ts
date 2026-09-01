@@ -12,6 +12,7 @@ import * as linalg from "./linalg.js";
 const EXPORTED = [
   // matrix
   "matrix",
+  "matrixIndex",
   "fromRows",
   "fromColumns",
   "fromFrame",
@@ -59,6 +60,7 @@ const EXPORTED = [
   "cov",
   "cor",
   "variance",
+  "withDim",
   "scale",
   "chol",
   "chol2inv",

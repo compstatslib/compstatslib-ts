@@ -20,11 +20,18 @@ export {
   fromFrame,
   fromRows,
   matrix,
+  matrixIndex,
   row,
   toColumns,
   toRows,
+  withDim,
 } from "./core/linalg/matrix.js";
-export type { Dimnames, Matrix, MatrixOptions } from "./core/linalg/matrix.js";
+export type {
+  Dimnames,
+  Matrix,
+  MatrixIndex,
+  MatrixOptions,
+} from "./core/linalg/matrix.js";
 
 export type { FmaOption } from "./core/arith.js";
 export {
