@@ -5,6 +5,68 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
 
 ## Unreleased
 
+### Fixed
+
+* **`mean` is now R's `mean()`, and `sd` moves with it.** The exported `mean`
+  computed `sum(x) / n`, which is not what R computes. R's `mean.default` on a
+  double vector goes to C `do_mean` (`src/main/summary.c`) and makes a second
+  pass, adding the mean of the residuals back. That second pass reads like a
+  no-op — the residuals sum to zero in exact arithmetic — but it is not: the
+  residuals are measured against the *rounded* first-pass mean, so their sum
+  recovers the error the first pass accumulated instead of cancelling.
+  Measured over 20000 vectors of 50 to 300 draws from `runif(n, -500, 500)`,
+  **the two forms land on different doubles 18053 times**, by a median of 6
+  units in the last place. Where cancellation leaves the mean near zero the
+  gap is far larger, and that is exactly where a caller comparing two means
+  with a strict inequality — a bootstrap count, a permutation test — flips.
+  Reported by the `seminrExtras-ts` port, which was carrying its own corrected
+  mean for that reason.
+
+  `sd` centers on `mean` and so inherits the correction, and that is right
+  rather than collateral: R's `sd()` is `sqrt(var())`, `var()` goes to
+  `src/library/stats/src/cov.c`, and that file's `MEAN` macro is `do_mean`'s
+  body. Against R's own `var()` over the same 20000 vectors, centering on the
+  uncorrected mean is off by more than one unit in the last place on 1306 of
+  them; centering on the corrected one leaves 14, and those are the known
+  fused-multiply-add contraction in R's compiled loop rather than the mean.
+
+  **`colMeans` in `core/linalg/scale.ts` is the one that must not change.**
+  R's `do_colsum` (`src/main/array.c`) really is a single uncorrected pass, so
+  `scale()` and `prcomp()` center on that one; routing them through `mean`
+  would break their parity in the other direction. The package now has three
+  R means, each with the R source that defines it named at the function, and
+  `arith.ts`, `cov.ts` and `scale.ts` cross-reference one another so that the
+  next reader cannot unify them by accident.
+
+  New conformance generator in the R package,
+  `conformance-fixtures/arith.R`, pinning all three means, `sd` and `var` on
+  three vectors plus the degenerate cases. `arith.test.ts` asserts the mean
+  and the standard deviation of a 97-value vector as exact doubles, and pins
+  the naive values beside them so a future failure says which half moved.
+
+  **Read this as more than a patch bump if you re-export `mean` or `sd`.** A
+  patch version says nothing broke; it does not say nothing *moved*, and both
+  of these moved for almost every input. A consumer that re-exports either
+  symbol republishes the new value under its own name, so its own pinned
+  fixtures shift on the upgrade even though it changed no code of its own —
+  `@seminr/core`'s exported `mean` is the known case. A consumer that pins
+  against R gains; one that pinned against this package's previous output
+  needs to re-pin. Either way the shift arrives when you bump, not when you
+  next touch the code, so upgrade with the fixture run rather than ahead of
+  it.
+
+  **Check for `colMeans` before you delegate.** A consumer deleting a local
+  mean in favour of this one should look at what each call site ports. `cov`,
+  `cor`, `var` and `sd` are safe to delegate; anything porting R's `scale()`,
+  `prcomp()`, `colMeans()` or `rowMeans()` wants the *uncorrected* mean, and
+  routing it here would be a new defect in the opposite direction. The habit
+  worth copying is naming the R function at the call site: every site in this
+  package now says which of the three means it follows.
+
+* `mean` now returns a non-finite first pass unchanged, as `do_mean`'s
+  `R_FINITE` guard does. Without the guard the second pass would form
+  `Inf - Inf` and turn R's `Inf` into NaN for `mean(c(1, Inf))`.
+
 ### Documented
 
 * An npm version badge in the README, above the existing CI one. It reads the
