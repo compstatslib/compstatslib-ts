@@ -17,7 +17,27 @@
  *
  * `lower.tail` is a real argument, not sugar. The upper tail of a fit measure
  * runs to 1e-100 and below, and rebuilding it as one minus the lower tail
- * would leave nothing of it.
+ * would leave nothing of it. Measured by a consumer over a 64-point grid in
+ * that regime, `pchisq(x, df, ncp, {lowerTail: false})` differs from
+ * `1 - pchisq(x, df, ncp)` at **31 of the 64 points**, and taking the
+ * argument rather than the subtraction improved the median error against R by
+ * 5× (5.1e-14 to 1.1e-14).
+ *
+ * **Where "follows R" is distributional and not pointwise.** The rest of this
+ * package pins R's double, so a value that differs from another
+ * implementation's is the better one. That reasoning does not carry to the
+ * **noncentral upper tail far from the mean**, where the answer is a series
+ * whose own truncation error dominates: over a 40-point grid at df 24 to 300
+ * and ncp 0 to 300, measured against R, this port's worst relative error is
+ * 1.0e-5 against 3.8e-3 for the implementation a consumer retired for it, and
+ * its median is 5.1e-14 against 2.0e-12 — **370× better at the worst case and
+ * 40× at the median** — and yet it is the *further* of the two from R at 14
+ * of the 40 points. A caller reading one such probability (an RMSEA close-fit
+ * p-value, say) can therefore land further from R than a cruder routine would
+ * have, by luck, and be right to expect better on the next point. Read the
+ * agreement here as a distribution, not as a promise about any single value;
+ * the central case and every other distribution in this package keep the
+ * pointwise claim.
  *
  * Verified against R in `chisq.test.ts`.
  *

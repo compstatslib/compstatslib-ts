@@ -149,8 +149,27 @@ export function fusedMultiplyAdd(a: number, b: number, c: number): number {
  * rounds once, as the reference-BLAS build the conformance fixtures come
  * from does, so a result is R's double bit for bit. `false` rounds twice,
  * as plain `a * b + c` does. The two paths differ by a few units in the
- * last place, and the plain one runs 10 to 20 times faster. See the
+ * last place, and the plain one runs 10 to 25 times faster. See the
  * README's linear algebra section for the measured ratios.
+ *
+ * **Which setting a caller wants is decided by its acceptance bar, not by
+ * its patience.** The default is named after the guarantee it provides, and
+ * that guarantee is narrow: *R's double*, not *R's answer*. A caller pinning
+ * fixtures against R at 15 or 17 digits — this package's own test suite,
+ * a port re-deriving R's published output — needs it, and the 10 to 25 times
+ * is the price of the last two or three digits. A caller whose bar is R's
+ * answer to five decimals is paying that price for a property it never
+ * asserts on, and should pass `{ fma: false }`.
+ *
+ * `{ fma: false }` is therefore **not "the fast one"**. It is a different
+ * answer. On a well-conditioned problem the difference is invisible; on one
+ * near a conditioning threshold it need not be, because the units in the
+ * last place a decomposition drops here are amplified by the condition
+ * number on the way out. A consumer that measured this reported a downstream
+ * fixture flipping under `{ fma: false }` where its own inner matrix was
+ * structurally singular and the sign of the smallest eigenvalue (±1.3e-16)
+ * was luck either way. Switch the setting deliberately, and re-pin whatever
+ * the switch moves; do not switch it to make a benchmark look better.
  *
  * A routine resolves the option once with `resolveFma` and writes its
  * innermost loop twice, one body per setting, with the branch around the
@@ -221,6 +240,19 @@ function twoSum(a: number, b: number): [number, number] {
  * `IQR()` that `bw.nrd0()` uses to pick a bandwidth. It reads the sorted
  * values at position `1 + (n - 1) * p` and interpolates between the two
  * neighbors of a fractional position.
+ *
+ * The interpolation is written as `stats:::quantile.default` writes it,
+ * `(1 - h) * low + h * high`, and **that is a decision, not a transcription
+ * accident.** The algebraically equal `low + h * (high - low)` is the form
+ * most implementations reach for, and it rounds differently: a consumer that
+ * replaced its own paraphrase with this one found the two differing at **227
+ * of 999 probabilities** on a 500-value bootstrap sample, always within one
+ * unit in the last place. What makes that worth stating rather than filing
+ * under implementation detail is where the differences are *not*: **none of
+ * the seven round bootstrap probabilities** (0.025, 0.05, 0.5, 0.95, 0.975
+ * and their neighbors) were among the 227, so a test probing only those
+ * reports "no change" and is wrong. Anyone rewriting this expression should
+ * probe a dense grid.
  *
  * @param values The observations. The function does not modify them.
  * @param p The probability. It must be in [0, 1].
@@ -294,7 +326,9 @@ function type7(sorted: Float64Array, p: number): number {
 
   if (position > below && high !== low) {
     // R's own form. The algebraically equal low + h * (high - low) rounds
-    // differently, and this keeps the last bits with R.
+    // differently — at 227 of 999 probabilities on a 500-value sample, and
+    // at none of the round bootstrap ones. See the docstring above before
+    // rewriting this line.
     const h = position - below;
     return (1 - h) * low + h * high;
   }

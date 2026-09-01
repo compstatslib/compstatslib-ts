@@ -335,6 +335,31 @@ solve(xtx, crossprod(x, y, { fma: false }), { fma: false });
 
 The option's type is `FmaOption`; `QrOptions`, `LuOptions`, `SolveOptions`, `CholOptions` and `LmOptions` extend it, and all are exported from the linalg entry.
 
+**Which setting you want is decided by your acceptance bar, not by your patience.** The default is named after the guarantee it provides, and the guarantee is narrow: *R's double*, not *R's answer*. If you pin fixtures against R at 15 or 17 digits — porting a routine, reproducing published output — you need it, and the 10 to 25 times is the price of the last two or three digits. If your bar is R's answer to five decimal places, you are paying that price for a property you never assert on, and `{ fma: false }` is the right default for you.
+
+So `{ fma: false }` is **not "the fast one"**. It is a different answer. On a well-conditioned problem the difference is invisible; near a conditioning threshold it need not be, because the units in the last place a decomposition drops are amplified by the condition number on the way out. Switch deliberately, and re-pin whatever the switch moves.
+
+#### Reusing one centering across many pairings
+
+`cov` and `cor` center their input themselves, which is wasted work for a caller that pairs many column subsets of one matrix — every block against every other. Center once with `scale` and take the crossproduct, which is R's own identity:
+
+```js
+const centered = scale(x, { scale: false }).scaled;
+// crossprod(centered) / (n - 1)  is  cov(x)
+const standardized = scale(x).scaled;
+// crossprod(standardized) / (n - 1)  is  cor(x)
+```
+
+Verified rather than asserted, because the identity is only algebraically true here: `cov` refines its column means and `scale` takes the plain `colMeans`. Measured across several shapes up to 2000 x 24, the recipe reproduces `cov(x)` and `cor(x)` to **7e-15 relative or better**. On columns dominated by a large constant offset it loses about three digits — 2.3e-11 at an offset of 1e9 — and the whole of that gap is the mean, not the crossproduct, whose `fma` setting does not move the number at all. If your columns look like that, pass the refined means as `center` and the agreement comes back:
+
+```js
+const refined = columns.map((col) => {
+  const m = col.reduce((a, b) => a + b, 0) / n;
+  return m + col.reduce((a, b) => a + (b - m), 0) / n;  // what cov() uses
+});
+scale(x, { scale: false, center: refined });
+```
+
 ### Bundled data
 
 `moderationData` (200 rows of `y`, `x`, `z`, `w`) and `pcaDegenerate` (16 rows of `x`, `y`) are the same tables as in the R package, exported from R rather than regenerated. Both are defaults, so a call with no data still gives a working demonstration.

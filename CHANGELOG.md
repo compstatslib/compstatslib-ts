@@ -49,6 +49,42 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   `interactive/` module, or if any module it reaches names a DOM global.
   `@compstats/core/linalg` stays disjoint from it, as it is by design.
 
+### Documented
+
+* `pchisq`'s noncentral upper tail now says where "follows R" is
+  distributional rather than pointwise. Over a 40-point grid at df 24-300 and
+  ncp 0-300 this port is 370x better than the implementation a consumer
+  retired for it at the worst case and 40x at the median, and yet it is the
+  further of the two from R at 14 of the 40 points — so a caller reading one
+  such probability can land further from R by luck. The central case and every
+  other distribution keep the pointwise claim. The same paragraph now carries
+  the measurement that defends `lowerTail`: `pchisq(x, df, ncp, {lowerTail:
+  false})` differs from `1 - pchisq(x, df, ncp)` at 31 of 64 grid points in
+  that regime, and taking the argument improves the median error against R
+  by 5x.
+* `FmaOption` and the README's throughput section now name the default after
+  the guarantee it provides and say which consumer needs it. The guarantee is
+  *R's double*, not *R's answer*; a caller whose bar is five decimal places
+  pays 10 to 25 times for a property it never asserts on. And `{ fma: false }`
+  is **not "the fast one"** — it is a different answer, which near a
+  conditioning threshold need not be invisible.
+* `quantile` records that writing the interpolation as
+  `stats:::quantile.default` writes it, `(1 - h) * low + h * high`, is a
+  decision and not a transcription. The algebraically equal
+  `low + h * (high - low)` differs at 227 of 999 probabilities on a 500-value
+  bootstrap sample — and at **none** of the seven round bootstrap
+  probabilities, so a test probing only those reports "no change" and is
+  wrong.
+* The README documents reusing one centering across many pairings:
+  `crossprod(scale(x, {scale: false})) / (n - 1)` is `cov(x)` and
+  `crossprod(scale(x)) / (n - 1)` is `cor(x)`. Verified, not asserted — `cov`
+  refines its column means and `scale` takes the plain `colMeans`, so the
+  identity is only algebraically true. It holds to 7e-15 relative or better
+  across shapes up to 2000 x 24, and loses about three digits (2.3e-11) on
+  columns dominated by a large constant offset; passing `cov`'s refined means
+  as `scale`'s `center` restores it. `scale.test.ts` pins both the identity
+  and the caveat.
+
 ### Fixed
 
 * Every relative specifier this package publishes now carries a `.js`
