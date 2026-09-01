@@ -30,7 +30,7 @@ const fail = (message: string): never => {
   process.exit(1);
 };
 
-for (const entry of ["index", "linalg"]) {
+for (const entry of ["index", "stats", "linalg"]) {
   if (!existsSync(join(repo, "dist", `${entry}.d.ts`))) {
     fail(`dist/${entry}.d.ts is missing - run \`bun run build\` first`);
   }

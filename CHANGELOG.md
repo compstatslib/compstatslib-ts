@@ -36,6 +36,19 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   than building a `number[][]` by name and converting it. The type
   `MatrixIndex` is exported beside it.
 
+* A DOM-free entry point, `@compstats/core/stats`, carrying the statistics,
+  the simulation helpers and the two bundled data sets — everything the
+  package computes and nothing it draws. The root entry was the only door to
+  `pchisq` before this, and it pulls in the canvas and interactive layers;
+  `dist/core/` ships declarations only, so there was no deep-import escape
+  hatch either. The built bundles are 121 KB for `./stats` against 178 KB for
+  the root. `src/index.ts` re-exports every name in it, so the root entry is
+  unchanged and moving between the two is a change of specifier and nothing
+  else. The DOM-free claim is asserted rather than assumed: `stats.test.ts`
+  walks the entry's module graph and fails if it reaches a `plot/` or
+  `interactive/` module, or if any module it reaches names a DOM global.
+  `@compstats/core/linalg` stays disjoint from it, as it is by design.
+
 ### Fixed
 
 * Every relative specifier this package publishes now carries a `.js`

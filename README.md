@@ -39,6 +39,21 @@ bun add plotly.js-dist-min
 
 See [3D and Plotly](#3d-and-plotly) below.
 
+### Entry points
+
+Four, so that a page pays only for what it asks for. Sizes are the built bundles, minified by the bundler and not gzipped:
+
+| Import from | Carries | Size |
+| --- | --- | --- |
+| `@compstats/core` | everything below except the 3D plots: the statistics, the data, and the 2D plotting and interactive layers | 178 KB |
+| `@compstats/core/stats` | the statistics, the simulation helpers and the bundled data. **No DOM** — no canvas, no document, no window | 121 KB |
+| `@compstats/core/linalg` | the general linear algebra: `matrix`, `qr`, `solve`, `lm`, `eigen`, `prcomp` | 75 KB |
+| `@compstats/core/3d` | the 3D plots, which need Plotly as a peer dependency | 93 KB |
+
+`@compstats/core/stats` is for a consumer that computes and draws its own charts, or computes on a server or in a worker. Its module graph reaches no `plot/` or `interactive/` module, and a test walks the graph on every run rather than trusting the convention. The root entry re-exports every one of its names, so moving between the two is a change of specifier and nothing else.
+
+`@compstats/core/linalg` is deliberately disjoint from the others: it is a general library on its own pace, not statistics the plots need.
+
 ## Quick start
 
 Fit a model. Your data is a table of columns; the model is the outcome and a list of terms, where an array of names is an interaction:

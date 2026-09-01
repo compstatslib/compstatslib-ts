@@ -1,110 +1,17 @@
-export { machinePrecision } from "./core/precision.js";
-export {
-  mean,
-  meanAbsoluteDeviation,
-  median,
-  quantile,
-  quantiles,
-  sd,
-} from "./core/arith.js";
-export { bwNrd0, kernelDensity } from "./core/kde.js";
-export type {
-  KernelDensityEstimate,
-  KernelDensityOptions,
-} from "./core/kde.js";
-export { histogram, nclassSturges } from "./core/histogram.js";
-export type { Histogram, HistogramOptions } from "./core/histogram.js";
-export { rPretty } from "./core/pretty.js";
-export type { RPrettyOptions } from "./core/pretty.js";
-export {
-  drawSamples,
-  sampleConfidenceIntervals,
-  simulateSampleCi,
-} from "./core/sampling.js";
-export type {
-  DistributionFn,
-  DrawSamplesOptions,
-  Interval,
-  SampleCiOptions,
-  SampleCiSimulation,
-  SampleDraw,
-  SampleInterval,
-} from "./core/sampling.js";
-export {
-  frameRows,
-  isNumericColumn,
-  numericColumns,
-  requireNumericColumn,
-} from "./core/frame.js";
-export type { Column, DataFrame } from "./core/frame.js";
-export { moderationSurface } from "./core/moderation.js";
-export type {
-  ModerationOptions,
-  ModerationSurface,
-  ModerationTerm,
-} from "./core/moderation.js";
-export { linearRegression } from "./core/regression.js";
-export type { Point, RegressionFit } from "./core/regression.js";
-export { determinant, invertMatrix } from "./core/matrix.js";
-export type { Matrix2, MatrixInversion, Singularity } from "./core/matrix.js";
-export { principalComponents } from "./core/pca.js";
-export type { Loadings, PcaResult } from "./core/pca.js";
-export {
-  DEFAULT_LOGIT_EPSILON,
-  DEFAULT_LOGIT_MAX_ITERATIONS,
-  logisticRegression,
-  predictLogit,
-} from "./core/logit.js";
-export type { LogitFit, LogitOptions } from "./core/logit.js";
-export { DEFAULT_LEAST_SQUARES_TOLERANCE, leastSquares } from "./core/ols.js";
-export type { LeastSquaresFit, LeastSquaresOptions } from "./core/ols.js";
-export {
-  rcauchy,
-  rlnorm,
-  rnorm,
-  rt,
-  runif,
-  sampleWithoutReplacement,
-  seededRng,
-} from "./core/rng.js";
-export type {
-  Rng,
-  RcauchyOptions,
-  RlnormOptions,
-  RnormOptions,
-  RunifOptions,
-} from "./core/rng.js";
-export { dt, pt, qt } from "./core/tdist.js";
-export { pchisq, qchisq } from "./core/chisq.js";
-export type { TailOptions } from "./core/chisq.js";
-export { pnorm, qnorm } from "./core/norm.js";
-export type { NormalOptions } from "./core/norm.js";
-export { optim } from "./core/optim.js";
-export type { OptimControl, OptimOptions, OptimResult } from "./core/optim.js";
-export { DEFAULT_T_TEST_OPTIONS, tTestStats } from "./core/ttest.js";
-export type {
-  FillRange,
-  TTestErrorMatrix,
-  TTestOptions,
-  TTestStats,
-} from "./core/ttest.js";
-export {
-  incompleteBeta,
-  incompleteBetaSplit,
-  inverseIncompleteBeta,
-  logBeta,
-  logGamma,
-  logRegularizedGammaP,
-  logRegularizedGammaQ,
-  normalCdf,
-  regularizedGammaP,
-  regularizedGammaQ,
-} from "./core/special.js";
+/**
+ * The package's root entry point: `@compstats/core`.
+ *
+ * Everything `@compstats/core/stats` carries, re-exported unchanged, plus the
+ * drawing and interactive layers. A consumer that never draws imports the
+ * stats entry instead and leaves the canvas code behind; nothing here is
+ * duplicated to make that possible.
+ *
+ * The linear algebra has its own entry, `@compstats/core/linalg`, and the 3D
+ * plots theirs, `@compstats/core/3d`, so that a page pays for Plotly only
+ * when it asks for it.
+ */
 
-export { moderationData } from "./data/moderationData.js";
-export type { ModerationData } from "./data/moderationData.js";
-export { pcaDegenerate } from "./data/pcaDegenerate.js";
-
+export * from "./stats.js";
 export { resolveTarget } from "./plot/target.js";
 export type { Context2D, PlotTarget, RenderTarget } from "./plot/target.js";
 export {
