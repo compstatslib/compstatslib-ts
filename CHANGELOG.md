@@ -7,6 +7,17 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
 
 ### Documented
 
+* The three doubles quoted in `optim`'s finite-difference docstring are now
+  pinned in `optim.test.ts`. They are the reason the port forms its evaluation
+  points from `par` rather than by walking a working copy, and the difference
+  decides whether `counts` matches R — but nothing asserted them, so the
+  paragraph could have drifted from the arithmetic silently. The docstring
+  also now says explicitly that `-1.201` and `-1.2010000000000001` are **one
+  double**, the shortest round-tripping spelling and the 17-digit expansion of
+  the same value, because a reader checking the claim at full precision would
+  otherwise conclude one of them was a typo and have no way to tell whether
+  the code or the docs were wrong.
+
 * **A row-major caller never has to cross the conversion boundary.** An
   `n x k` row-major buffer holds element `(i, j)` at `i * k + j`, which read
   column-major with `nrow = k` is element `(j, i)` — so
