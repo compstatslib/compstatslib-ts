@@ -3,6 +3,151 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
+## 0.7.0
+
+### Added
+
+* **`pt` and `qt` take `{lowerTail: false}`**, as `pchisq`/`qchisq` and
+  `pnorm`/`qnorm` already did. The t distribution was the only one of the
+  three without it, which left a consumer porting R's
+  `pt(t, df, lower.tail = FALSE)` writing `1 - pt(t, df)` instead. That
+  subtraction is not a rounding nuisance. At `df = 249` it is wrong in the
+  eighth digit by `t = 6`, in the fourth by `t = 8`, and **returns exactly
+  zero from `t = 9` onward**, where R returns 2.98e-17, 2.60e-20, 8.76e-27
+  and on down. A one-sided bootstrap t statistic on a strongly predictive
+  model reaches that range, so the difference is a p-value of 0 printed in a
+  results table where R prints a number. Reported by the `seminrExtras-ts`
+  port against its CVPAT one-sided statistics.
+
+  The signature is `pt(x, df, ncp?, options?)` and `qt(p, df, ncp?, options?)`,
+  taking the same exported `TailOptions` as `pchisq`. The central upper tail
+  is the number the incomplete beta produces directly, not a complement;
+  below zero it is the lower tail that must not be built by subtraction, and
+  the port flips which side it complements exactly where R's `pt.c` does.
+  `qt`'s upper quantile is the negated lower one, which is R's own answer bit
+  for bit — the fixtures pin `identical()` as TRUE at every probability
+  tested — with the median special-cased so it returns R's positive zero
+  rather than a negative one. `qt(p, df, {lowerTail: false})` reaches
+  critical values `qt(1 - p, df)` cannot: at `p = 1e-20` the complement
+  rounds to 1 and the lower-tail call returns infinity, where R returns
+  10.13.
+
+  **The noncentral branches complement internally, and that is parity rather
+  than laziness.** R's own `pnt.c` computes the lower tail and complements it
+  with its `0.5 - p + 0.5` idiom, and `qnt.c` converts through `R_DT_qIv`
+  before it starts searching. Computing those tails another way would move
+  the port away from R, not toward the truth. The option still spares the
+  caller the subtraction; it just cannot buy back precision there.
+
+  New Section 4 in the R package's `conformance-fixtures/tdist.R`, pinning
+  both tails across the far upper tail, the negative side, the ends, a Cauchy
+  `df = 1`, the noncentral combinations, and the `1 - pt()` column beside
+  R's own answer so the divergence is visible rather than asserted.
+
+### Fixed
+
+* **`fromRows` is eight times faster, and nothing about its answer changed.**
+  It built a `Float64Array` per row on the way in, purely so that a hole in a
+  sparse array would read as NaN rather than be skipped by `forEach`. That
+  allocation cost more than the rest of the function put together: 23.2 µs
+  against 2.9 µs on a 250 x 5 frame, 505 µs against 70 µs on 2000 x 24,
+  measured on Bun 1.3.14. Reading the entry as `row[j]` gives `undefined`,
+  which a `Float64Array` stores as NaN on its own, so the semantics survive
+  the allocation going away — and the sparse case is now pinned across more
+  than one row, where the hole has to survive the scatter down a column.
+
+  This showed up as a consumer's 3.3x regression on adopting `cov`: the
+  covariance itself was *faster* than the hand-written loop it replaced
+  (7.9 µs against 10.0 µs), and the conversion at the boundary was 100% of
+  the loss. `fromRows` now runs about 3.7 µs on that shape against 3.1 µs for
+  filling a buffer by hand and adopting it with `withDim`, so the boundary
+  cost is gone and the obvious constructor is the fast one. Its docstring now
+  says what `withDim` is actually for — owning the buffer across
+  replications, with the aliasing that implies — rather than leaving a reader
+  to discover it as the fast path.
+
+* **`mean` is now R's `mean()`, and `sd` moves with it.** The exported `mean`
+  computed `sum(x) / n`, which is not what R computes. R's `mean.default` on a
+  double vector goes to C `do_mean` (`src/main/summary.c`) and makes a second
+  pass, adding the mean of the residuals back. That second pass reads like a
+  no-op — the residuals sum to zero in exact arithmetic — but it is not: the
+  residuals are measured against the *rounded* first-pass mean, so their sum
+  recovers the error the first pass accumulated instead of cancelling.
+  Measured over 20000 vectors of 50 to 300 draws from `runif(n, -500, 500)`,
+  **the two forms land on different doubles 18053 times**, by a median of 6
+  units in the last place. Where cancellation leaves the mean near zero the
+  gap is far larger, and that is exactly where a caller comparing two means
+  with a strict inequality — a bootstrap count, a permutation test — flips.
+  Reported by the `seminrExtras-ts` port, which was carrying its own corrected
+  mean for that reason.
+
+  `sd` centers on `mean` and so inherits the correction, and that is right
+  rather than collateral: R's `sd()` is `sqrt(var())`, `var()` goes to
+  `src/library/stats/src/cov.c`, and that file's `MEAN` macro is `do_mean`'s
+  body. Against R's own `var()` over the same 20000 vectors, centering on the
+  uncorrected mean is off by more than one unit in the last place on 1306 of
+  them; centering on the corrected one leaves 14, and those are the known
+  fused-multiply-add contraction in R's compiled loop rather than the mean.
+
+  **`colMeans` in `core/linalg/scale.ts` is the one that must not change.**
+  R's `do_colsum` (`src/main/array.c`) really is a single uncorrected pass, so
+  `scale()` and `prcomp()` center on that one; routing them through `mean`
+  would break their parity in the other direction. The package now has three
+  R means, each with the R source that defines it named at the function, and
+  `arith.ts`, `cov.ts` and `scale.ts` cross-reference one another so that the
+  next reader cannot unify them by accident.
+
+  New conformance generator in the R package,
+  `conformance-fixtures/arith.R`, pinning all three means, `sd` and `var` on
+  three vectors plus the degenerate cases. `arith.test.ts` asserts the mean
+  and the standard deviation of a 97-value vector as exact doubles, and pins
+  the naive values beside them so a future failure says which half moved.
+
+  **This release is numbered 0.7.0 because of this entry, not because of the
+  addition above.** Nothing here breaks a caller, so semver would allow a
+  patch — but a patch number says nothing broke, and it does not say nothing
+  *moved*. Both of these moved for almost every input.
+
+  That matters most if you re-export `mean` or `sd`. A consumer that does
+  republishes the new value under its own name, so its own pinned fixtures
+  shift on the upgrade even though it changed no code of its own —
+  `@seminr/core`'s exported `mean` is the known case. A consumer that pins
+  against R gains; one that pinned against this package's previous output
+  needs to re-pin. Either way the shift arrives when you bump, not when you
+  next touch the code, so upgrade with the fixture run rather than ahead of
+  it.
+
+  **Check for `colMeans` before you delegate.** A consumer deleting a local
+  mean in favour of this one should look at what each call site ports. `cov`,
+  `cor`, `var` and `sd` are safe to delegate; anything porting R's `scale()`,
+  `prcomp()`, `colMeans()` or `rowMeans()` wants the *uncorrected* mean, and
+  routing it here would be a new defect in the opposite direction. The habit
+  worth copying is naming the R function at the call site: every site in this
+  package now says which of the three means it follows.
+
+* `mean` now returns a non-finite first pass unchanged, as `do_mean`'s
+  `R_FINITE` guard does. Without the guard the second pass would form
+  `Inf - Inf` and turn R's `Inf` into NaN for `mean(c(1, Inf))`.
+
+### Documented
+
+* **The README says that `cov(x)` and `cov(x, x)` are different functions in
+  R**, rather than leaving it as a fine point about `fma` defaults in a
+  changelog. R's `cov.c` takes a different path for one matrix than for two,
+  so porting `stats::cor(scores)` as `cor(scores, scores)` does not reproduce
+  R. A consumer that had done exactly that measured the one-matrix form exact
+  on every cell (16 of 16, 25 of 25) where the two-argument form managed 13
+  of 16 and 16 of 25. This is a defect a consumer can have, not a rounding
+  preference — and the README says so alongside the reason it survives a
+  green suite: that consumer's R goldens passed before and after the
+  correction, because the residual sat far below the bootstrap
+  re-estimation error its fixtures were toleranced against. No test a
+  consumer is likely to have written would raise it.
+
+* An npm version badge in the README, above the existing CI one. It reads the
+  registry through shields.io rather than hardcoding a number, so it cannot go
+  stale between releases the way a written version would.
+
 ## 0.6.1
 
 ### Documented

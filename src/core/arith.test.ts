@@ -25,6 +25,132 @@ function expectCloseToR(actual: number, expected: number): void {
   );
 }
 
+/**
+ * R's `mean()` and `sd()` on a vector R's own arithmetic separates from the
+ * naive one.
+ *
+ * The values come from `../compstatslib/conformance-fixtures/arith.R`,
+ * captured in `.claude/plans/006-PLAN-mean-parity/arith-fixtures.md`. R prints
+ * them at %.17g, so these are R's exact doubles and the assertions below are
+ * `toBe`, not a tolerance.
+ *
+ * The vector is 97 draws from `runif(97, -500, 500)` under `set.seed(2026)`.
+ * Its mean is near zero relative to its values, which is where the one-pass
+ * sum's rounding shows most: R's mean and `sum(x) / n` are 46 units in the
+ * last place apart here.
+ */
+const R_MIXED_97: readonly number[] = [
+  198.67347087711096,
+  56.530505884438753,
+  -359.86004234291613,
+  -214.27669376134872,
+  55.369009962305427,
+  -474.8688496183604,
+  -33.769445028156042,
+  361.01068509742618,
+  -247.49882123433053,
+  80.806337296962738,
+  -494.06674318015575,
+  191.86593987978995,
+  -268.87495303526521,
+  348.53246225975454,
+  -346.1647592484951,
+  -143.1906851939857,
+  45.20450416021049,
+  -498.80238622426987,
+  -182.17551009729505,
+  -482.71064623259008,
+  -158.44197408296168,
+  -156.5612000413239,
+  -267.4373066984117,
+  -438.63117229193449,
+  -87.623748229816556,
+  -314.48782281950116,
+  -89.327936293557286,
+  -359.91914430633187,
+  -494.56548318266869,
+  101.73881566151977,
+  411.01012728177011,
+  -324.63721605017781,
+  231.18741321377456,
+  -483.84279035963118,
+  86.115716258063912,
+  -74.18157160282135,
+  -289.50902237556875,
+  -22.799891652539372,
+  254.82327491044998,
+  -53.170720115303993,
+  -128.79819795489311,
+  374.77840459905565,
+  -65.402692649513483,
+  -59.863223461434245,
+  -418.04316663183272,
+  -465.38069657981396,
+  428.65198175422847,
+  -205.43370279483497,
+  19.2242874763906,
+  -263.60357506200671,
+  471.80980863049626,
+  132.51150120049715,
+  458.26916582882404,
+  386.35397888720036,
+  23.183763725683093,
+  215.91563429683447,
+  240.64273294061422,
+  -454.10367613658309,
+  457.79291377402842,
+  -298.863316886127,
+  -201.58580178394914,
+  395.57266817428172,
+  66.075772047042847,
+  -44.492015382274985,
+  -100.53169471211731,
+  -416.99496959336102,
+  130.35071035847068,
+  -34.90501013584435,
+  72.378459153696895,
+  162.23169327713549,
+  377.90826614946127,
+  -121.06301286257803,
+  223.57431263662875,
+  357.85794351249933,
+  -313.74449701979756,
+  132.69812217913568,
+  218.11582450754941,
+  41.806604014709592,
+  -295.2874016482383,
+  399.98898864723742,
+  -376.41567084938288,
+  451.54694630764425,
+  281.71512600965798,
+  462.13596477173269,
+  -385.74807229451835,
+  477.55213920027018,
+  120.46950170770288,
+  427.42726556025445,
+  -297.76328708976507,
+  -284.47081823833287,
+  421.92522273398936,
+  222.11555088870227,
+  261.70138828456402,
+  -214.72254930995405,
+  -156.34111920371652,
+  -158.60658348537982,
+  287.95979684218764,
+];
+
+/** R: `mean(x)` on R_MIXED_97. */
+const R_MIXED_97_MEAN = -15.44794416746366;
+
+/** R: `sum(x) / length(x)` on R_MIXED_97. Not R's mean; 46 ulps away. */
+const R_MIXED_97_NAIVE_MEAN = -15.447944167463742;
+
+/** R: `sd(x)` on R_MIXED_97. */
+const R_MIXED_97_SD = 295.76656192026246;
+
+/** R: `sd(x)` centered on the naive mean. Not R's sd; one ulp away. */
+const R_MIXED_97_NAIVE_SD = 295.76656192026252;
+
 describe("sum", () => {
   test("adds all values", () => {
     expect(sum([1, 2, 3.5])).toBe(6.5);
@@ -42,6 +168,36 @@ describe("mean", () => {
 
   test("returns NaN for an empty array", () => {
     expect(mean([])).toBeNaN();
+  });
+
+  // R's `mean.default` on a double vector is C `do_mean`
+  // (`src/main/summary.c`), which sums, divides, and then adds the mean of
+  // the residuals back. The correction is not a refinement a port may skip:
+  // it moves the result on 18053 of 20000 random vectors, by a median of 6
+  // units in the last place. See `MEAN-PARITY.html` in
+  // `.claude/plans/006-PLAN-mean-parity/`.
+  test("is R's corrected mean, not the naive sum over the count", () => {
+    expect(mean(R_MIXED_97)).toBe(R_MIXED_97_MEAN);
+  });
+
+  test("differs from the naive mean, which is why the correction is there", () => {
+    // The naive form is pinned too, so a failure here says which half moved:
+    // if `sum` still matches R, the defect is in the correction alone.
+    expect(sum(R_MIXED_97) / R_MIXED_97.length).toBe(R_MIXED_97_NAIVE_MEAN);
+    expect(mean(R_MIXED_97)).not.toBe(R_MIXED_97_NAIVE_MEAN);
+  });
+
+  test("returns one value unchanged, its own mean", () => {
+    expect(mean([7])).toBe(7);
+  });
+
+  // `do_mean` guards the second pass with `R_FINITE`, so a non-finite first
+  // pass is returned as it stands rather than turned into NaN by a residual
+  // of Inf - Inf.
+  test("returns a non-finite first pass unchanged, as R's guard does", () => {
+    expect(mean([1, Number.POSITIVE_INFINITY])).toBe(Number.POSITIVE_INFINITY);
+    expect(mean([Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])).toBeNaN();
+    expect(mean([1, Number.NaN])).toBeNaN();
   });
 });
 
@@ -65,6 +221,15 @@ describe("sd", () => {
   test("returns NaN below two values, where R returns NA", () => {
     expect(sd([7])).toBeNaN();
     expect(sd([])).toBeNaN();
+  });
+
+  // R's `sd()` is `sqrt(var())`, and `var()` goes to
+  // `src/library/stats/src/cov.c`, whose `MEAN` macro is the same corrected
+  // two-pass computation as `do_mean`. So `sd` centers on the corrected mean
+  // as well, and centering it on the naive one moves the last bit.
+  test("centers on R's corrected mean, as cov.c does", () => {
+    expect(sd(R_MIXED_97)).toBe(R_MIXED_97_SD);
+    expect(sd(R_MIXED_97)).not.toBe(R_MIXED_97_NAIVE_SD);
   });
 });
 

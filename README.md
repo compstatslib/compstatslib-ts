@@ -1,5 +1,6 @@
 # @compstats/core
 
+[![npm](https://img.shields.io/npm/v/@compstats/core)](https://www.npmjs.com/package/@compstats/core)
 [![CI](https://github.com/compstatslib/compstatslib-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/compstatslib/compstatslib-ts/actions/workflows/ci.yml)
 
 **Statistical routines for TypeScript, checked against R.**
@@ -15,7 +16,7 @@ The package brings statistical primitives and visualization tools to the TypeScr
 - **Matrices and linear algebra.** A plain matrix type with multiplication, transpose, inverse, determinant, condition number, and the two workhorse factorizations (QR and LU) that every solver and model fit is built on, plus the Cholesky factor and its inverse for symmetric positive-definite work, covariance and correlation matrices, symmetric eigendecomposition and principal components.
 - **Models.** Fit a linear model from a table of columns and a list of terms, interactions included, and read back coefficients, standard errors, t and p values, R², the F statistic, fitted values and residuals. Fit logistic regression using data with a binary column.
 - **Optimization.** A general-purpose minimizer, R's BFGS, ported from R's own routine, so the line search, the stopping rule and the tallies of function and gradient calls follow R's implementation. Users may supply a gradient, or let it take central finite differences at R's own step.
-- **Distributions and special functions.** The normal, chi-square and Student t distributions — densities, cumulative probabilities and quantiles — each following R's own source, with the chi-square carrying its noncentral case and the upper tail available as a real argument rather than one minus the lower, which is what keeps a probability of a billionth of a billionth from rounding away. The gamma and beta functions underneath them are exported in their own right, log-scaled and regularized where the tails need it.
+- **Distributions and special functions.** The normal, chi-square and Student t distributions — densities, cumulative probabilities and quantiles — each following R's own source, with the noncentral cases and the upper tail available as a real argument rather than one minus the lower, which is what keeps a probability of a billionth of a billionth from rounding away. The gamma and beta functions underneath them are exported in their own right, log-scaled and regularized where the tails need it.
 - **Random draws.** Reproducible draws from the uniform, normal, t, log-normal and Cauchy distributions, and sampling without replacement, all from a seeded generator you pass in, so a demonstration or a test repeats exactly.
 - **Summaries and shaping.** Means, medians, standard deviations and quantiles that follow the same definitions R uses; kernel density estimation with its bandwidth rule; histogram binning with its bin-count rule; and the algorithm that picks readable axis tick marks.
 - **Parity with R, and a choice about it.** Each routine is checked against values R itself produces, within a tolerance. Every routine that multiplies rounds each product once, through a software fused multiply-add, so a result is R's double bit for bit rather than Javascript's approximation. Where throughput matters more than exact precision, some routines take an option for plain arithmetic instead, yielding over an order of magnitude speedup in exchange for very small changes in the last few decimal places of precision.
@@ -237,7 +238,7 @@ The routines the plots are built on are exported in their own right, because an 
 | Group | Functions |
 | --- | --- |
 | Descriptives | `mean`, `median`, `sd`, `quantile`, `quantiles`, `meanAbsoluteDeviation` |
-| Student t distribution | `dt`, `pt`, `qt`, with the `normalCdf`, `incompleteBeta` and `inverseIncompleteBeta` they stand on |
+| Student t distribution | `dt`, `pt`, `qt`, central and noncentral, with `lowerTail` for a far tail, and the `normalCdf`, `incompleteBeta` and `inverseIncompleteBeta` they stand on |
 | Chi-square distribution | `pchisq`, `qchisq`, central and noncentral, with `lowerTail` for a far tail, and the `regularizedGammaP`, `regularizedGammaQ` and their log forms they stand on (R's `pgamma`) |
 | Normal distribution | `pnorm`, `qnorm`, with `mean`, `sd` and `lowerTail` |
 | Seeded random draws | `seededRng`, `runif`, `rnorm`, `rt`, `rlnorm`, `rcauchy`, `sampleWithoutReplacement` |
@@ -249,6 +250,8 @@ The routines the plots are built on are exported in their own right, because an 
 The names say which rule was followed, for anyone checking: `quantile` is type 7, `nclassSturges` is Sturges' rule, `bwNrd0` is the `nrd0` bandwidth, `rPretty` is R's `pretty()`, and the samplers take R's own parameters. The general matrix routines — solving, factorizing, model fitting, principal components — live under [Linear algebra](#linear-algebra) below.
 
 `pchisq`'s noncentral branch follows R's `pnchisq.c`, `qchisq` follows R's `qgamma`, and `qnorm` follows Wichura's Algorithm AS 241. Each is verified against R at a relative tolerance of 1e-12.
+
+`lowerTail: false` is worth reaching for rather than subtracting. On `pt` at 249 degrees of freedom, `1 - pt(t, df)` is already wrong in the eighth digit by `t = 6` and **returns exactly zero from `t = 9` onward**, where R returns 2.98e-17 and keeps going down; a one-sided bootstrap t statistic reaches that range, so the subtraction prints a p-value of 0 where R prints a number. `qt(p, df, ncp, { lowerTail: false })` likewise reaches critical values `qt(1 - p, df)` cannot — at `p = 1e-20` the complement rounds to 1 and the lower-tail call returns infinity. The noncentral branches complement internally, because R's own `pnt.c` and `qnt.c` do; the option still spares the caller the subtraction, it just cannot buy back precision there.
 
 `optim(par, fn, { gr, method: "BFGS", control })` **is** R's optimizer, not merely a routine that lands where R lands. It is `vmmin` from R's `src/main/optim.c`, R Core's arrangement of Nash's algorithm 21: the step-reduction line search, `reltol` on the objective as the sole stopping rule, the inverse-Hessian resets, and R's own accounting. So `counts` is a number to compare with R's — on the fixture cases the port reproduces `fncount` and `grcount` exactly, and reaches R's `par` and `value` bit for bit on the analytic-gradient runs.
 
@@ -286,7 +289,11 @@ A matrix is plain data, laid out as R lays it out — **column-major**, with `nr
 | Models | `modelMatrix`, `lm`, `predictLm`, `namedVector`, `lookup` |
 | Multivariate | `cov`, `cor`, `variance`, `scale`, `chol`, `chol2inv`, `eigenSymmetric`, `isSymmetric`, `prcomp` |
 
-`cov(x, y)` and `cor(x, y)` take two matrices. `x`'s columns become the result's rows, and `y`'s columns become its columns. `scale` returns `{ scaled, center, scale }`, with R's `scaled:center` and `scaled:scale` as plain fields. `chol` returns R's upper triangular factor, and `chol2inv` returns its inverse. `predictLm(fit, newdata)` rebuilds the design over a new frame and multiplies it by the fit's coefficients. A row with a missing value comes back as NaN.
+`cov(x, y)` and `cor(x, y)` take two matrices. `x`'s columns become the result's rows, and `y`'s columns become its columns.
+
+**`cov(x)` and `cov(x, x)` are different functions in R, not two spellings of one.** R's `cov.c` takes a different path for one matrix than for two — the one-matrix form reads each column's spread off the diagonal of the covariance it has just built, the two-matrix form walks the columns again — so they land on different last bits, and `cor` inherits the split. Porting `stats::cor(scores)` as `cor(scores, scores)` therefore does not reproduce R. A consumer that measured this on real data found the one-matrix form exact against R on every cell (16 of 16, and 25 of 25) where passing the matrix to itself managed 13 of 16 and 16 of 25; on two synthetic shapes the two-argument form was exact on 2 of 16 and 7 of 16 cells against 64 of 64. **Match the R call you are porting**: one argument in R means one argument here.
+
+What makes this worth stating rather than filing under rounding is that **a passing test suite will not tell you**. The consumer who found it had R goldens and a green suite before and after the correction, because the residual sat far below the bootstrap re-estimation error its fixtures were toleranced against. It became visible only on comparing `cor(x)` against R directly, on the actual matrix the code correlates. A consumer with feature-level fixtures has no reason to suspect the call form and no test they are likely to have written would raise it — so check the form against the R line, not against your suite. `scale` returns `{ scaled, center, scale }`, with R's `scaled:center` and `scaled:scale` as plain fields. `chol` returns R's upper triangular factor, and `chol2inv` returns its inverse. `predictLm(fit, newdata)` rebuilds the design over a new frame and multiplies it by the fit's coefficients. A row with a missing value comes back as NaN.
 
 `add`, `sub`, `mul`, and `div` are R's elementwise `+`, `-`, `*`, `/` on matrices. Extents must agree, and dimnames follow the first operand. `outer(x, y)` is R's outer product of two vectors.
 

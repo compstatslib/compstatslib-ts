@@ -63,6 +63,12 @@ type Column = ArrayLike<number>;
 /**
  * R's `mean()` as `cov()` computes it: the plain mean, refined by the mean
  * of the residuals. A non-finite first pass is returned as it is.
+ *
+ * This is the same computation as `mean` in `../arith.ts` — `cov.c`'s `MEAN`
+ * macro and `summary.c`'s `do_mean` have the same body. It is written out
+ * again here because it centers `Float64Array` column slices in a loop a
+ * caller runs inside a bootstrap; `mean` takes a `readonly number[]` and
+ * allocates for its residual pass. Change one and check the other.
  */
 function refinedMean(values: Column): number {
   const n = values.length;
