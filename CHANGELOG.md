@@ -46,6 +46,26 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
 
 ### Fixed
 
+* **`fromRows` is eight times faster, and nothing about its answer changed.**
+  It built a `Float64Array` per row on the way in, purely so that a hole in a
+  sparse array would read as NaN rather than be skipped by `forEach`. That
+  allocation cost more than the rest of the function put together: 23.2 µs
+  against 2.9 µs on a 250 x 5 frame, 505 µs against 70 µs on 2000 x 24,
+  measured on Bun 1.3.14. Reading the entry as `row[j]` gives `undefined`,
+  which a `Float64Array` stores as NaN on its own, so the semantics survive
+  the allocation going away — and the sparse case is now pinned across more
+  than one row, where the hole has to survive the scatter down a column.
+
+  This showed up as a consumer's 3.3x regression on adopting `cov`: the
+  covariance itself was *faster* than the hand-written loop it replaced
+  (7.9 µs against 10.0 µs), and the conversion at the boundary was 100% of
+  the loss. `fromRows` now runs about 3.7 µs on that shape against 3.1 µs for
+  filling a buffer by hand and adopting it with `withDim`, so the boundary
+  cost is gone and the obvious constructor is the fast one. Its docstring now
+  says what `withDim` is actually for — owning the buffer across
+  replications, with the aliasing that implies — rather than leaving a reader
+  to discover it as the fast path.
+
 * **`mean` is now R's `mean()`, and `sd` moves with it.** The exported `mean`
   computed `sum(x) / n`, which is not what R computes. R's `mean.default` on a
   double vector goes to C `do_mean` (`src/main/summary.c`) and makes a second
@@ -110,6 +130,15 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   `Inf - Inf` and turn R's `Inf` into NaN for `mean(c(1, Inf))`.
 
 ### Documented
+
+* **The README says that `cov(x)` and `cov(x, x)` are different functions in
+  R**, rather than leaving it as a fine point about `fma` defaults in a
+  changelog. R's `cov.c` takes a different path for one matrix than for two,
+  so porting `stats::cor(scores)` as `cor(scores, scores)` does not reproduce
+  R. A consumer that had done exactly that measured the one-matrix form exact
+  on every cell (16 of 16, 25 of 25) where the two-argument form managed 13
+  of 16 and 16 of 25. This is a defect a consumer can have, not a rounding
+  preference.
 
 * An npm version badge in the README, above the existing CI one. It reads the
   registry through shields.io rather than hardcoding a number, so it cannot go
