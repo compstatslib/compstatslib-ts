@@ -138,7 +138,11 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   R. A consumer that had done exactly that measured the one-matrix form exact
   on every cell (16 of 16, 25 of 25) where the two-argument form managed 13
   of 16 and 16 of 25. This is a defect a consumer can have, not a rounding
-  preference.
+  preference — and the README says so alongside the reason it survives a
+  green suite: that consumer's R goldens passed before and after the
+  correction, because the residual sat far below the bootstrap
+  re-estimation error its fixtures were toleranced against. No test a
+  consumer is likely to have written would raise it.
 
 * An npm version badge in the README, above the existing CI one. It reads the
   registry through shields.io rather than hardcoding a number, so it cannot go
