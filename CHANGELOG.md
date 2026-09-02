@@ -117,6 +117,16 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   next touch the code, so upgrade with the fixture run rather than ahead of
   it.
 
+  **If you upgraded and `mean` did not move, check for a nested copy before
+  concluding the fix did not land.** Taking `^0.7.0` while an intermediate
+  dependency still pins `^0.6.x` installs *both* — the new one at top level
+  for your own code, the old one nested under that dependency for its own —
+  and anything you reach through the intermediate's facade still returns the
+  uncorrected value from a package tree that looks upgraded. `npm ls
+  @compstats/core` shows it; nothing else will. It resolves when the
+  intermediate widens its own range, not when you widen yours. Reported by a
+  consumer two levels down, where `@seminr/core` sat in the middle.
+
   **Check for `colMeans` before you delegate.** A consumer deleting a local
   mean in favour of this one should look at what each call site ports. `cov`,
   `cor`, `var` and `sd` are safe to delegate; anything porting R's `scale()`,
