@@ -101,6 +101,13 @@ describe("matrix()", () => {
     expect(columnMajor(matrix(sparse, { nrow: 2, byrow: true }))).toEqual([1, 3, NaN, 4]);
     expect(columnMajor(fromRows([sparse]))).toEqual([1, NaN, 3, 4]);
     expect(columnMajor(fromColumns([sparse]))).toEqual([1, NaN, 3, 4]);
+    // More than one row, so the hole has to survive the scatter down a
+    // column rather than a single straight fill. `fromRows` no longer builds
+    // a typed array per row to get this; it relies on a Float64Array storing
+    // `undefined` as NaN. See the comment at the function.
+    expect(columnMajor(fromRows([sparse, [5, 6, 7, 8]]))).toEqual([
+      1, 5, NaN, 6, 3, 7, 4, 8,
+    ]);
   });
 
   test("copies its dimnames", () => {

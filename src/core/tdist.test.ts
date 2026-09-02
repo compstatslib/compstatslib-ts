@@ -606,3 +606,220 @@ describe("qt with a non-centrality parameter", () => {
     expect(qt(0.5, 5, Number.NaN)).toBeNaN();
   });
 });
+
+/**
+ * `lowerTail: false` on `pt` and `qt`.
+ *
+ * Source: `../compstatslib/conformance-fixtures/tdist.R` Section 4, captured
+ * in `.claude/plans/006-PLAN-mean-parity/tdist-upper-tail-fixtures.md`.
+ *
+ * The reason this exists is that a consumer without the option writes
+ * `1 - pt(t, df)`, and past about t = 9 at df = 249 that returns **exactly
+ * zero** where R returns a small positive number — a p-value of 0 in a
+ * results table where R prints 2.6e-20. The assertions below are relative,
+ * not the shared `expectCloseToR`, whose `max(1, |expected|)` floor would
+ * pass any answer at all down there.
+ */
+
+/** Assert agreement with R relative to the expected magnitude, at every scale. */
+function expectRelativeToR(
+  actual: number,
+  expected: number,
+  tolerance = 1e-12,
+): void {
+  if (expected === 0) {
+    expect(actual).toBe(0);
+    return;
+  }
+  expect(Math.abs(actual - expected) / Math.abs(expected)).toBeLessThanOrEqual(
+    tolerance,
+  );
+}
+
+/** R: `pt(t, 249, lower.tail = FALSE)`. */
+const UPPER_TAIL_249: readonly (readonly [number, number])[] = [
+  [0.5, 0.30875832555657268],
+  [1, 0.15914065075790043],
+  [2, 0.023293229061454094],
+  [4, 4.1779540952247692e-5],
+  [6, 3.4596811157398058e-9],
+  [8, 2.3556690070268614e-14],
+  [9, 2.978897426344994e-17],
+  [10, 2.5979623701972471e-20],
+  [12, 8.7577609322068984e-27],
+  [20, 5.1138751504307851e-54],
+  [40, 1.0633769301793473e-110],
+];
+
+describe("pt with lowerTail: false", () => {
+  test("matches R across the far upper tail at df = 249", () => {
+    for (const [t, upper] of UPPER_TAIL_249) {
+      expectRelativeToR(pt(t, 249, undefined, { lowerTail: false }), upper);
+    }
+  });
+
+  // The point of the option. Every one of these is a live p-value in a
+  // consumer's results table.
+  test("stays positive where one minus the lower tail collapses to zero", () => {
+    for (const t of [9, 10, 12, 20, 40]) {
+      expect(1 - pt(t, 249)).toBe(0);
+      expect(pt(t, 249, undefined, { lowerTail: false })).toBeGreaterThan(0);
+    }
+  });
+
+  test("takes the near-one side below zero, where R complements instead", () => {
+    // R: pt(t, 249, lower.tail = FALSE) at t = -20, -8, -2, -0.5, 0.
+    expect(pt(-20, 249, undefined, { lowerTail: false })).toBe(1);
+    expectRelativeToR(
+      pt(-8, 249, undefined, { lowerTail: false }),
+      0.99999999999997646,
+    );
+    expectRelativeToR(
+      pt(-2, 249, undefined, { lowerTail: false }),
+      0.97670677093854597,
+    );
+    expectRelativeToR(
+      pt(-0.5, 249, undefined, { lowerTail: false }),
+      0.69124167444342732,
+    );
+    expect(pt(0, 249, undefined, { lowerTail: false })).toBe(0.5);
+  });
+
+  test("matches R at the ends and on a heavy tail", () => {
+    expect(pt(Number.POSITIVE_INFINITY, 249, undefined, { lowerTail: false }))
+      .toBe(0);
+    expect(pt(Number.NEGATIVE_INFINITY, 249, undefined, { lowerTail: false }))
+      .toBe(1);
+    // df = 1 is Cauchy; R: 0.00031830978008055887.
+    expectRelativeToR(
+      pt(1000, 1, undefined, { lowerTail: false }),
+      0.00031830978008055887,
+    );
+    // Past 1e154 the squared t overflows and R reports the tail as 0.
+    expect(pt(1e150, 3, undefined, { lowerTail: false })).toBe(0);
+  });
+
+  test("defaults to the lower tail and leaves it unchanged", () => {
+    expect(pt(2, 249, undefined, { lowerTail: true })).toBe(pt(2, 249));
+    expect(pt(2, 249, undefined, {})).toBe(pt(2, 249));
+  });
+
+  test("reports NaN for a bad argument, whichever tail is asked for", () => {
+    expect(pt(1, 0, undefined, { lowerTail: false })).toBeNaN();
+    expect(pt(Number.NaN, 5, undefined, { lowerTail: false })).toBeNaN();
+  });
+});
+
+describe("pt with a non-centrality parameter and lowerTail: false", () => {
+  // R's `pnt.c` computes the lower tail and complements it with its own
+  // `0.5 - p + 0.5`, so the non-central upper tail carries the subtraction in
+  // R too and a port gains no precision by computing it another way.
+  // R: pt(t, df, ncp, lower.tail = FALSE).
+  test("matches R at df = 10, ncp = 2", () => {
+    expectRelativeToR(pt(-1, 10, 2, { lowerTail: false }), 0.99818356658941032);
+    expectRelativeToR(pt(0, 10, 2, { lowerTail: false }), 0.97724986805182079);
+    expectRelativeToR(pt(2, 10, 2, { lowerTail: false }), 0.51902684718230263);
+    expectRelativeToR(pt(5, 10, 2, { lowerTail: false }), 0.023812745853646122);
+    expectRelativeToR(
+      pt(12, 10, 2, { lowerTail: false }),
+      2.9989495975879521e-5,
+    );
+  });
+
+  test("matches R at df = 249, ncp = 3", () => {
+    expectRelativeToR(pt(0, 249, 3, { lowerTail: false }), 0.9986501019683699);
+    expectRelativeToR(pt(2, 249, 3, { lowerTail: false }), 0.84086298675225191);
+    expectRelativeToR(
+      pt(5, 249, 3, { lowerTail: false }),
+      0.025768429090767708,
+    );
+  });
+
+  // A looser bound out on this tail, for a reason the module docstring
+  // states: the non-central series builds its terms by repeated subtraction
+  // and goes to noise below about 1e-16, which is R's own "full precision may
+  // not have been achieved in 'pnt{final}'" warning — R emits it on exactly
+  // this call while generating the fixture. The port inherits R's limit, so
+  // the residual 4e-12 here is the shared floor of both implementations and
+  // not a defect in the tail option, which only chooses which side to return.
+  test("matches R at a negative non-centrality, df = 8, ncp = -2.5", () => {
+    expectRelativeToR(
+      pt(-1, 8, -2.5, { lowerTail: false }),
+      0.068680085038390709,
+    );
+    expectRelativeToR(
+      pt(2, 8, -2.5, { lowerTail: false }),
+      2.6551746560965483e-5,
+      1e-9,
+    );
+  });
+
+  test("still sums to one with the lower tail", () => {
+    for (const t of [-1, 0, 2, 5]) {
+      expectRelativeToR(
+        pt(t, 25, 4) + pt(t, 25, 4, { lowerTail: false }),
+        1,
+        1e-14,
+      );
+    }
+  });
+});
+
+describe("qt with lowerTail: false", () => {
+  // R's `qt.c` reaches the same magnitude from either tail and differs only
+  // in sign, so the upper quantile is the negated lower one. R: identical()
+  // is TRUE at every probability in Section 4c.
+  // R: qt(p, 249, lower.tail = FALSE).
+  test("matches R across the upper tail at df = 249", () => {
+    expectRelativeToR(qt(0.25, 249, undefined, { lowerTail: false }),
+      0.67547631275267406);
+    expectRelativeToR(qt(0.05, 249, undefined, { lowerTail: false }),
+      1.6509961516774643);
+    expectRelativeToR(qt(0.025, 249, undefined, { lowerTail: false }),
+      1.9695368676403502);
+    expectRelativeToR(qt(0.001, 249, undefined, { lowerTail: false }),
+      3.1232837188348692);
+    expectRelativeToR(qt(1e-8, 249, undefined, { lowerTail: false }),
+      5.8003559238227584);
+    expectRelativeToR(qt(1e-20, 249, undefined, { lowerTail: false }),
+      10.13217266308768);
+  });
+
+  // The subtraction a consumer writes instead. At 1e-20 the complement is
+  // exactly 1 and R's own lower-tail quantile there is infinite.
+  test("reaches quantiles that qt(1 - p) cannot", () => {
+    expect(qt(1 - 1e-20, 249)).toBe(Number.POSITIVE_INFINITY);
+    expect(qt(1e-20, 249, undefined, { lowerTail: false })).toBeLessThan(11);
+  });
+
+  test("gives R's positive zero at the median, not a negative one", () => {
+    expect(Object.is(qt(0.5, 249, undefined, { lowerTail: false }), 0)).toBe(
+      true,
+    );
+  });
+
+  test("reports infinity at the ends, the other way round from the lower tail", () => {
+    expect(qt(0, 249, undefined, { lowerTail: false })).toBe(
+      Number.POSITIVE_INFINITY,
+    );
+    expect(qt(1, 249, undefined, { lowerTail: false })).toBe(
+      Number.NEGATIVE_INFINITY,
+    );
+  });
+
+  // R: qt(p, df, ncp, lower.tail = FALSE) at df = 10, ncp = 2 and df = 8,
+  // ncp = -2.5.
+  test("matches R with a non-centrality parameter", () => {
+    expectRelativeToR(qt(0.025, 10, 2, { lowerTail: false }), 4.9578356263760099,
+      1e-9);
+    expectRelativeToR(qt(0.5, 10, 2, { lowerTail: false }), 2.0536911511195228,
+      1e-9);
+    expectRelativeToR(qt(0.975, 8, -2.5, { lowerTail: false }),
+      -6.0666505756832692, 1e-9);
+  });
+
+  test("defaults to the lower tail and leaves it unchanged", () => {
+    expect(qt(0.025, 249, undefined, { lowerTail: true })).toBe(qt(0.025, 249));
+    expect(qt(0.025, 249, undefined, {})).toBe(qt(0.025, 249));
+  });
+});

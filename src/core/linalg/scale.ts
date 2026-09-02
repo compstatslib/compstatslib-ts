@@ -22,7 +22,11 @@
  * both take `na.rm = TRUE`).
  *
  * The means and the sums of squares are plain running sums, as R's are.
- * `colMeans` takes the plain mean, not the refined mean that `cov()` takes.
+ * `colMeans` takes the plain mean, not the refined mean that `cov()` and
+ * `mean()` take: R's `do_colsum` (`src/main/array.c`) makes one pass and
+ * stops, where `cov.c` and `summary.c` both make a correcting second one.
+ * **So this must not be routed through `mean` in `../arith.ts`**, which would
+ * break `scale`'s parity — and `prcomp`'s with it — in the other direction.
  * Index loops throughout: the loops walk a column of a column-major matrix
  * by position, and a caller runs them on every bootstrap replication.
  * (CLAUDE.md allows an index loop with a stated reason; that is the reason.)

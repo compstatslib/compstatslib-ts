@@ -23,6 +23,8 @@
  * absolute terms only.
  */
 
+import { withoutNegativeZero } from "./arith.js";
+import type { TailOptions } from "./chisq.js";
 import {
   incompleteBetaSplit,
   inverseIncompleteBeta,
@@ -64,36 +66,91 @@ export function dt(x: number, df: number, ncp?: number): number {
 /**
  * The share of the distribution below x, R's `pt()`.
  *
+ * **Ask for the upper tail rather than subtracting the lower one from 1.**
+ * `{lowerTail: false}` is not a convenience wrapper around `1 - pt(x, df)`;
+ * for a positive x it is the number the incomplete beta produces directly,
+ * and the subtraction cannot reach it. At df = 249, `1 - pt(t, df)` is
+ * already wrong in the eighth digit by t = 6, in the fourth by t = 8, and
+ * **returns exactly zero from t = 9 onward**, where R returns 2.98e-17,
+ * 2.60e-20, 8.76e-27 and on down. A one-sided bootstrap t statistic on a
+ * strongly predictive model reaches that range, so the difference is a
+ * p-value of 0 in a results table where R prints a number.
+ *
+ * Below zero it is the *lower* tail that a port must not build by
+ * subtraction, and R's `pt.c` flips which side it complements at `x <= 0`
+ * rather than complementing a small number. This follows it.
+ *
+ * The non-central path is the exception, and deliberately: R's own `pnt.c`
+ * computes the lower tail and complements it with its `0.5 - p + 0.5` idiom,
+ * so matching R there means complementing too. There is no precision to be
+ * had by computing that tail another way, only a divergence from R.
+ *
  * @param x Where to evaluate the distribution.
  * @param df Degrees of freedom. Any positive number, whole or not.
  * @param ncp The non-centrality. Left out, or 0, gives the central case.
+ * @param options `{lowerTail: false}` for the mass above x, as R's
+ *   `lower.tail = FALSE` does. The default is the mass below it.
  * @returns A probability between 0 and 1, or NaN if df is zero or less.
  */
-export function pt(x: number, df: number, ncp?: number): number {
+export function pt(
+  x: number,
+  df: number,
+  ncp?: number,
+  options?: TailOptions,
+): number {
   if (isBadArgument(x, df, ncp)) {
     return Number.NaN;
   }
+  const lowerTail = options?.lowerTail ?? true;
   return isNonCentral(ncp)
-    ? nonCentralProbability(x, df, ncp)
-    : centralProbability(x, df);
+    ? nonCentralProbability(x, df, ncp, lowerTail)
+    : centralProbability(x, df, lowerTail);
 }
 
 /**
  * The value with probability p below it, R's `qt()`.
  *
- * @param p A probability between 0 and 1. The ends give infinities, as in R.
+ * `{lowerTail: false}` gives the value with probability p *above* it, which
+ * is what a critical value is. It reaches quantiles `qt(1 - p, df)` cannot:
+ * at p = 1e-20 the complement rounds to exactly 1 and the lower-tail call
+ * returns infinity, where R returns 10.13.
+ *
+ * The central case takes the symmetry of the distribution — the upper
+ * quantile is the negated lower one — rather than complementing p. That is
+ * not an approximation: R's `qt.c` reaches the same magnitude from either
+ * tail and differs only in sign, and Section 4c of the conformance fixtures
+ * pins `identical()` as TRUE at every probability tested. The one place it
+ * needs care is the median, where the negation would hand back a negative
+ * zero and R gives a positive one.
+ *
+ * The non-central case complements p with R's own `0.5 - p + 0.5`, which is
+ * what `R_DT_qIv` does before `qnt.c` starts its search.
+ *
+ * @param p A probability between 0 and 1. The ends give infinities, as in R,
+ *   pointing the opposite way under `{lowerTail: false}`.
  * @param df Degrees of freedom. Any positive number, whole or not.
  * @param ncp The non-centrality. Left out, or 0, gives the central case.
+ * @param options `{lowerTail: false}` to read p as the mass above the
+ *   quantile, as R's `lower.tail = FALSE` does.
  * @returns The quantile, or NaN for a p outside 0 to 1 or a df of zero or
  *   less.
  */
-export function qt(p: number, df: number, ncp?: number): number {
+export function qt(
+  p: number,
+  df: number,
+  ncp?: number,
+  options?: TailOptions,
+): number {
   if (isBadArgument(p, df, ncp) || p < 0 || p > 1) {
     return Number.NaN;
   }
-  return isNonCentral(ncp)
-    ? nonCentralQuantile(p, df, ncp)
-    : centralQuantile(p, df);
+  const lowerTail = options?.lowerTail ?? true;
+  if (isNonCentral(ncp)) {
+    return nonCentralQuantile(lowerTail ? p : 0.5 - p + 0.5, df, ncp);
+  }
+  return lowerTail
+    ? centralQuantile(p, df)
+    : withoutNegativeZero(-centralQuantile(p, df));
 }
 
 /**
@@ -121,18 +178,28 @@ function centralDensity(x: number, df: number): number {
  * Working from whichever tail holds the smaller mass avoids subtracting two
  * nearly equal numbers, which is what makes the far tails accurate.
  */
-function centralProbability(x: number, df: number): number {
+function centralProbability(
+  x: number,
+  df: number,
+  lowerTail: boolean,
+): number {
   if (x === 0) {
     return 0.5;
   }
   if (x === Number.POSITIVE_INFINITY) {
-    return 1;
+    return lowerTail ? 1 : 0;
   }
   if (x === Number.NEGATIVE_INFINITY) {
-    return 0;
+    return lowerTail ? 0 : 1;
   }
   const tail = upperTail(Math.abs(x), df);
-  return x < 0 ? tail : 1 - tail;
+  // R's `pt.c` evaluates the mass above |x| and then flips which tail it
+  // complements at x <= 0, so the subtraction is always taken of the side
+  // near one and never of the small one. `0.5 - t + 0.5` is R's own spelling
+  // of the complement (`R_D_Cval`), kept because it is what the pinned
+  // doubles were produced by.
+  const complement = x < 0 ? !lowerTail : lowerTail;
+  return complement ? 0.5 - tail + 0.5 : tail;
 }
 
 /**
@@ -261,12 +328,17 @@ const SQRT_TWO_OVER_PI = Math.sqrt(2 / Math.PI);
  * reflected through the origin along with the non-centrality. That names the
  * other tail, which the caller flips back.
  */
-function nonCentralProbability(x: number, df: number, ncp: number): number {
+function nonCentralProbability(
+  x: number,
+  df: number,
+  ncp: number,
+  lowerTail: boolean,
+): number {
   if (x === Number.POSITIVE_INFINITY) {
-    return 1;
+    return lowerTail ? 1 : 0;
   }
   if (x === Number.NEGATIVE_INFINITY) {
-    return 0;
+    return lowerTail ? 0 : 1;
   }
 
   const reflected = x < 0;
@@ -277,7 +349,12 @@ function nonCentralProbability(x: number, df: number, ncp: number): number {
       ? normalApproximation(t, df, delta)
       : lenthSeries(t, df, delta);
 
-  return reflected ? 1 - lower : lower;
+  // R's `pnt.c` xors the requested tail with the reflection and then hands
+  // the result to `R_DT_val`, which complements as `0.5 - p + 0.5`. Both
+  // tails therefore carry a subtraction here, in R as much as in this port —
+  // the series produces one side only, and there is nothing to be gained by
+  // computing the other one directly.
+  return lowerTail !== reflected ? lower : 0.5 - lower + 0.5;
 }
 
 /**
@@ -376,8 +453,8 @@ function nonCentralDensity(x: number, df: number, ncp: number): number {
   if (Math.abs(x) > Math.sqrt(df * Number.EPSILON)) {
     const stepped = x * Math.sqrt((df + 2) / df);
     const difference =
-      nonCentralProbability(stepped, df + 2, ncp) -
-      nonCentralProbability(x, df, ncp);
+      nonCentralProbability(stepped, df + 2, ncp, true) -
+      nonCentralProbability(x, df, ncp, true);
     return (df / Math.abs(x)) * Math.abs(difference);
   }
 
@@ -411,14 +488,14 @@ function nonCentralQuantile(p: number, df: number, ncp: number): number {
   let upper = Math.max(1, ncp);
   while (
     Number.isFinite(upper) &&
-    nonCentralProbability(upper, df, ncp) < p
+    nonCentralProbability(upper, df, ncp, true) < p
   ) {
     upper *= 2;
   }
   let lower = Math.min(-1, -ncp);
   while (
     Number.isFinite(lower) &&
-    nonCentralProbability(lower, df, ncp) > p
+    nonCentralProbability(lower, df, ncp, true) > p
   ) {
     lower *= 2;
   }
@@ -428,7 +505,7 @@ function nonCentralQuantile(p: number, df: number, ncp: number): number {
   // Index loop with a stated reason: this refines a single root and stops on
   // a convergence test.
   for (let step = 0; step < QUANTILE_MAX_STEPS; step += 1) {
-    const residual = nonCentralProbability(t, df, ncp) - p;
+    const residual = nonCentralProbability(t, df, ncp, true) - p;
     if (residual < 0) {
       lower = t;
     } else {

@@ -10,9 +10,62 @@ export function sum(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0);
 }
 
-/** Return the arithmetic mean. Return NaN for an empty array. */
+/**
+ * Return the arithmetic mean, as R's `mean()` computes it.
+ *
+ * **R has more than one arithmetic mean, and this is the corrected one.**
+ * `mean.default` on a double vector goes to C `do_mean`
+ * (`src/main/summary.c`), which sums, divides, and then makes a *second* pass
+ * adding the mean of the residuals back:
+ *
+ * ```c
+ * for (i = 0; i < n; i++) s += x[i];
+ * s /= n;
+ * if (R_FINITE((double) s)) {
+ *     for (i = 0; i < n; i++) t += (x[i] - s);
+ *     s += t/n;
+ * }
+ * ```
+ *
+ * The residuals sum to zero in exact arithmetic, so the correction looks like
+ * a no-op and reads like one. It is not. The first pass rounds once per
+ * addition and its error lands in `s`; the residuals `x[i] - s` are computed
+ * against that rounded `s`, so their sum recovers the error rather than
+ * cancelling. **`sum(x) / n` disagrees with R on 18053 of 20000 random
+ * vectors**, by a median of 6 units in the last place and by far more where
+ * cancellation leaves the mean near zero. A caller comparing two means with a
+ * strict inequality — a bootstrap count, say — flips on that. See
+ * `.claude/plans/006-PLAN-mean-parity/MEAN-PARITY.html` for the argument in
+ * full, and `arith-fixtures.md` beside it for R's pinned values.
+ *
+ * The guard matters as much as the correction: a non-finite first pass is
+ * returned as it stands, because the residual of an infinity would be
+ * `Inf - Inf` and turn R's `Inf` into NaN.
+ *
+ * **Which R mean a routine wants is a parity decision, not a style one.**
+ * Two other places in this package take a different one, and neither is a
+ * bug:
+ *
+ * - `sd` below, and `cov`/`cor`/`var` in `core/linalg/cov.ts`, go to R's
+ *   `src/library/stats/src/cov.c`, whose `MEAN` macro is this same corrected
+ *   computation. They center on this mean. `cov.ts` writes its own
+ *   `refinedMean` over `ArrayLike` rather than calling this one, because it
+ *   centers `Float64Array` column slices in a loop a caller runs inside a
+ *   bootstrap.
+ * - `colMeans` in `core/linalg/scale.ts` is R's `do_colsum`
+ *   (`src/main/array.c`), a single pass with **no** correction. `scale()` and
+ *   so `prcomp()` center on that one, and routing them through this function
+ *   would break their parity in the other direction.
+ *
+ * @param values The observations.
+ * @returns The mean. An empty array gives NaN, where R gives NaN too.
+ */
 export function mean(values: readonly number[]): number {
-  return sum(values) / values.length;
+  const first = sum(values) / values.length;
+  if (!Number.isFinite(first)) {
+    return first;
+  }
+  return first + sum(values.map((value) => value - first)) / values.length;
 }
 
 /**
@@ -75,6 +128,13 @@ export function zipWith<A, B, C>(
 
 /**
  * Return the standard deviation, with the n − 1 denominator of R's `sd()`.
+ *
+ * R's `sd()` is `sqrt(var())`, and `var()` goes to
+ * `src/library/stats/src/cov.c`, whose `MEAN` macro is the same corrected
+ * two-pass mean as `do_mean`. **So this centers on `mean` above, and that is
+ * the parity-preserving choice rather than a convenience.** Centering on the
+ * uncorrected `sum(x) / n` moves R's `sd` by a unit in the last place on the
+ * conformance vector, and by up to three on a sweep of 20000.
  *
  * @param values The observations.
  * @returns The standard deviation, or NaN below two values. R returns NA
