@@ -3,7 +3,46 @@
 All notable changes to `@compstats/core`. The R package this ports keeps its
 own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/main/NEWS.md).
 
-## Unreleased
+## 0.7.0
+
+### Added
+
+* **`pt` and `qt` take `{lowerTail: false}`**, as `pchisq`/`qchisq` and
+  `pnorm`/`qnorm` already did. The t distribution was the only one of the
+  three without it, which left a consumer porting R's
+  `pt(t, df, lower.tail = FALSE)` writing `1 - pt(t, df)` instead. That
+  subtraction is not a rounding nuisance. At `df = 249` it is wrong in the
+  eighth digit by `t = 6`, in the fourth by `t = 8`, and **returns exactly
+  zero from `t = 9` onward**, where R returns 2.98e-17, 2.60e-20, 8.76e-27
+  and on down. A one-sided bootstrap t statistic on a strongly predictive
+  model reaches that range, so the difference is a p-value of 0 printed in a
+  results table where R prints a number. Reported by the `seminrExtras-ts`
+  port against its CVPAT one-sided statistics.
+
+  The signature is `pt(x, df, ncp?, options?)` and `qt(p, df, ncp?, options?)`,
+  taking the same exported `TailOptions` as `pchisq`. The central upper tail
+  is the number the incomplete beta produces directly, not a complement;
+  below zero it is the lower tail that must not be built by subtraction, and
+  the port flips which side it complements exactly where R's `pt.c` does.
+  `qt`'s upper quantile is the negated lower one, which is R's own answer bit
+  for bit — the fixtures pin `identical()` as TRUE at every probability
+  tested — with the median special-cased so it returns R's positive zero
+  rather than a negative one. `qt(p, df, {lowerTail: false})` reaches
+  critical values `qt(1 - p, df)` cannot: at `p = 1e-20` the complement
+  rounds to 1 and the lower-tail call returns infinity, where R returns
+  10.13.
+
+  **The noncentral branches complement internally, and that is parity rather
+  than laziness.** R's own `pnt.c` computes the lower tail and complements it
+  with its `0.5 - p + 0.5` idiom, and `qnt.c` converts through `R_DT_qIv`
+  before it starts searching. Computing those tails another way would move
+  the port away from R, not toward the truth. The option still spares the
+  caller the subtraction; it just cannot buy back precision there.
+
+  New Section 4 in the R package's `conformance-fixtures/tdist.R`, pinning
+  both tails across the far upper tail, the negative side, the ends, a Cauchy
+  `df = 1`, the noncentral combinations, and the `1 - pt()` column beside
+  R's own answer so the divergence is visible rather than asserted.
 
 ### Fixed
 
@@ -44,11 +83,14 @@ own history in [`NEWS.md`](https://github.com/compstatslib/compstatslib/blob/mai
   and the standard deviation of a 97-value vector as exact doubles, and pins
   the naive values beside them so a future failure says which half moved.
 
-  **Read this as more than a patch bump if you re-export `mean` or `sd`.** A
-  patch version says nothing broke; it does not say nothing *moved*, and both
-  of these moved for almost every input. A consumer that re-exports either
-  symbol republishes the new value under its own name, so its own pinned
-  fixtures shift on the upgrade even though it changed no code of its own —
+  **This release is numbered 0.7.0 because of this entry, not because of the
+  addition above.** Nothing here breaks a caller, so semver would allow a
+  patch — but a patch number says nothing broke, and it does not say nothing
+  *moved*. Both of these moved for almost every input.
+
+  That matters most if you re-export `mean` or `sd`. A consumer that does
+  republishes the new value under its own name, so its own pinned fixtures
+  shift on the upgrade even though it changed no code of its own —
   `@seminr/core`'s exported `mean` is the known case. A consumer that pins
   against R gains; one that pinned against this package's previous output
   needs to re-pin. Either way the shift arrives when you bump, not when you
